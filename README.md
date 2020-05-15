@@ -97,3 +97,10 @@ ROS_MASTER_URI=http://localhost:11311
 source ./docker/scripts/srcp2_setup.bash
 rostopic list
 ```
+
+
+### srcp2-competitors gitlab repo submodule
+After cloning this repository you need to initialize and update the submodule(s)
+``` BASH
+git submodule update --init --recursive
+```
