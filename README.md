@@ -68,10 +68,16 @@ docker login -u swarmathon
 ```
 * Use the SC2 swarmathon team password
 
-#### Clone the Gitlab repository
+#### Clone the Github repository
+```BASH
+git clone git@github.com:BCLab-UNM/SC2.git #ssh
+#or
+git clone https://github.com/BCLab-UNM/SC2.git #https
+
+cd SC2 # enter the repo directory
+git submodule update --init --recursive #After cloning this repository you need to initialize and update the submodule(s)
 ```
-git clone https://gitlab.com/scheducation/srcp2-competitors.git 
-```
+
 #### Download files and start simulation
 * In terminal move to the srcp2-competitors folder (default command below, if you put it somewhere else, go there)
 ```
