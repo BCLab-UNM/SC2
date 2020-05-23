@@ -68,6 +68,9 @@ docker login -u swarmathon
 ```
 * Use the SC2 swarmathon team password
 
+#### Setup gitlab ssh keys
+We will use ssh keys to access the gitlab submodule. Follow these instructions: https://docs.gitlab.com/ee/ssh/
+
 #### Clone the Github repository
 ```BASH
 git clone git@github.com:BCLab-UNM/SC2.git #ssh
