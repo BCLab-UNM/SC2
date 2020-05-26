@@ -2,23 +2,19 @@
 
 import rospy
 from sensor_msgs.msg import Imu, LaserScan, JointState
-# from srcp2_msgs import VolSensorMsg
-
-
-def callback(data):
-    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+from srcp2_msgs.msg import VolSensorMsg
 
 def imuCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data)
+    rospy.loginfo(rospy.get_caller_id() + "IMU data: %s", data)
 
 def laserScanCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data)
+    rospy.loginfo(rospy.get_caller_id() + "Laser Scan data: %s", data)
 
 def volatileSensorCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data)
+    rospy.loginfo(rospy.get_caller_id() + "Volatile Sensor data: %s", data)
 
 def jointStatesCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data)
+    rospy.loginfo(rospy.get_caller_id() + "Joint States data: %s", data)
 
 def sensorMonitor():
 
@@ -30,7 +26,7 @@ def sensorMonitor():
 
     rospy.Subscriber("/{}/imu".format(name), Imu, imuCallback)
     rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, laserScanCallback)
-    # rospy.Subscriber("/{}/volatile_gisensor".format(name), VolSensorMsg, volatileSensorCallback)
+    rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, volatileSensorCallback)
     rospy.Subscriber("/{}/joint_states".format(name), Imu, jointStatesCallback)
 
     # spin() simply keeps python from exiting until this node is stopped
