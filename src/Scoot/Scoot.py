@@ -1,19 +1,29 @@
 import rospy
 import math
+import tf
 from std_msgs.msg import String, Float64
 from srcp2_msgs import msg, srv
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Pose2D
+from nav_msgs.msg import Odometry
+from gazebo_msgs.srv import GetModelState
 
 class Scoot(object):
     def __init__(self, rover):
         self.rover_name = None
+        
         self.TURN_SPEED = 0
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
+
         self.skidTopic = None
         self.sensorControllTopic = None
+
         self.lightService = None
         self.breaksService = None
+        self.localizationService = None
+        self.modelStateService = None
+
+        self.truePoseCalled = False
     
     def start(self):
         '''
@@ -31,10 +41,15 @@ class Scoot(object):
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         self.skidTopic = rospy.Publisher('/'+self.rover_name+'/skid_cmd_vel', Twist, queue_size=10)
         self.sensorControllTopic = rospy.Publisher('/'+self.rover_name+'/sensor_controller/command', Float64, queue_size=10)
+
         rospy.wait_for_service('/'+self.rover_name+'/toggle_light')
         self.lightService = rospy.ServiceProxy('/'+self.rover_name+'/toggle_light', srv.ToggleLightSrv)
         rospy.wait_for_service('/'+self.rover_name+'/brake_rover')
         self.breaksService = rospy.ServiceProxy('/'+self.rover_name+'/brake_rover', srv.BrakeRoverSrv)
+        rospy.wait_for_service('/'+self.rover_name+'/get_true_pose')
+        self.localizationService = rospy.ServiceProxy('/'+self.rover_name+'/get_true_pose', srv.LocalizationSrv)
+        rospy.wait_for_service('/gazebo/get_model_state')
+        self.modelState = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
         
     def _drive(self, linear, angular, mode):
         t = Twist() 
@@ -79,10 +94,42 @@ class Scoot(object):
     def lookDown(self):
         self._look(-math.pi/8.0)
 
+    def getTruePose(self):
+        if not self.truePoseCalled:
+            print("True pose already called once.")
+            return
+        else:
+            try:
+                l = self.localizationService(call=True)
+                quat = [l.pose.orientation.x,
+                        l.pose.orientation.y,
+                        l.pose.orientation.z,
+                        l.pose.orientation.w,
+                ]
+                (r, p, y) = tf.transformations.euler_from_quaternion(quat)
+
+                pose = Pose2D()
+                pose.x = l.pose.position.x
+                pose.y = l.pose.position.y
+                pose.theta = y
+
+                self.truePoseCalled = True
+
+                return pose
+            except rospy.ServiceException as exc:
+                print("Service did not process request: " + str(exc))
+
+    def getModelState(self):
+        try:
+            m = self.modelState(self.rover_name, "world")
+            return m
+        except rospy.ServiceException as exc:
+            print("Service did not process request: " + str(exc))
+            
 if __name__ == "__main__": 
     rospy.init_node('ScootNode')
     scoot = Scoot("scout_1")
-    #rospy.spin()
+    rospy.spin()
     #Systems will have an unmet dependency run "sudo pip install ipython"
     try :
         from IPython import embed
