@@ -13,16 +13,16 @@ class SensorMonitor:
         rospy.Subscriber("/{}/joint_states".format(name), JointState, self.jointStatesCallback)
 
     def imuCallback(self, data):
-        rospy.loginfo(rospy.get_caller_id() + "IMU data: %s", data)
+        rospy.loginfo(rospy.get_caller_id() + " IMU data: %s\n", data)
 
     def laserScanCallback(self, data):
-        rospy.loginfo(rospy.get_caller_id() + "Laser Scan data: %s", data)
+        rospy.loginfo(rospy.get_caller_id() + " Laser Scan data: %s\n", data)
 
     def volatileSensorCallback(self, data):
-        rospy.loginfo(rospy.get_caller_id() + "Volatile Sensor data: %s", data)
+        rospy.loginfo(rospy.get_caller_id() + " Volatile Sensor data: %s\n", data)
 
     def jointStatesCallback(self, data):
-        rospy.loginfo(rospy.get_caller_id() + "Joint States data: %s", data)
+        rospy.loginfo(rospy.get_caller_id() + " Joint States data: %s\n", data)
 
 
 def shutdownHandler():
