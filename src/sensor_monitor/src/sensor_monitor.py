@@ -29,7 +29,7 @@ class SensorMonitor:
         rospy.Subscriber("/{}/imu".format(name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, self.laserScanCallback)
         rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, self.volatileSensorCallback)
-        rospy.Subscriber("/{}/joint_states".format(name), Imu, self.jointStatesCallback)
+        rospy.Subscriber("/{}/joint_states".format(name), JointState, self.jointStatesCallback)
 
         # spin() simply keeps python from exiting until this node is stopped
         rospy.spin()
