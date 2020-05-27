@@ -4,33 +4,35 @@ import rospy
 from sensor_msgs.msg import Imu, LaserScan, JointState
 from srcp2_msgs.msg import VolSensorMsg
 
-def imuCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "IMU data: %s", data)
+class SensorMonitor:
 
-def laserScanCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "Laser Scan data: %s", data)
+    def imuCallback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "IMU data: %s", data)
 
-def volatileSensorCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "Volatile Sensor data: %s", data)
+    def laserScanCallback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "Laser Scan data: %s", data)
 
-def jointStatesCallback(data):
-    rospy.loginfo(rospy.get_caller_id() + "Joint States data: %s", data)
+    def volatileSensorCallback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "Volatile Sensor data: %s", data)
 
-def sensorMonitor():
+    def jointStatesCallback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "Joint States data: %s", data)
 
-    rospy.init_node('sensor_monitor', anonymous=True)
+    def init(self):
 
-    print("Created Sensor Monitor")
+        rospy.init_node('sensor_monitor', anonymous=True)
 
-    name = 'scout_1'
+        print("Created Sensor Monitor")
 
-    rospy.Subscriber("/{}/imu".format(name), Imu, imuCallback)
-    rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, laserScanCallback)
-    rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, volatileSensorCallback)
-    rospy.Subscriber("/{}/joint_states".format(name), Imu, jointStatesCallback)
+        name = 'scout_1'
 
-    # spin() simply keeps python from exiting until this node is stopped
-    rospy.spin()
+        rospy.Subscriber("/{}/imu".format(name), Imu, self.imuCallback)
+        rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, self.laserScanCallback)
+        rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, self.volatileSensorCallback)
+        rospy.Subscriber("/{}/joint_states".format(name), Imu, self.jointStatesCallback)
+
+        # spin() simply keeps python from exiting until this node is stopped
+        rospy.spin()
 
 def shutdownHandler():
   print("Sensor monitor shutting down.")
@@ -41,5 +43,6 @@ if __name__ == '__main__':
     rospy.on_shutdown( shutdownHandler )
 
     # Initialise the node
-    sensorMonitor()
+    monitor = SensorMonitor()
+    monitor.init()
     
