@@ -22,7 +22,8 @@ from geometry_msgs.msg import Twist, Pose2D
 
 #from mobility.cfg import driveConfig 
 #from mobility.srv import Core
-from Scoot.msg import MoveResult
+from scoot.srv import Core
+from scoot.msg import MoveResult
 #from swarmie_msgs.msg import Obstacle
 from angles import shortest_angular_distance
 
@@ -98,7 +99,7 @@ class State:
         rospy.Subscriber('/'+rover_name+'/odom/filtered', Odometry, self._odom)
 
         # Services 
-        #self.control = rospy.Service('control', Core, self._control);
+        self.control = rospy.Service('control', Core, self._control);
         
         # Publishers
         #self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
@@ -218,13 +219,15 @@ class State:
                 self.Doing = None
                 
             if self.Work.empty() : 
+                '''
                 # Let the joystick drive.
-                #lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
-                #ang = self.JoystickCommand.axes[3] * State.TURN_SPEED
+                lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
+                ang = self.JoystickCommand.axes[3] * State.TURN_SPEED
                 if abs(lin) < 0.1 and abs(ang) < 0.1 :
                     self.drive(0, 0, State.DRIVE_MODE_STOP)
                 else:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
+                 '''
             else:
                 self.Doing = self.Work.get(False)
     
