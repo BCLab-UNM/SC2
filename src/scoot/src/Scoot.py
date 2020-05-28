@@ -75,6 +75,7 @@ class Scoot(object):
         self.truePoseCalled = False
 
         self.OdomLocation = Location(None)
+        self.control = None
     
     def start(self):
         '''
@@ -92,6 +93,11 @@ class Scoot(object):
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         self.skidTopic = rospy.Publisher('/'+self.rover_name+'/skid_cmd_vel', Twist, queue_size=10)
         self.sensorControllTopic = rospy.Publisher('/'+self.rover_name+'/sensor_controller/command', Float64, queue_size=10)
+        
+        rospy.loginfo("Waiting for control service")
+        rospy.wait_for_service('control')
+        self.control = rospy.ServiceProxy('control', Core)
+        rospy.loginfo("Done waiting for control service")
 
         rospy.wait_for_service('/'+self.rover_name+'/toggle_light')
         self.lightService = rospy.ServiceProxy('/'+self.rover_name+'/toggle_light', srv.ToggleLightSrv)
