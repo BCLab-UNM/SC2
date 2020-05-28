@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import rospy
 import math
 import tf
@@ -10,7 +11,7 @@ import threading
 
 from functools import wraps
 
-swarmie_lock = threading.Lock()
+odom_lock = threading.Lock()
 
 def sync(lock):
         def _sync(func):
@@ -160,12 +161,12 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
-    @sync(swarmie_lock)
+    @sync(odom_lock)
     def _odom(self, msg):
         self.odomLocation.Odometry = msg
 
     def getOdomLocation(self):
-        with swarmie_lock:
+        with odom_lock:
             return self.odomLocation
     
 if __name__ == "__main__": 
