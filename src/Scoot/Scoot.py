@@ -6,6 +6,34 @@ from srcp2_msgs import msg, srv
 from geometry_msgs.msg import Twist, Pose2D
 from nav_msgs.msg import Odometry
 from gazebo_msgs.srv import GetModelState
+import threading
+
+swarmie_lock = threading.Lock()
+
+class Location:
+    def __init__(self, odo):
+        self.Odometry = odo
+
+    def getPose(self):
+        quat = [self.Odometry.pose.pose.orientation.x,
+                self.Odometry.pose.pose.orientation.y,
+                self.Odometry.pose.pose.orientation.z,
+                self.Odometry.pose.pose.orientation.w,
+                ]
+        (r, p, y) = tf.transformations.euler_from_quaternion(quat)
+
+        pose = Pose2D()
+        pose.x = self.Odometry.pose.pose.position.x
+        pose.y = self.Odometry.pose.pose.position.y
+        pose.theta = y
+
+        return pose
+
+    def atGoal(self, goal, distance):
+        dist = math.hypot(goal.x - self.Odometry.pose.pose.position.x,
+                          goal.y - self.Odometry.pose.pose.position.y)
+
+        return dist < distance
 
 class Scoot(object):
     def __init__(self, rover):
@@ -24,6 +52,8 @@ class Scoot(object):
         self.modelStateService = None
 
         self.truePoseCalled = False
+
+        self.odomLocation = Location(None)
     
     def start(self):
         '''
@@ -48,8 +78,8 @@ class Scoot(object):
         self.breaksService = rospy.ServiceProxy('/'+self.rover_name+'/brake_rover', srv.BrakeRoverSrv)
         rospy.wait_for_service('/'+self.rover_name+'/get_true_pose')
         self.localizationService = rospy.ServiceProxy('/'+self.rover_name+'/get_true_pose', srv.LocalizationSrv)
-        rospy.wait_for_service('/gazebo/get_model_state')
-        self.modelState = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+
+        rospy.Subscriber('/'+self.rover_name+'/odom/filtered', Odometry, self._odom)
         
     def _drive(self, linear, angular, mode):
         t = Twist() 
@@ -119,17 +149,17 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
-    def getModelState(self):
-        try:
-            m = self.modelState(self.rover_name, "world")
-            return m
-        except rospy.ServiceException as exc:
-            print("Service did not process request: " + str(exc))
-            
+    def _odom(self, msg):
+        self.odomLocation.Odometry = msg
+
+    def getOdomLocation(self):
+        with swarmie_lock:
+            return self.odomLocation
+    
 if __name__ == "__main__": 
     rospy.init_node('ScootNode')
     scoot = Scoot("scout_1")
-    rospy.spin()
+    #rospy.spin()
     #Systems will have an unmet dependency run "sudo pip install ipython"
     try :
         from IPython import embed
