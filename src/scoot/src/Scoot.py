@@ -8,6 +8,8 @@ from geometry_msgs.msg import Twist, Pose2D
 from nav_msgs.msg import Odometry
 from gazebo_msgs.srv import GetModelState
 import threading
+from scoot.msg import MoveResult, MoveRequest
+from scoot.srv import Core
 
 from functools import wraps
 
