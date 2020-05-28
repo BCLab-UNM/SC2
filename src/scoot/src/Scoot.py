@@ -28,17 +28,24 @@ class Location:
     def __init__(self, odo):
         self.Odometry = odo
 
-    def getPose(self):
-        quat = [self.Odometry.pose.pose.orientation.x,
-                self.Odometry.pose.pose.orientation.y,
-                self.Odometry.pose.pose.orientation.z,
-                self.Odometry.pose.pose.orientation.w,
-                ]
+    def getPose(self): #TODO: add a ros warning if self.Odometry none
+        if self.Odometry is None:
+            quat = [ 0,0,0,0, ]
+        else:
+            quat = [self.Odometry.pose.pose.orientation.x,
+                    self.Odometry.pose.pose.orientation.y,
+                    self.Odometry.pose.pose.orientation.z,
+                    self.Odometry.pose.pose.orientation.w,
+                    ]
         (r, p, y) = tf.transformations.euler_from_quaternion(quat)
 
         pose = Pose2D()
-        pose.x = self.Odometry.pose.pose.position.x
-        pose.y = self.Odometry.pose.pose.position.y
+        if self.Odometry is None:
+            pose.x = 0
+            pose.y = 0
+        else:
+            pose.x = self.Odometry.pose.pose.position.x
+            pose.y = self.Odometry.pose.pose.position.y
         pose.theta = y
 
         return pose
@@ -67,7 +74,7 @@ class Scoot(object):
 
         self.truePoseCalled = False
 
-        self.odomLocation = Location(None)
+        self.OdomLocation = Location(None)
     
     def start(self):
         '''
@@ -77,7 +84,7 @@ class Scoot(object):
             self.rover_name = rospy.get_namespace()
         self.rover_name = self.rover_name.strip('/')
         '''
-        self.rover_name = "scout_1"
+        self.rover_name = rospy.get_param('rover_name', default='scout_1')
         self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
@@ -165,12 +172,12 @@ class Scoot(object):
 
     @sync(odom_lock)
     def _odom(self, msg):
-        self.odomLocation.Odometry = msg
+        self.OdomLocation.Odometry = msg
 
     def getOdomLocation(self):
         with odom_lock:
-            return self.odomLocation
-    
+            return self.OdomLocation
+     
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs :
@@ -233,6 +240,8 @@ class Scoot(object):
 if __name__ == "__main__": 
     rospy.init_node('ScootNode')
     scoot = Scoot("scout_1")
+    
+    scoot.start()
     #rospy.spin()
     #Systems will have an unmet dependency run "sudo pip install ipython"
     try :
