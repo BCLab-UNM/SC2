@@ -157,7 +157,7 @@ class State:
     #     return config 
 
 
-    @sync(package_lock)
+    #@sync(package_lock)
     #def _joystick(self, joy_command):
         #self.JoystickCommand = joy_command 
     
@@ -201,18 +201,18 @@ class State:
         t.angular.z = angular
         self.driveControl.publish(t)
         
-    # def print_debug(self, msg):
+    def print_debug(self, msg):
+        rospy.loginfo(msg)
     #     if self.dbg_msg is None or self.dbg_msg != msg: 
     #         s = String()
     #         s.data = msg 
     #         self.state_machine.publish(s)
     #     self.dbg_msg = msg
-        
-    @sync(package_lock)
-    def run(self) :            
+
+    #@sync(package_lock)
+    def run(self) :
         if self.CurrentState == State.STATE_IDLE : 
             #self.print_debug('IDLE')
-
             if self.Doing is not None : 
                 if self.Doing.sema is not None :
                     self.Doing.sema.release()
@@ -259,8 +259,8 @@ class State:
                         self.Doing.request.angular = State.TURN_SPEED_MAX
                     elif self.Doing.request.angular <= 0:
                         self.Doing.request.angular = State.TURN_SPEED
-                                            
-                    cur = self.OdomLocation.get_pose()
+                        
+                    cur = self.OdomLocation.getPose()
                     self.Goal = Pose2D()
                     self.Goal.theta = cur.theta + req_theta
                     self.Goal.x = cur.x + req_r * math.cos(self.Goal.theta)
@@ -273,9 +273,8 @@ class State:
                         self.CurrentState = State.STATE_TURN
                         
                 #self.__check_obstacles()
-
         elif self.CurrentState == State.STATE_TURN :
-            #self.print_debug('TURN')
+            self.print_debug('TURN')
             #self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
@@ -289,7 +288,7 @@ class State:
                 self.drive(0, 0, State.DRIVE_MODE_STOP)
                 
         elif self.CurrentState == State.STATE_DRIVE :
-            #self.print_debug('DRIVE')
+            self.print_debug('DRIVE')
             #self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
@@ -339,7 +338,7 @@ class State:
             else:
                 self.TimerCount = self.TimerCount - 1
 
-    '''def do_initial_config(self):
+    def do_initial_config(self):
         # Do initial configuration. 
         params = {
             "DRIVE_SPEED": State.DRIVE_SPEED,
@@ -350,6 +349,6 @@ class State:
             "ROTATE_THRESHOLD": State.ROTATE_THRESHOLD,
             "DRIVE_ANGLE_ABORT": State.DRIVE_ANGLE_ABORT,
             }
-        dyn_client = Client('mobility') 
-        dyn_client.update_configuration(params)
-        print ('Initial configuration sent.')'''
+        #dyn_client = Client('scoot') 
+        #dyn_client.update_configuration(params)
+        print ('Initial configuration sent.')
