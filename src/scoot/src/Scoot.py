@@ -171,6 +171,65 @@ class Scoot(object):
         with odom_lock:
             return self.odomLocation
     
+    def __drive(self, request, **kwargs):
+        request.obstacles = ~0
+        if 'ignore' in kwargs :
+            request.obstacles = ~kwargs['ignore']
+            if kwargs['ignore'] & Obstacle.INSIDE_HOME == Obstacle.INSIDE_HOME:
+                rospy.logwarn_throttle(10.0,
+                                       'Ignoring INSIDE_HOME exceptions.')
+            if kwargs['ignore'] & Obstacle.VISION_HOME == Obstacle.TAG_HOME:
+                rospy.logwarn_throttle(
+                    10.0,
+                    'Ignoring only TAG_HOME and not also HOME_CORNER. ' +
+                    'You usually want to use ignore=VISION_HOME'
+                )
+
+        request.timeout = 120
+        if 'timeout' in kwargs :
+            request.timeout = kwargs['timeout']
+
+        if 'linear' in kwargs:
+            request.linear = kwargs['linear']
+
+        if 'angular' in kwargs:
+            request.angular = kwargs['angular']
+            
+        value = self.control([request]).result.result
+
+        # Always raise AbortExceptions when the service response is USER_ABORT,
+        # even if throw=False was passed as a keyword argument.
+        if value == MoveResult.USER_ABORT:
+            raise AbortException(value)
+        pass
+        '''
+        if 'throw' not in kwargs or kwargs['throw'] : 
+            elif value == MoveResult.OBSTACLE_TAG : 
+                raise TagException(value)
+            elif value == MoveResult.PATH_FAIL :
+                raise PathException(value)
+            elif value == MoveResult.TIMEOUT :
+                raise TimeoutException(value)
+            elif value == MoveResult.OBSTACLE_CORNER:
+                raise HomeCornerException(value)'''
+        return value
+     
+    def turn(self, theta, **kwargs):
+        '''Turn theta degrees 
+        
+        Args: 
+        
+        * `theta` (float) Radians to turn 
+
+        Keyword Arguments/Returns/Raises:
+        
+        * See `mobility.swarmie.Swarmie.drive`
+        '''
+        req = MoveRequest(
+            theta=theta, 
+        )
+        return self.__drive(req, **kwargs)
+    
 if __name__ == "__main__": 
     rospy.init_node('ScootNode')
     scoot = Scoot("scout_1")
