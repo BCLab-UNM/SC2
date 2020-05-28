@@ -26,7 +26,7 @@ def publishFakeOdom():
         
         pose.pose.pose.position.x = m.pose.position.x
         pose.pose.pose.position.y = m.pose.position.y
-        pose.pose.pose.position.z = y
+        pose.pose.pose.position.z = m.pose.position.z
 
         pub.publish(pose)
         rate.sleep()

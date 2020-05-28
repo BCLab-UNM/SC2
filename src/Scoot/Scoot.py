@@ -8,8 +8,19 @@ from nav_msgs.msg import Odometry
 from gazebo_msgs.srv import GetModelState
 import threading
 
+from functools import wraps
+
 swarmie_lock = threading.Lock()
 
+def sync(lock):
+        def _sync(func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                with lock:
+                    return func(*args, **kwargs)
+                return wrapper
+        return _sync
+    
 class Location:
     def __init__(self, odo):
         self.Odometry = odo
@@ -125,7 +136,7 @@ class Scoot(object):
         self._look(-math.pi/8.0)
 
     def getTruePose(self):
-        if not self.truePoseCalled:
+        if self.truePoseCalled:
             print("True pose already called once.")
             return
         else:
@@ -149,6 +160,7 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
+    @sync(swarmie_lock)
     def _odom(self, msg):
         self.odomLocation.Odometry = msg
 
