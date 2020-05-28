@@ -51,15 +51,14 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Generate messages in the 'msg' folder
 add_message_files ( 
-	FILES MoveResult.msg 
+	FILES MoveResult.msg MoveRequest.msg
 )
 
+
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files (
+	FILES Core.srv Queue.srv QueueRemove.srv GetRoverNames.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -163,7 +162,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   src/Scoot.py
   src/FakeLocalization.py
-  src/Driver.py
+  #src/Driver.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
