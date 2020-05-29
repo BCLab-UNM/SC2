@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   std_msgs
   sensor_msgs
-  #srcp2_msgs
+  srcp2_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -162,7 +162,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   src/Scoot.py
   src/FakeLocalization.py
-  #src/Driver.py
+  src/Driver.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
