@@ -176,7 +176,7 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
-    @sync(odom_lock)
+    #@sync(odom_lock)
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 

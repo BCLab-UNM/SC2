@@ -30,7 +30,7 @@ from angles import shortest_angular_distance
 import threading 
 package_lock = threading.Lock()
 
-from Scoot import sync
+#from Scoot import sync
 from Scoot import Location
 
 class Task : 
@@ -161,7 +161,7 @@ class State:
     #def _joystick(self, joy_command):
         #self.JoystickCommand = joy_command 
     
-    @sync(package_lock)
+    #@sync(package_lock)
     def set_mode(self, msg) :
         if msg.data == 1 :
             self._stop_now(MoveResult.USER_ABORT)
@@ -190,7 +190,7 @@ class State:
     #     self.__check_obstacles() 
         
         
-    @sync(package_lock)
+    #@sync(package_lock)
     def _odom(self, msg) : 
         self.OdomLocation.Odometry = msg
 
