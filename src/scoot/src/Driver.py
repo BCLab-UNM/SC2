@@ -83,9 +83,9 @@ class State:
         #self.JoystickCommand.axes = [0,0,0,0,0,0]
         
         # Configuration 
-        State.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
+        State.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=5)
         State.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
-        State.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
+        State.TURN_SPEED = rospy.get_param("TURN_SPEED", default=5)
         State.HEADING_RESTORE_FACTOR = rospy.get_param("HEADING_RESTORE_FACTOR", default=2)
         State.GOAL_DISTANCE_OK = rospy.get_param("GOAL_DISTANCE_OK", default=0.1)
         State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi/16)

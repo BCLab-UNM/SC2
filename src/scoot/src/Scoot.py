@@ -2,33 +2,45 @@
 import rospy
 import math
 import tf
-from std_msgs.msg import String, Float64
+import threading
+
 from srcp2_msgs import msg, srv
+
+from std_msgs.msg import String, Float64
 from geometry_msgs.msg import Twist, Pose2D
 from nav_msgs.msg import Odometry
-from gazebo_msgs.srv import GetModelState
-import threading
 from scoot.msg import MoveResult, MoveRequest
+
+from gazebo_msgs.srv import GetModelState
 from scoot.srv import Core
 
 from functools import wraps
 
 odom_lock = threading.Lock()
 
-def sync(lock):
-        def _sync(func):
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                with lock:
-                    return func(*args, **kwargs)
-                return wrapper
-        return _sync
+# def sync(lock):
+#         def _sync(func):
+#             @wraps(func)
+#             def wrapper(*args, **kwargs):
+#                 with lock:
+#                     return func(*args, **kwargs)
+#                 return wrapper
+#         return _sync
     
 class Location:
+    '''A class that encodes an EKF provided location and accessor methods''' 
+
     def __init__(self, odo):
         self.Odometry = odo
 
     def getPose(self): #TODO: add a ros warning if self.Odometry none
+        '''Return a std_msgs.Pose from this Location. Useful because Pose 
+        has angles represented as roll, pitch, yaw.
+            
+        Returns:
+            
+        * (`std_msgs.msg.Pose`) The pose. 
+        '''
         if self.Odometry is None:
             quat = [ 0,0,0,0, ]
         else:
@@ -51,12 +63,24 @@ class Location:
         return pose
 
     def atGoal(self, goal, distance):
+        '''Determine if the pose is within acceptable distance of this location
+        
+        Returns:
+        
+        * (`bool`) True if within the target distance.
+        ''' 
         dist = math.hypot(goal.x - self.Odometry.pose.pose.position.x,
                           goal.y - self.Odometry.pose.pose.position.y)
 
         return dist < distance
 
 class Scoot(object):
+    '''Class that embodies the Scoot's API
+    
+    This is the Python API used to drive the rover. The API interfaces 
+    with ROS topics and services to perform action and acquire sensor data. 
+    '''
+    
     def __init__(self, rover):
         self.rover_name = None
         
@@ -68,7 +92,7 @@ class Scoot(object):
         self.sensorControllTopic = None
 
         self.lightService = None
-        self.breaksService = None
+        self.brakeService = None
         self.localizationService = None
         self.modelStateService = None
 
@@ -91,9 +115,11 @@ class Scoot(object):
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
         
         #  @NOTE: when we use namespaces we wont need to have the rover_name
+        # Create publishers.
         self.skidTopic = rospy.Publisher('/'+self.rover_name+'/skid_cmd_vel', Twist, queue_size=10)
         self.sensorControllTopic = rospy.Publisher('/'+self.rover_name+'/sensor_controller/command', Float64, queue_size=10)
-        
+
+        # Connect to services.
         rospy.loginfo("Waiting for control service")
         rospy.wait_for_service('control')
         self.control = rospy.ServiceProxy('control', Core)
@@ -102,54 +128,21 @@ class Scoot(object):
         rospy.wait_for_service('/'+self.rover_name+'/toggle_light')
         self.lightService = rospy.ServiceProxy('/'+self.rover_name+'/toggle_light', srv.ToggleLightSrv)
         rospy.wait_for_service('/'+self.rover_name+'/brake_rover')
-        self.breaksService = rospy.ServiceProxy('/'+self.rover_name+'/brake_rover', srv.BrakeRoverSrv)
+        self.brakeService = rospy.ServiceProxy('/'+self.rover_name+'/brake_rover', srv.BrakeRoverSrv)
         rospy.wait_for_service('/'+self.rover_name+'/get_true_pose')
         self.localizationService = rospy.ServiceProxy('/'+self.rover_name+'/get_true_pose', srv.LocalizationSrv)
 
+        # Subscribe to topics.
         rospy.Subscriber('/'+self.rover_name+'/odom/filtered', Odometry, self._odom)
         
-    def _drive(self, linear, angular, mode):
-        t = Twist() 
-        t.linear.x = linear
-        t.angular.y = mode
-        t.angular.z = angular
-        self.skidTopic.publish(t) 
-        
-    def drive(self, speed=5):  # @TODO: when we have odom change drive/pirouette speeds to distance/angle
-        self._drive(speed,0,0)
-        
-    def pirouette(self, speed=5):
-        self._drive(0,speed,0)
-        
-    def stop(self):
-        self._drive(0,0,0)
-        
-    def breaks(self, state="on"):
-        self.breaksService(state is "on")
 
-    def _light(self, state):
-        self.lightService(data=state)
+    #@sync(odom_lock)
+    def _odom(self, msg):
+        self.OdomLocation.Odometry = msg
 
-    def lightOn(self):
-        self._light('high')
-
-    def lightLow(self):
-        self._light('low')
-
-    def lightOff(self):
-        self._light('stop')
-        
-    def _look(self, angle):
-        self.sensorControllTopic.publish(angle)
-    
-    def lookUp(self):
-        self._look(math.pi/4.0)
-        
-    def lookForward(self):
-        self._look(0)
-    
-    def lookDown(self):
-        self._look(-math.pi/8.0)
+    def getOdomLocation(self):
+        with odom_lock:
+            return self.OdomLocation
 
     def getTruePose(self):
         if self.truePoseCalled:
@@ -175,15 +168,8 @@ class Scoot(object):
                 return pose
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
+                
 
-    #@sync(odom_lock)
-    def _odom(self, msg):
-        self.OdomLocation.Odometry = msg
-
-    def getOdomLocation(self):
-        with odom_lock:
-            return self.OdomLocation
-     
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs :
@@ -226,23 +212,60 @@ class Scoot(object):
             elif value == MoveResult.OBSTACLE_CORNER:
                 raise HomeCornerException(value)'''
         return value
-     
-    def turn(self, theta, **kwargs):
-        '''Turn theta degrees 
         
-        Args: 
-        
-        * `theta` (float) Radians to turn 
+    def drive(self, distance, **kwargs):
+        req = MoveRequest(
+            r=distance, 
+        )        
+        return self.__drive(req, **kwargs)
 
-        Keyword Arguments/Returns/Raises:
-        
-        * See `mobility.swarmie.Swarmie.drive`
-        '''
+    def turn(self, theta, **kwargs):
         req = MoveRequest(
             theta=theta, 
         )
         return self.__drive(req, **kwargs)
+
+    def timed_drive(self, time, linear, angular, **kwargs):
+        req = MoveRequest(
+            timer=time, 
+            linear=linear, 
+            angular=angular, 
+        )
+        return self.__drive(req, **kwargs)
+
+    def stop(self):
+        self._drive(0,0,0)
+        
+    def brake(self, state="on"):
+        self.brakeService(state is "on")
+
+        
+    def _light(self, state):
+        self.lightService(data=state)
+
+    def lightOn(self):
+        self._light('high')
+
+    def lightLow(self):
+        self._light('low')
+
+    def lightOff(self):
+        self._light('stop')
+
+        
+    def _look(self, angle):
+        self.sensorControllTopic.publish(angle)
     
+    def lookUp(self):
+        self._look(math.pi/4.0)
+        
+    def lookForward(self):
+        self._look(0)
+    
+    def lookDown(self):
+        self._look(-math.pi/8.0)
+
+        
 if __name__ == "__main__": 
     rospy.init_node('ScootNode')
     scoot = Scoot("scout_1")
