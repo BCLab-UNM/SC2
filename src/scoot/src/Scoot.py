@@ -103,7 +103,7 @@ class Scoot(object):
         self.OdomLocation = Location(None)
         self.control = None
 
-    def start(self):
+    def start(self, **kwargs):
         """
         if 'tf_rover_name' in kwargs :
             self.rover_name = kwargs['tf_rover_name']
