@@ -20,6 +20,10 @@ def publishFakeOdom():
         (r, p, y) = tf.transformations.euler_from_quaternion(quat)
 
         pose = Odometry()
+        pose.header.seq = m.header.seq
+        pose.header.stamp = m.header.stamp
+        pose.header.frame_id = m.header.frame_id
+        
         pose.pose.pose.orientation.x = m.pose.orientation.x
         pose.pose.pose.orientation.y = m.pose.orientation.y
         pose.pose.pose.orientation.z = m.pose.orientation.z
