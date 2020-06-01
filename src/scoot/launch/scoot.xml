@@ -3,7 +3,11 @@
   <arg name="name"/>
 
   <param name="rover_name" value="$(arg name)"/>
-  
+
+  <include file="$(find scoot)/launch/tf.xml">
+      <arg name="name" value="$(arg name)"/>
+  </include>
+    
   <node name="MinCore" pkg="scoot" type="MinCore.py" respawn="true">
 
     <param name="HEADING_RESTORE_FACTOR" value="1.0"/>
