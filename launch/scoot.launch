@@ -1,0 +1,8 @@
+<launch>
+  <group ns="$(arg name)">
+    <include file="$(find scoot)/launch/scoot.xml">
+      <arg name="name" value="$(arg name)"/>
+    </include>
+  </group>
+  
+</launch>
