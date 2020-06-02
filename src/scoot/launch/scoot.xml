@@ -1,11 +1,13 @@
 <launch>
 
   <arg name="name"/>
+  <arg name="name_tf"/>
 
   <param name="rover_name" value="$(arg name)"/>
+  <param name="rover_name_tf" value="$(arg name_tf)"/>
 
   <include file="$(find scoot)/launch/tf.xml">
-      <arg name="name" value="$(arg name)"/>
+      <arg name="name_tf" value="$(arg name_tf)"/>
   </include>
     
   <node name="MinCore" pkg="scoot" type="MinCore.py" respawn="true">

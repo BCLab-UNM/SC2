@@ -1,79 +1,79 @@
 <launch>
 
-  <arg name="name"/>
-
+  <arg name="name_tf"/>
+  
   <node name="stfCamera2LOptical"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.206 0.255 0 -1.571 0 0 $(arg name)/camera_link $(arg name)/left_camera_optical 100"
+	args="-0.206 0.255 0 -1.571 0 0 $(arg name_tf)/camera_link $(arg name_tf)/left_camera_optical_static 100"
 	respawn="true"/>
   <node name="stfCamera2ROptical"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.206 0.255 0 -1.571 0 0 $(arg name)/camera_link $(arg name)/right_camera_optical 100"
+	args="0.206 0.255 0 -1.571 0 0 $(arg name_tf)/camera_link $(arg name_tf)/right_camera_optical_static 100"
 	respawn="true"/>
   
   <node name="stfChassis2BLWheel"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.875 0.959 -0.150 0 0 0 $(arg name)/chassis $(arg name)/bl_wheel 100"
+	args="-0.875 0.959 -0.150 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/bl_wheel_static 100"
 	respawn="true"/>
   <node name="stfChassis2BRWheel"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.875 -0.959 -0.150 0 0 0 $(arg name)/chassis $(arg name)/br_wheel 100"
+	args="-0.875 -0.959 -0.150 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/br_wheel_static 100"
 	respawn="true"/>
   <node name="stfChassis2FLWheel"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.875 0.959 -0.150 0 0 0 $(arg name)/chassis $(arg name)/fl_wheel 100"
+	args="0.875 0.959 -0.150 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fl_wheel_static 100"
 	respawn="true"/>
   <node name="stfChassis2FRWheel"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.875 -0.959 -0.150 0 0 0 $(arg name)/chassis $(arg name)/fr_wheel 100"
+	args="0.875 -0.959 -0.150 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fr_wheel_static 100"
 	respawn="true"/>
 
   <node name="stfChassis2BLSteeringArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.825 0.914 0.275 0 0 0 $(arg name)/chassis $(arg name)/bl_steering_arm 100"
+	args="-0.825 0.914 0.275 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/bl_steering_arm_static 100"
 	respawn="true"/>
   <node name="stfChassis2BRSteeringArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.825 -0.914 0.275 0 0 0 $(arg name)/chassis $(arg name)/br_steering_arm 100"
+	args="-0.825 -0.914 0.275 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/br_steering_arm_static 100"
 	respawn="true"/>
   <node name="stfChassis2FLSteeringArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.825 0.914 0.275 0 0 0 $(arg name)/chassis $(arg name)/fl_steering_arm 100"
+	args="0.825 0.914 0.275 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fl_steering_arm_static 100"
 	respawn="true"/>
   <node name="stfChassis2FRSteeringArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.825 -0.914 0.275 0 0 0 $(arg name)/chassis $(arg name)/fr_steering_arm 100"
+	args="0.825 -0.914 0.275 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fr_steering_arm_static 100"
 	respawn="true"/>
 
   <node name="stfChassis2BLArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.203 0.762 0.427 0 0 0 $(arg name)/chassis $(arg name)/bl_arm 100"
+	args="-0.203 0.762 0.427 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/bl_arm_static 100"
 	respawn="true"/>
   <node name="stfChassis2BRArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="-0.203 -0.762 0.427 0 0 0 $(arg name)/chassis $(arg name)/br_arm 100"
+	args="-0.203 -0.762 0.427 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/br_arm_static 100"
 	respawn="true"/>
   <node name="stfChassis2FLArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.203 0.762 0.427 0 0 0 $(arg name)/chassis $(arg name)/fl_arm 100"
+	args="0.203 0.762 0.427 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fl_arm_static 100"
 	respawn="true"/>
   <node name="stfChassis2FRArm"
 	pkg="tf"
 	type="static_transform_publisher"
-	args="0.203 -0.762 0.427 0 0 0 $(arg name)/chassis $(arg name)/fr_arm 100"
+	args="0.203 -0.762 0.427 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fr_arm_static 100"
 	respawn="true"/>
   
 </launch>
