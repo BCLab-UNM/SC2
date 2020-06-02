@@ -3,6 +3,9 @@ language: cpp
 dist: bionic
 sudo: required
 
+addons:
+  ssh_known_hosts: gitlab.com
+
 env:
   global:
     - ros_distro: melodic

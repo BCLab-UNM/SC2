@@ -30,6 +30,8 @@ def shutdownHandler():
 
 if __name__ == '__main__':
 
+    # Comment added just to work with travis
+    
     rospy.init_node('sensor_monitor', anonymous=True)
     print("Created Sensor Monitor")
 
