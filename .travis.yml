@@ -4,7 +4,7 @@ dist: bionic
 sudo: required
 
 git:
-    submodules: false
+  submodules: false
 
 addons:
   ssh_known_hosts: gitlab.com
