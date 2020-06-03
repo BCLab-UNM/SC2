@@ -19,8 +19,6 @@ before_install:
   - sudo apt update -qq
   - sudo apt install -y ros-$ros_distro-desktop-full
   - sudo apt install -y python-rosdep
-  - sudo rosdep init
-  - rosdep update
   - source /opt/ros/$ros_distro/setup.bash
 
 script:
