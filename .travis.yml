@@ -3,6 +3,9 @@ language: cpp
 dist: bionic
 sudo: required
 
+git:
+    submodules: false
+
 addons:
   ssh_known_hosts: gitlab.com
 
