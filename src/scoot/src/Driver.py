@@ -87,7 +87,7 @@ class State:
 
         # Configuration 
         State.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=5)
-        State.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
+        State.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=5)
         State.TURN_SPEED = rospy.get_param("TURN_SPEED", default=5)
         State.HEADING_RESTORE_FACTOR = rospy.get_param("HEADING_RESTORE_FACTOR", default=2)
         State.GOAL_DISTANCE_OK = rospy.get_param("GOAL_DISTANCE_OK", default=0.1)
