@@ -1,7 +1,7 @@
 <launch>
   <arg name="name"/>
   <param name="rover_name" value="$(arg name)"/>
-    <node name="obstacle" pkg="obstacle" type="obstacle.py"
+    <node name="obstacle" pkg="obstacle" type="Obstacle.py"
           args="$(arg name)" respawn="true" >
       <param name="publish_debug_topic" value="false" />
     </node>
