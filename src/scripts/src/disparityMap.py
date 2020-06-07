@@ -14,15 +14,16 @@ import time
 class DisparityMap(object):
 
 	def __init__(self):
-		self.stereo = cv2.StereoBM_create(numDisparities=16, blockSize=15)
+		self.numDisparities = 16 # rospy.get_param('/DISPARITY_MAP/NUM_DISPARITIES')
+		self.blockSize = 15 # rospy.get_param('/DISPARITY_MAP/BLOCK_SIZE')
+
+		self.stereo = cv2.StereoBM_create(self.numDisparities, self.blockSize)
 		self.bridge = CvBridge()
 
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
 		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
 
-		# need to also create a publisher
-		# this is an example, and needs to be updated
-		self.disparity_map_publisher = rospy.Publisher('/test', String, queue_size=10)
+		self.disparity_map_publisher = rospy.Publisher('/scout_1/camera/disparity', Image, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -33,21 +34,21 @@ class DisparityMap(object):
 
 		# convert image data from image message -> opencv image -> numpy array
 		cv_image_left = self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="mono8")
-		np_image_left = np.asarray(cv_image_left)
-	
+		np_image_left = np.asarray(cv_image_left)	
 		cv_image_right = self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="mono8")
 		np_image_right = np.asarray(cv_image_right)
 
+		# generate our disparity image using the left and right camera data
 		disparity = self.stereo.compute(np_image_left, np_image_right)
-		
-		plt.imshow(np_image_left, 'gray')
-		plt.figure()
-		plt.imshow(np_image_right, 'gray')
-		plt.figure()
-		plt.imshow(disparity, 'gray')
-		plt.show()
-		
-		#self.disparity_map_publisher.publish('test')
+
+		# disparity image processing might go here, or in a new node that subscribes to this topic
+		#
+		#
+
+		# convert our disparity array into a cv2 image and publish
+		disparity_cv2 = cv2.normalize(src=disparity, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+		imgmsg = self.bridge.cv2_to_imgmsg(disparity_cv2, encoding="passthrough")
+		self.disparity_map_publisher.publish(imgmsg)
 
 
 if __name__ == '__main__':
