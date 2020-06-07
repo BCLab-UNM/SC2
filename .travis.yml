@@ -1,0 +1,31 @@
+language: cpp
+
+dist: bionic
+sudo: required
+
+git:
+  submodules: false
+
+addons:
+  ssh_known_hosts: gitlab.com
+
+env:
+  global:
+    - ros_distro: melodic
+
+before_install:
+  - sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+  - sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+  - sudo apt update -qq
+  - sudo apt install -y python-catkin-tools ros-$ros_distro-desktop-full
+  - sudo apt install -y python-rosdep
+  - source /opt/ros/$ros_distro/setup.bash
+
+script:
+  - source /opt/ros/$ros_distro/setup.bash
+  - catkin build
+#  - ./run_tests.sh
+#  - roscore &
+#  - catkin run_tests
+#  - source devel/setup.bash
+#  - devel/lib/behaviours/behaviour_test
