@@ -6,58 +6,61 @@ from sensor_msgs.msg import LaserScan
 from srcp2_msgs.msg import VolSensorMsg
 from obstacle.msg import Obstacles
 
-# @TODO Track down bug with "ImportError: No module named msg"
-
-# @TODO: check/test for syntax errors
 # @TODO: check/test for logic errors someone else
-# @TODO: test in sim 
-# @TODO: replace all magic numbers with ros params in launch file
 
 class Obstacle:
 
     def __init__(self, name):
         self.rover_width = rospy.get_param('/rover_total_width', default=2.2098)
-        self.laserOverlap = 7.0 / 16.0  # @TODO: need a better name
-        self.laserscan = LaserScan()
+        self.laser_coverage = rospy.get_param('/laser_coverage', default=40)
+        self.rover_width = rospy.get_param('/rover_total_width', default=2.2098)
+        self.safe_distance = rospy.get_param('/safe_distance', default=1)
+        self.warning_distance = rospy.get_param('/warning_distance', default=1.5)
+        self.laserScan = LaserScan()
         self.volSensor = VolSensorMsg()
         self.obstacleAccumulator = Obstacles.PATH_IS_CLEAR
         self.obstacleMask = Obstacles.PATH_IS_CLEAR
-        rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, self.laserScanCallback)
-        rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, self.volatileSensorCallback)
+        rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, self.laser_scan_callback)
+        rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, self.volatile_sensor_callback)
         self.obstaclePublisher = rospy.Publisher("/{}/obstacle".format(name), Obstacles, queue_size=5)
 
-    def laserScanCallback(self, data):
+    def laser_scan_callback(self, data):
         self.obstacleAccumulator = Obstacles.PATH_IS_CLEAR
         self.obstacleMask = Obstacles.IS_LIDAR
         for i in range(0, len(data.ranges)):
-            t = data.angle_min + (data.angle_increment * i)
-            d = math.cos(t) * data.ranges[i]  # check these results
-            w = math.sin(t) * data.ranges[i]  # check these results
-            # If the rover was driving forward would hit something in less than 1m
-            if (w < (self.rover_width / 2.0)) and (d < 1):  # @TODO: Fix MAGIC!
+            theta = data.angle_min + (data.angle_increment * i)
+            d = math.cos(theta) * data.ranges[i]  # check these results
+            w = math.sin(theta) * data.ranges[i]  # check these results
+            # If the rover was driving forward would hit something within than safe_distance
+            if (w < (self.rover_width / 2.0)) and (d < self.safe_distance):
                 self.obstacleAccumulator |= Obstacles.LIDAR_BLOCK
 
-            # Blocked right side of Lidar within 1.5m
-            if i < (len(data.ranges) / 2) and data.ranges[i] < 1.5:
-                pass #if (i < (len(data.ranges) * self.laserOverlap)) and data.ranges[i] < 1.5:  # @TODO: Fix MAGIC!
+            # this is used for how many of the ranges indexes to use per an area
+            # so if laser_coverage was 45 as in 45% and the sensor took 1000 readings (len(data.ranges) == 1000)
+            # then coverage_value would be 450, this could be used for the right sweep of 0->450 in the data.range index
+            coverage_value = self.laser_coverage / 100.0 * len(data.ranges)
+
+            # Blocked right side of Lidar within warning_distance
+            if i < coverage_value and data.ranges[i] < self.warning_distance:
                 self.obstacleAccumulator |= Obstacles.LIDAR_RIGHT
 
-            # Blocked left side of Lidar within 1.5m
-            if i > (len(data.ranges) / 2) and data.ranges[i] < 1.5:
-                pass #if i > (len(data.ranges) * (1 / self.laserOverlap)) and (data.ranges[i] < 1.5):  # @TODO: Fix MAGIC!
+            # Blocked left side of Lidar within warning_distance
+            if i > (len(data.ranges) - coverage_value) and data.ranges[i] < self.warning_distance:
                 self.obstacleAccumulator |= Obstacles.LIDAR_LEFT
 
-            # Blocked center of Lidar within 1.5m# @TODO: Fix MAGIC!
-            if i > (len(data.ranges) * (self.laserOverlap / 2)) \
-                    and (i < (len(data.ranges) * (self.laserOverlap * 2))
-                         and data.ranges[i] < 1.5):  # @TODO: Fix MAGIC!
+            # Blocked center
+            # if range within right side
+            # if range within left side
+            # if range within warning_distance
+            if (i > ((len(data.ranges) / 2) - (self.laser_coverage / 2))) and \
+                    (i < ((len(data.ranges) / 2) + (self.laser_coverage / 2)) and
+                     data.ranges[i] < self.warning_distance):
                 self.obstacleAccumulator |= Obstacles.LIDAR_CENTER
 
             self.obstaclePublisher.publish(Obstacles(self.obstacleAccumulator,
-                                               Obstacles.IS_LIDAR))
-            '''['header', 'angle_min', 'angle_max', 'angle_increment', 'time_increment', 'scan_time', 'range_min', 'range_max', 'ranges', 'intensities'] '''
+                                                     Obstacles.IS_LIDAR))
 
-    def volatileSensorCallback(self, data):
+    def volatile_sensor_callback(self, data):
         self.obstaclePublisher.publish(Obstacles(
             Obstacles.VOLATILE,
             Obstacles.IS_VOLATILE))
