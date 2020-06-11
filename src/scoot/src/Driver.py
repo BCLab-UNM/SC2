@@ -19,7 +19,7 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist, Pose2D
 # from dynamic_reconfigure.server import Server
 # from dynamic_reconfigure.client import Client
-
+from srcp2_msgs import msg, srv
 # from mobility.cfg import driveConfig
 # from mobility.srv import Core
 from scoot.srv import Core
@@ -34,7 +34,6 @@ package_lock = threading.Lock()
 # from Scoot import sync
 from Scoot import Location
 
-#@TODO investigate obstacle message received state machine exits with correct code but does not send a twist stop
 
 class Task:
     """A robot relative place to navigate to. Expressed as r and theta"""
@@ -95,20 +94,22 @@ class State:
         State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi / 16)
         State.DRIVE_ANGLE_ABORT = rospy.get_param("DRIVE_ANGLE_ABORT", default=math.pi / 4)
 
-        rover_name = rospy.get_param('rover_name', default='scout_1')
+        self.rover_name = rospy.get_param('rover_name', default='scout_1')
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
-        rospy.Subscriber('/' + rover_name + '/obstacle', Obstacles, self._obstacle)
-        rospy.Subscriber('/' + rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
+        rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
 
         # Services 
         self.control = rospy.Service('control', Core, self._control)
 
         # Publishers
         # self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
-        self.driveControl = rospy.Publisher('/' + rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
 
+        rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
+        self.brakeService = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
@@ -116,6 +117,7 @@ class State:
         thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
+        self.drive(0, 0, State.DRIVE_MODE_STOP)
         self.CurrentState = State.STATE_IDLE
         while not self.Work.empty():
             item = self.Work.get(False)
@@ -125,7 +127,7 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
-        #@TODO: engage brakes and test if safe, find appropriate spot to release
+        self.brakeService(True) # Brakes on
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -195,6 +197,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
+        self.brakeService(False)  #brakes off
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -220,6 +223,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
+                self.brakeService(True) #brakes on
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
@@ -230,6 +234,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
+                self.brakeService(False)  #brakes off
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
