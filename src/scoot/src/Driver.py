@@ -24,7 +24,7 @@ from geometry_msgs.msg import Twist, Pose2D
 # from mobility.srv import Core
 from scoot.srv import Core
 from scoot.msg import MoveResult
-# from swarmie_msgs.msg import Obstacle
+from obstacle.msg import Obstacles
 from angles import shortest_angular_distance
 
 import threading
@@ -34,6 +34,7 @@ package_lock = threading.Lock()
 # from Scoot import sync
 from Scoot import Location
 
+#@TODO investigate obstacle message received state machine exits with correct code but does not send a twist stop
 
 class Task:
     """A robot relative place to navigate to. Expressed as r and theta"""
@@ -81,7 +82,7 @@ class State:
         self.Doing = None
         self.Work = Queue()
         self.dbg_msg = None
-        self.Obstacles = 0
+        self.current_obstacles = 0
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
@@ -98,7 +99,7 @@ class State:
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
-        # rospy.Subscriber('obstacle', Obstacle, self._obstacle)
+        rospy.Subscriber('/' + rover_name + '/obstacle', Obstacles, self._obstacle)
         rospy.Subscriber('/' + rover_name + '/odom/filtered', Odometry, self._odom)
 
         # Services 
@@ -124,6 +125,7 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
+        #@TODO: engage brakes and test if safe, find appropriate spot to release
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -168,30 +170,27 @@ class State:
         if msg.data == 1:
             self._stop_now(MoveResult.USER_ABORT)
 
-    # def __check_obstacles(self):
-    #     if self.Doing is not None :        
-    #         detected = self.Obstacles & self.Doing.request.obstacles
+    def __check_obstacles(self):
+        if self.Doing is not None:
+            detected = self.current_obstacles & self.Doing.request.obstacles
 
-    #         if (detected & Obstacle.IS_SONAR) != 0 :
-    #             self._stop_now(MoveResult.OBSTACLE_SONAR)
+            if (detected & Obstacles.IS_LIDAR) != 0:
+                self._stop_now(MoveResult.OBSTACLE_LASER)
+                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_LASER")
 
-    #         if (detected & Obstacle.IS_VISION) != 0 :
-    #             if detected & Obstacle.INSIDE_HOME:
-    #                 self._stop_now(MoveResult.INSIDE_HOME)
-    #             elif detected & Obstacle.TAG_HOME:
-    #                 self._stop_now(MoveResult.OBSTACLE_HOME)
-    #             elif detected & Obstacle.HOME_CORNER:
-    #                 self._stop_now(MoveResult.OBSTACLE_CORNER)
-    #             else:
-    #                 self._stop_now(MoveResult.OBSTACLE_TAG)
+            if (detected & Obstacles.IS_VOLATILE) != 0:
+                self._stop_now(MoveResult.OBSTACLE_VOLATILE)
+                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_VOLATILE")
 
     # @sync(package_lock)
-    # def _obstacle(self, msg) :
-    #     self.Obstacles &= ~msg.mask 
-    #     self.Obstacles |= msg.msg 
-    #     self.__check_obstacles() 
+    def _obstacle(self, msg):
+        self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
+        self.current_obstacles &= ~msg.mask
+        self.current_obstacles |= msg.msg
+        self.__check_obstacles()
 
-    # @sync(package_lock)
+        # @sync(package_lock)
+
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
@@ -274,10 +273,10 @@ class State:
                     else:
                         self.CurrentState = State.STATE_TURN
 
-                # self.__check_obstacles()
+                self.__check_obstacles()
         elif self.CurrentState == State.STATE_TURN:
             self.print_debug('TURN')
-            # self.__check_obstacles()
+            self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             if abs(heading_error) > State.ROTATE_THRESHOLD:
@@ -291,7 +290,7 @@ class State:
 
         elif self.CurrentState == State.STATE_DRIVE:
             self.print_debug('DRIVE')
-            # self.__check_obstacles()
+            self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(cur.theta,
@@ -310,8 +309,8 @@ class State:
                            State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_REVERSE:
-            # self.print_debug('REVERSE')
-            # self.__check_obstacles()
+            self.print_debug('REVERSE')
+            self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(math.pi + cur.theta,
@@ -329,8 +328,8 @@ class State:
                            State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_TIMED:
-            # self.print_debug('TIMED')
-            # self.__check_obstacles()
+            self.print_debug('TIMED')
+            self.__check_obstacles()
             if self.Doing.request.linear == 0 and self.Doing.request.angular == 0:
                 self.drive(0, 0, State.DRIVE_MODE_STOP)
             else:
