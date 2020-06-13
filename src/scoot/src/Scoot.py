@@ -18,28 +18,36 @@ from functools import wraps
 
 odom_lock = threading.Lock()
 
+
 class DriveException(Exception):
     def __init__(self, st):
         self.status = st
-    
+
+
 class VisionException(DriveException):
     pass
+
 
 class VolatileException(VisionException):
     pass
 
+
 class ObstacleException(DriveException):
-    pass 
+    pass
+
 
 class PathException(DriveException):
     pass
 
+
 class AbortException(DriveException):
     pass
 
+
 class TimeoutException(DriveException):
     pass
-    
+
+
 # def sync(lock):
 #         def _sync(func):
 #             @wraps(func)
@@ -223,13 +231,13 @@ class Scoot(object):
         # even if throw=False was passed as a keyword argument.
         if value == MoveResult.USER_ABORT:
             raise AbortException(value)
-        
-        if 'throw' not in kwargs or kwargs['throw'] : 
-            elif value == MoveResult.OBSTACLE_LASER : 
+
+        if 'throw' not in kwargs or kwargs['throw']:
+            if value == MoveResult.OBSTACLE_LASER:
                 raise ObstacleException(value)
-            elif value == MoveResult.OBSTACLE_VOLATILE :
+            elif value == MoveResult.OBSTACLE_VOLATILE:
                 raise VolatileException(value)
-            elif value == MoveResult.TIMEOUT :
+            elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
         return value
 
