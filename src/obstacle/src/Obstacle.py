@@ -35,9 +35,9 @@ class Obstacle:
             if (w < (self.rover_width / 2.0)) and (d < self.safe_distance):
                 self.obstacleAccumulator |= Obstacles.LIDAR_BLOCK
 
-            # this is used for how many of the ranges indexes to use per an area
-            # so if laser_coverage was 45 as in 45% and the sensor took 1000 readings (len(data.ranges) == 1000)
-            # then coverage_value would be 450, this could be used for the right sweep of 0->450 in the data.range index
+            # laser_coverage defines what percentage of the total scanned area is assigned to each subarea: LIDAR_LEFT, LIDAR_RIGHT, LIDAR_CENTER
+            # so if laser_coverage was 45, as in 45%, and the sensor took 1000 readings (len(data.ranges) == 1000)
+            # then coverage_value would be 450, so LIDAR_RIGHT would be comprised of indexes 0->450 in the data.range
             coverage_value = self.laser_coverage / 100.0 * len(data.ranges)
 
             # Blocked right side of Lidar within warning_distance

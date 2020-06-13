@@ -106,3 +106,27 @@ ROS_MASTER_URI=http://localhost:11311
 source ./docker/scripts/srcp2_setup.bash
 rostopic list
 ```
+### Using the API
+We can access it in an ipython frame with a eval rollback to controll the rover
+![test1](https://user-images.githubusercontent.com/27081199/82724327-221d8000-9c8a-11ea-9536-7c83e797a8bc.gif)
+![test2](https://user-images.githubusercontent.com/27081199/82724332-29448e00-9c8a-11ea-8538-30b8acbd191f.gif)
+
+## pull, clean, build source, then run the launch file this will start up the fakeOdom and Driver service
+```bash
+git pull #just do this out of habit
+source ./srcp2-competitors/ros_workspace/install/setup.bash #build will fail if you don't
+catkin clean -y 
+catkin build
+source ./devel/setup.bash
+roslaunch ./launch/scoot.launch "name:=scout_1"
+```
+## other term, will create a scoot instance and opens an ipython frame to run code from
+```bash
+source ./devel/setup.bash
+rosrun scoot Scoot.py __ns:=scout_1
+```
+### Try out 
+```python 
+scoot.turn(math.pi/4)
+scoot.drive(1)
+```
