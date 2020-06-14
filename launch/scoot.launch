@@ -1,4 +1,5 @@
 <launch>
+  <rosparam param="vol_types">["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"]</rosparam>
   <group ns="$(arg name)">
     <include file="$(find obstacle)/launch/obstacle.xml">
       <arg name="name" value="$(arg name)"/>
