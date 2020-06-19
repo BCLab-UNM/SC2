@@ -181,6 +181,7 @@ class Scoot(object):
 
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.loginfo("Scoot Ready")
 
     # @sync(odom_lock)
     def _odom(self, msg):
@@ -269,7 +270,7 @@ class Scoot(object):
                 raise ObstacleException(value)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
-                self.score(data)  # just for round 1 @TODO: behaviors ultimately should do this
+                #self.score(data)  # just for round 1 @TODO: behaviors ultimately should do this
                 raise VolatileException(value)
             elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
