@@ -226,7 +226,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
-                self.brakeService(True) #brakes on
+                # self.brakeService(True) #brakes on # @TODO investigate when can be a NONE type service
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
