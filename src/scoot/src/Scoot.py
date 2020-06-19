@@ -166,8 +166,8 @@ class Scoot(object):
 
         # Connect to services.
         rospy.loginfo("Waiting for control service")
-        rospy.wait_for_service('control')
-        self.control = rospy.ServiceProxy('control', Core)
+        rospy.wait_for_service('/' + self.rover_name + '/control')
+        self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
 
         rospy.wait_for_service('/' + self.rover_name + '/toggle_light')
