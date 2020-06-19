@@ -4,6 +4,7 @@ import math
 import tf
 import threading
 
+from rospy import ServiceException
 from srcp2_msgs import msg, srv
 
 from std_msgs.msg import String, Float64
@@ -222,7 +223,12 @@ class Scoot(object):
         p = Point(self.OdomLocation.Odometry.pose.pose.position.x,
                   self.OdomLocation.Odometry.pose.pose.position.y,
                   self.OdomLocation.Odometry.pose.pose.position.z)
-        return self.qal1ScoreService(pose=p, vol_type=self.VOL_TYPES[vol_type_index])
+        result = None
+        try:
+            result = self.qal1ScoreService(pose=p, vol_type=self.VOL_TYPES[vol_type_index])
+        except ServiceException:
+            rospy.logwarn("/vol_detected_service is grumpy")
+        return result
 
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
