@@ -7,7 +7,7 @@ import threading
 from srcp2_msgs import msg, srv
 
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D
+from geometry_msgs.msg import Twist, Pose2D, Point
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -17,6 +17,35 @@ from scoot.srv import Core
 from functools import wraps
 
 odom_lock = threading.Lock()
+
+
+class DriveException(Exception):
+    def __init__(self, st):
+        self.status = st
+
+
+class VisionException(DriveException):
+    pass
+
+
+class VolatileException(DriveException):
+    pass
+
+
+class ObstacleException(DriveException):
+    pass
+
+
+class PathException(DriveException):
+    pass
+
+
+class AbortException(DriveException):
+    pass
+
+
+class TimeoutException(DriveException):
+    pass
 
 
 # def sync(lock):
@@ -102,6 +131,7 @@ class Scoot(object):
 
         self.OdomLocation = Location(None)
         self.control = None
+        self.control_data = None
 
     def start(self, **kwargs):
         """
@@ -115,6 +145,17 @@ class Scoot(object):
         self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
+
+        '''Tracking SRCP2's Wiki 
+                Documentation/API/Robots/Hauler.md  
+                Documentation/Qualification-Rounds/Round-Two.md 
+                Documentation/Qualification-Rounds/Round-Two.md 
+            HaulerMsg.msg's comment in srcp2-competitors/ros_workspace/install/shares/rcp2_msgs/msg/
+            our scoot.launch
+            and matching with indexes from our Obstacles.msg '''
+        self.VOL_TYPES = rospy.get_param("vol_types",
+                                         default=["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia",
+                                                  "hydrogen_sul", "sulfur_dio"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
@@ -134,6 +175,8 @@ class Scoot(object):
         self.brakeService = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localizationService = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
+        rospy.wait_for_service('/vol_detected_service')
+        self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
 
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
@@ -171,6 +214,16 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
+    def getControlData(self):
+        return self.control_data
+
+    # @TODO: test this
+    def score(self, vol_type_index=0):
+        p = Point(self.OdomLocation.Odometry.pose.pose.position.x,
+                  self.OdomLocation.Odometry.pose.pose.position.y,
+                  self.OdomLocation.Odometry.pose.pose.position.z)
+        return self.qal1ScoreService(pose=p, vol_type=self.VOL_TYPES[vol_type_index])
+
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs:
@@ -196,23 +249,24 @@ class Scoot(object):
         if 'angular' in kwargs:
             request.angular = kwargs['angular']
 
-        value = self.control([request]).result.result
+        move_result = self.control([request]).result
+        value = move_result.result
+        data = move_result.obstacle_data
 
         # Always raise AbortExceptions when the service response is USER_ABORT,
         # even if throw=False was passed as a keyword argument.
         if value == MoveResult.USER_ABORT:
             raise AbortException(value)
-        pass
-        '''
-        if 'throw' not in kwargs or kwargs['throw'] : 
-            elif value == MoveResult.OBSTACLE_TAG : 
-                raise TagException(value)
-            elif value == MoveResult.PATH_FAIL :
-                raise PathException(value)
-            elif value == MoveResult.TIMEOUT :
+
+        if 'throw' not in kwargs or kwargs['throw']:
+            if value == MoveResult.OBSTACLE_LASER:
+                raise ObstacleException(value)
+            elif value == MoveResult.OBSTACLE_VOLATILE:
+                self.control_data = data  # behaviors would fetch and call score
+                self.score(data)  # just for round 1 @TODO: behaviors ultimately should do this
+                raise VolatileException(value)
+            elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
-            elif value == MoveResult.OBSTACLE_CORNER:
-                raise HomeCornerException(value)'''
         return value
 
     def drive(self, distance, **kwargs):
