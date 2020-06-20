@@ -128,7 +128,7 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
-        self.brakeService(True) # Brakes on
+        #self.brakeService(brake=True) # Brakes on
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -200,7 +200,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        self.brakeService(False)  #brakes off
+        #self.brakeService(brake=False)  #brakes off
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -237,7 +237,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                self.brakeService(False)  #brakes off
+                #self.brakeService(brake=False)  #brakes off
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
