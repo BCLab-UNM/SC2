@@ -6,7 +6,7 @@
     </include>
     <include file="$(find scoot)/launch/scoot.xml">
       <arg name="name" value="$(arg name)"/>
-      <arg name="name_tf" value="$(arg name_tf)"/>
+      <arg name="name_tf" value="$(arg name)_tf"/>
     </include>
   </group>
   
