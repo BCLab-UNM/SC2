@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-import angles, math, tf
+import angles, math, tf, rospy
 
 def toRadians(degree):
     return 2 * math.pi * degree / 360.0
@@ -20,7 +20,7 @@ class WaypointNavigator:
 
     def navigate(self, waypoints):
         for i in range(len(waypoints)) :
-            print "Going to waypoint {}".format(i)
+            rospy.loginfo("Going to waypoint {}".format(i))
             self.navigateToWaypoint(waypoints[i])
 
     def get2DPose(self):
@@ -41,15 +41,18 @@ class WaypointNavigator:
 
             if abs(angle) < toRadians(5):
                 # Move forward
+                rospy.logdebug("Moving forward")
                 self.scoot.drive(1)
             elif abs(angle) < toRadians(70):
                 # Soft Turn
                 # TODO: Implement with forward movement
+                rospy.logdebug("Soft Turn angle: {}".format(angle))
                 self.scoot.turn(toRadians(-10 if angle > 0 else 10))
             else:
                 # Hard Turn
+                rospy.logdebug("Hard Turn angle: {}".format(angle))
                 self.scoot.turn(toRadians(-50 if angle > 0 else 50))
 
             posePosition = self.current_odom.pose.pose.position
             distance = math.hypot(waypoint.x - posePosition.x, waypoint.y - posePosition.y)
-        print "Reached waypoint: {} at point: {}".format(prettyPoint(waypoint), prettyPoint(posePosition))
+        rospy.loginfo("Reached waypoint: {} at point: {}".format(prettyPoint(waypoint), prettyPoint(posePosition)))

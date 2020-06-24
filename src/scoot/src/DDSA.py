@@ -17,7 +17,6 @@ def calculateRange(type, x1, y1, x2, y2, length):
     # Build the range with either a walk (steps between point 1 and 2) or range (go directly to point 2)
     if type == Span.WALK:
         waypoints = []
-        print "Calculating walk"
         xdistance = x2 - x1
         ydistance = y2 - y1
         distance = math.sqrt((xdistance * xdistance) + (ydistance * ydistance))
@@ -66,7 +65,7 @@ def buildDDSAWaypoints(rangeType, centerx, centery, altitude, size, index, loops
 if __name__ == '__main__':
     rospy.init_node('ddsa_navigator')
 
-    print "DDSA Navigator started."
+    rospy.loginfo("DDSA Navigator started.")
 
     name = 'scout_1'
 
@@ -83,7 +82,7 @@ if __name__ == '__main__':
                                        navigator.getPosition().pose.pose.position.y,
                                        0, 1, 0, 5, 1, 1)
 
-    print "Waypoints generated, size: {}".format(len(ddsaWaypoints))
+    rospy.loginfo("Waypoints generated, size: {}".format(len(ddsaWaypoints)))
 
-    print "Navigating Waypoints..."
+    rospy.loginfo("Navigating Waypoints...")
     navigator.navigate(ddsaWaypoints)
