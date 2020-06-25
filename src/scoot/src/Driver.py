@@ -19,12 +19,12 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist, Pose2D
 # from dynamic_reconfigure.server import Server
 # from dynamic_reconfigure.client import Client
-
+from srcp2_msgs import msg, srv
 # from mobility.cfg import driveConfig
 # from mobility.srv import Core
 from scoot.srv import Core
 from scoot.msg import MoveResult
-# from swarmie_msgs.msg import Obstacle
+from obstacle.msg import Obstacles
 from angles import shortest_angular_distance
 
 import threading
@@ -81,7 +81,8 @@ class State:
         self.Doing = None
         self.Work = Queue()
         self.dbg_msg = None
-        self.Obstacles = 0
+        self.current_obstacles = 0
+        self.current_obstacle_data = 0
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
@@ -94,20 +95,22 @@ class State:
         State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi / 16)
         State.DRIVE_ANGLE_ABORT = rospy.get_param("DRIVE_ANGLE_ABORT", default=math.pi / 4)
 
-        rover_name = rospy.get_param('rover_name', default='scout_1')
+        self.rover_name = rospy.get_param('rover_name', default='scout_1')
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
-        # rospy.Subscriber('obstacle', Obstacle, self._obstacle)
-        rospy.Subscriber('/' + rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
+        rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
 
         # Services 
         self.control = rospy.Service('control', Core, self._control)
 
         # Publishers
         # self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
-        self.driveControl = rospy.Publisher('/' + rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
 
+        rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
+        self.brakeService = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
@@ -115,6 +118,7 @@ class State:
         thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
+        self.drive(0, 0, State.DRIVE_MODE_STOP)
         self.CurrentState = State.STATE_IDLE
         while not self.Work.empty():
             item = self.Work.get(False)
@@ -124,6 +128,7 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
+        self.brakeService(True) # Brakes on
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -145,6 +150,7 @@ class State:
 
         rval = MoveResult()
         rval.result = t.result
+        rval.obstacle_data = self.current_obstacle_data
         return rval
 
     # @sync(package_lock)
@@ -168,34 +174,33 @@ class State:
         if msg.data == 1:
             self._stop_now(MoveResult.USER_ABORT)
 
-    # def __check_obstacles(self):
-    #     if self.Doing is not None :        
-    #         detected = self.Obstacles & self.Doing.request.obstacles
+    def __check_obstacles(self):
+        if self.Doing is not None:
+            detected = self.current_obstacles & self.Doing.request.obstacles
 
-    #         if (detected & Obstacle.IS_SONAR) != 0 :
-    #             self._stop_now(MoveResult.OBSTACLE_SONAR)
+            if (detected & Obstacles.IS_LIDAR) != 0:
+                self._stop_now(MoveResult.OBSTACLE_LASER)
+                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_LASER")
 
-    #         if (detected & Obstacle.IS_VISION) != 0 :
-    #             if detected & Obstacle.INSIDE_HOME:
-    #                 self._stop_now(MoveResult.INSIDE_HOME)
-    #             elif detected & Obstacle.TAG_HOME:
-    #                 self._stop_now(MoveResult.OBSTACLE_HOME)
-    #             elif detected & Obstacle.HOME_CORNER:
-    #                 self._stop_now(MoveResult.OBSTACLE_CORNER)
-    #             else:
-    #                 self._stop_now(MoveResult.OBSTACLE_TAG)
+            if (detected & Obstacles.IS_VOLATILE) != 0:
+                self._stop_now(MoveResult.OBSTACLE_VOLATILE)
+                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_VOLATILE")
 
     # @sync(package_lock)
-    # def _obstacle(self, msg) :
-    #     self.Obstacles &= ~msg.mask 
-    #     self.Obstacles |= msg.msg 
-    #     self.__check_obstacles() 
+    def _obstacle(self, msg):
+        self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
+        self.current_obstacles &= ~msg.mask
+        self.current_obstacles |= msg.msg
+        self.current_obstacle_data = msg.data
+        self.__check_obstacles()
 
-    # @sync(package_lock)
+        # @sync(package_lock)
+
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
+        self.brakeService(False)  #brakes off
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -221,6 +226,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
+                self.brakeService(True) #brakes on
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
@@ -231,6 +237,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
+                self.brakeService(False)  #brakes off
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
@@ -274,10 +281,10 @@ class State:
                     else:
                         self.CurrentState = State.STATE_TURN
 
-                # self.__check_obstacles()
+                self.__check_obstacles()
         elif self.CurrentState == State.STATE_TURN:
             self.print_debug('TURN')
-            # self.__check_obstacles()
+            self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             if abs(heading_error) > State.ROTATE_THRESHOLD:
@@ -291,7 +298,7 @@ class State:
 
         elif self.CurrentState == State.STATE_DRIVE:
             self.print_debug('DRIVE')
-            # self.__check_obstacles()
+            self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(cur.theta,
@@ -310,8 +317,8 @@ class State:
                            State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_REVERSE:
-            # self.print_debug('REVERSE')
-            # self.__check_obstacles()
+            self.print_debug('REVERSE')
+            self.__check_obstacles()
             cur = self.OdomLocation.getPose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(math.pi + cur.theta,
@@ -329,8 +336,8 @@ class State:
                            State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_TIMED:
-            # self.print_debug('TIMED')
-            # self.__check_obstacles()
+            self.print_debug('TIMED')
+            self.__check_obstacles()
             if self.Doing.request.linear == 0 and self.Doing.request.angular == 0:
                 self.drive(0, 0, State.DRIVE_MODE_STOP)
             else:

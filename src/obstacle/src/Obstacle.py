@@ -23,6 +23,7 @@ class Obstacle:
         rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, self.laser_scan_callback)
         rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, self.volatile_sensor_callback)
         self.obstaclePublisher = rospy.Publisher("/{}/obstacle".format(name), Obstacles, queue_size=5)
+        self.VOL_TYPES = rospy.get_param("vol_types", default=["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"])
 
     def laser_scan_callback(self, data):
         self.obstacleAccumulator = Obstacles.PATH_IS_CLEAR
@@ -58,12 +59,13 @@ class Obstacle:
                 self.obstacleAccumulator |= Obstacles.LIDAR_CENTER
 
             self.obstaclePublisher.publish(Obstacles(self.obstacleAccumulator,
-                                                     Obstacles.IS_LIDAR))
+                                                     Obstacles.IS_LIDAR, 0))
 
     def volatile_sensor_callback(self, data):
         self.obstaclePublisher.publish(Obstacles(
             Obstacles.VOLATILE,
-            Obstacles.IS_VOLATILE))
+            Obstacles.IS_VOLATILE,
+            self.VOL_TYPES.index(data.vol_type)))
 
     def run(self):
         # @TODO: Test for laser noise if it's bad move publish into run after taking the median
