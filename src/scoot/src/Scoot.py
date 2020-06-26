@@ -253,14 +253,20 @@ class Scoot(object):
 
     # @TODO: test this
     def score(self, vol_type_index=0):
-        p = Point(self.OdomLocation.Odometry.pose.pose.position.x,
-                  self.OdomLocation.Odometry.pose.pose.position.y,
-                  self.OdomLocation.Odometry.pose.pose.position.z)
+        pose_stamped = PoseWithCovarianceStamped()
+        pose_stamped.header.frame_id = '/scout_1_tf/chassis'
+        pose_stamped.header.stamp = rospy.Time.now() 
+        pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
+        aprox_vol_location = self.transform_pose("volatile_sensor_static", pose_stamped)
         result = None
         try:
-            result = self.qal1ScoreService(pose=p, vol_type=self.VOL_TYPES[vol_type_index])
+            result = self.qal1ScoreService(
+                pose=aprox_vol_location.pose.position, 
+                vol_type=self.VOL_TYPES[vol_type_index])
+            rospy.loginfo("Scored!")
         except ServiceException:
             rospy.logwarn("/vol_detected_service is grumpy")
+            result = False
         return result
 
     def __drive(self, request, **kwargs):
