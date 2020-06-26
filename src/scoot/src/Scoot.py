@@ -8,7 +8,7 @@ from rospy import ServiceException
 from srcp2_msgs import msg, srv
 
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -237,7 +237,7 @@ class Scoot(object):
         Raises:
         * tf.Exception if timeout is exceeded
         """
-        target_frame = self.rover_name + '/' + target_frame.strip('/')
+        target_frame = self.rover_name + '_tf/' + target_frame.strip('/')
 
         self.xform.waitForTransform(
             target_frame,
@@ -246,7 +246,7 @@ class Scoot(object):
             rospy.Duration(timeout)
         )
 
-        return swarmie.xform.transformPose(target_frame, pose)
+        return self.xform.transformPose(target_frame, pose)
     
     def getControlData(self):
         return self.control_data
