@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 """Search node."""
 
-from __future__ import print_function
 import sys
 import rospy
 import math
@@ -24,7 +23,7 @@ def wander():
         scoot.drive(random.gauss(4, 1))
         
     except ObstacleException:
-        print ("I saw an obstacle!")
+        rospy.loginfo("I saw an obstacle!")
         turnaround()
         rospy.sleep(.5)
 
@@ -38,7 +37,7 @@ def random_walk(num_moves):
                 sys.exit(-1)
             wander()
     except VolatileException:
-        print("I found a volatile!", scoot.VOL_TYPES[scoot.control_data])
+        rospy.loginfo("I found a volatile! " + scoot.VOL_TYPES[scoot.control_data])
         scoot.score(scoot.control_data)
         sys.exit(0)
 
@@ -46,9 +45,9 @@ def random_walk(num_moves):
 def main(shared_scoot):
     global scoot
     scoot = shared_scoot
-    print ("Search Node Started")
+    rospy.loginfo("Search Node Started")
     random_walk(num_moves=50)
-    print ("I'm probably lost!")
+    rospy.loginfo("I'm probably lost!")
     sys.exit(1)
 
 
