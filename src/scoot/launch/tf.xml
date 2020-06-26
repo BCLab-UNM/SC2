@@ -75,5 +75,11 @@
 	type="static_transform_publisher"
 	args="0.203 -0.762 0.427 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/fr_arm_static 100"
 	respawn="true"/>
+	
+  <node name="stfChassis2volatileSensor"
+	pkg="tf"
+	type="static_transform_publisher"
+	args="-1.213 0.000 -0.250 0 0 0 $(arg name_tf)/chassis $(arg name_tf)/volatile_sensor_static 100"
+	respawn="true"/>
   
 </launch>
