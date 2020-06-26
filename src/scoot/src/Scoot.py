@@ -133,6 +133,8 @@ class Scoot(object):
         self.OdomLocation = Location(None)
         self.control = None
         self.control_data = None
+        
+        self.xform = None
 
     def start(self, **kwargs):
         """
@@ -181,6 +183,10 @@ class Scoot(object):
 
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        
+        # Transform listener. Use this to transform between coordinate spaces.
+        # Transform messages must predate any sensor messages so initialize this first.
+        self.xform = tf.TransformListener()
         rospy.loginfo("Scoot Ready")
 
     # @sync(odom_lock)
@@ -216,6 +222,32 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
+    def transform_pose(self, target_frame, pose, timeout=3.0):
+        """Transform PoseStamped into the target frame of reference.
+        Returns a PoseStamped in the target frame.
+
+        Args:
+        * target_frame (`string`) - the frame of reference to transform to. Ex: '/odom' or `/base_link`
+        * pose (`PoseStamped`) - the pose of the tag in the /camera_link frame
+        * timeout (`float`) - the time to wait for the transform
+
+        Returns:
+        * pose - PoseStamped the pose of the tag in the /odom frame
+
+        Raises:
+        * tf.Exception if timeout is exceeded
+        """
+        target_frame = self.rover_name + '/' + target_frame.strip('/')
+
+        self.xform.waitForTransform(
+            target_frame,
+            pose.header.frame_id,
+            pose.header.stamp,
+            rospy.Duration(timeout)
+        )
+
+        return swarmie.xform.transformPose(target_frame, pose)
+    
     def getControlData(self):
         return self.control_data
 
