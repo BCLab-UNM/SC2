@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import rospy
 import math
+import angles 
 import tf
 import threading
 
@@ -224,6 +225,50 @@ class Scoot(object):
                   self.OdomLocation.Odometry.pose.pose.position.z)
         return self.qal1ScoreService(pose=p, vol_type=self.VOL_TYPES[vol_type_index])
 
+    def drive_to(self, place, claw_offset=0, **kwargs):
+        '''Drive directly to a particular point in space. The point must be in 
+        the odometry reference frame. 
+        
+        Arguments:
+        
+        * `place`: (`geometry_msgs.msg.Point` or `geometry_msgs.msg.Pose2D`): The place to drive.
+
+        Keyword Arguments/Returns/Raises:
+        
+        * See `mobility.swarmie.Swarmie.drive`
+        * claw_offset to the odometry reference frame.  Appropriate value
+        to be passed in, otherwise the reference frame remains unchanged.
+            
+        '''
+        loc = self.getOdomLocation().getPose()
+        dist = math.hypot(loc.y - place.y, loc.x - place.x)
+        angle = angles.shortest_angular_distance(loc.theta, 
+                                                 math.atan2(place.y - loc.y,
+                                                            place.x - loc.x))
+        effective_dist = dist - claw_offset
+
+        if effective_dist < 0:
+            # The driver API skips the turn state if the request distance is
+            # negative. This ensures the rover will perform the turn before
+            # backing up slightly in this case.
+            self.turn(angle, **kwargs)
+            return self.drive(effective_dist, **kwargs)
+
+        req = MoveRequest(
+            theta=angle, 
+            r=effective_dist,
+        )        
+        return self.__drive(req, **kwargs)
+    
+    def set_heading(self, heading, **kwargs):
+        '''Turn to face an absolute heading in radians. (zero is east)
+        Arguments:
+        * `heading`: (`float`) The heading in radians.
+        '''
+        loc = self.getOdomLocation().getPose()
+        angle = angles.shortest_angular_distance(loc.theta, heading)
+        self.turn(angle, **kwargs)
+    
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs:
