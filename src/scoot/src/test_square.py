@@ -9,7 +9,7 @@ import rospy
 
 from obstacle.msg import Obstacles
 from geometry_msgs.msg import Pose2D, Point
-from scoot import *
+from Scoot import *
 
 def dumb_square(distance):
     global scoot
