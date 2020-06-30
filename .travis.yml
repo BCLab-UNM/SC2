@@ -20,6 +20,7 @@ before_install:
   - sudo apt install -y python-catkin-tools ros-$ros_distro-desktop-full
   - sudo apt install -y python-rosdep
   - source /opt/ros/$ros_distro/setup.bash
+  - git submodule update --init --recursive
 
 script:
   - source /opt/ros/$ros_distro/setup.bash
