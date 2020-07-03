@@ -128,7 +128,7 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
-        self.brakeService(True) # Brakes on
+        #self.brakeService(brake=True) # Brakes on
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -200,7 +200,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        self.brakeService(False)  #brakes off
+        #self.brakeService(brake=False)  #brakes off
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -226,7 +226,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
-                self.brakeService(True) #brakes on
+                # self.brakeService(True) #brakes on # @TODO investigate when can be a NONE type service
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
@@ -237,7 +237,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                self.brakeService(False)  #brakes off
+                #self.brakeService(brake=False)  #brakes off
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:

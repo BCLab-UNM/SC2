@@ -4,10 +4,11 @@ import math
 import tf
 import threading
 
+from rospy import ServiceException
 from srcp2_msgs import msg, srv
 
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -132,6 +133,7 @@ class Scoot(object):
         self.OdomLocation = Location(None)
         self.control = None
         self.control_data = None
+        self.xform = None
 
     def start(self, **kwargs):
         """
@@ -165,8 +167,8 @@ class Scoot(object):
 
         # Connect to services.
         rospy.loginfo("Waiting for control service")
-        rospy.wait_for_service('control')
-        self.control = rospy.ServiceProxy('control', Core)
+        rospy.wait_for_service('/' + self.rover_name + '/control')
+        self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
 
         rospy.wait_for_service('/' + self.rover_name + '/toggle_light')
@@ -180,6 +182,11 @@ class Scoot(object):
 
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        
+        # Transform listener. Use this to transform between coordinate spaces.
+        # Transform messages must predate any sensor messages so initialize this first.
+        self.xform = tf.TransformListener()
+        rospy.loginfo("Scoot Ready")
 
     # @sync(odom_lock)
     def _odom(self, msg):
@@ -214,15 +221,54 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
+
+    def transform_pose(self, target_frame, pose, timeout=3.0):
+        """Transform PoseStamped into the target frame of reference.
+        Returns a PoseStamped in the target frame.
+
+        Args:
+        * target_frame (`string`) - the frame of reference to transform to. Ex: '/odom' or `/base_link`
+        * pose (`PoseStamped`) - the pose of the tag in the /camera_link frame
+        * timeout (`float`) - the time to wait for the transform
+
+        Returns:
+        * pose - PoseStamped the pose of the tag in the /odom frame
+
+        Raises:
+        * tf.Exception if timeout is exceeded
+        """
+        target_frame = self.rover_name + '_tf/' + target_frame.strip('/')
+
+        self.xform.waitForTransform(
+            target_frame,
+            pose.header.frame_id,
+            pose.header.stamp,
+            rospy.Duration(timeout)
+        )
+
+        return self.xform.transformPose(target_frame, pose)
+
     def getControlData(self):
         return self.control_data
 
     # @TODO: test this
     def score(self, vol_type_index=0):
-        p = Point(self.OdomLocation.Odometry.pose.pose.position.x,
-                  self.OdomLocation.Odometry.pose.pose.position.y,
-                  self.OdomLocation.Odometry.pose.pose.position.z)
-        return self.qal1ScoreService(pose=p, vol_type=self.VOL_TYPES[vol_type_index])
+        pose_stamped = PoseWithCovarianceStamped()
+        pose_stamped.header.frame_id = '/scout_1_tf/chassis'
+        pose_stamped.header.stamp = rospy.Time.now() 
+        pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
+        aprox_vol_location = self.transform_pose("volatile_sensor_static", pose_stamped)
+        result = None
+        try:
+            result = self.qal1ScoreService(
+                pose=aprox_vol_location.pose.position, 
+                vol_type=self.VOL_TYPES[vol_type_index])
+            rospy.loginfo("Scored!")
+        except ServiceException:
+            rospy.logwarn("/vol_detected_service is grumpy")
+            result = False
+        return result
+      
 
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
@@ -263,7 +309,6 @@ class Scoot(object):
                 raise ObstacleException(value)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
-                self.score(data)  # just for round 1 @TODO: behaviors ultimately should do this
                 raise VolatileException(value)
             elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
@@ -316,28 +361,3 @@ class Scoot(object):
     def lookDown(self):
         self._look(-math.pi / 8.0)
 
-
-if __name__ == "__main__":
-    rospy.init_node('ScootNode')
-    scoot = Scoot("scout_1")
-
-    scoot.start()
-    # rospy.spin()
-    # Systems will have an unmet dependency run "sudo pip install ipython"
-    try:
-        from IPython import embed
-
-        embed(user_ns=globals())
-    except ImportError as e:
-        print("Missing IPython run 'sudo pip install ipython'\n Failing over")
-        try:
-            while True:
-                line = raw_input('>>> ')
-                if line is not None and line != '':
-                    try:
-                        exec (line)
-                    except Exception as e:
-                        print (e)
-        except EOFError as e:
-            print ("Goodbye")
-    print ("Qapla'!")
