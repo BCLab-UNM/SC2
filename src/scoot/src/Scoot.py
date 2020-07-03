@@ -133,7 +133,6 @@ class Scoot(object):
         self.OdomLocation = Location(None)
         self.control = None
         self.control_data = None
-        
         self.xform = None
 
     def start(self, **kwargs):
@@ -222,6 +221,7 @@ class Scoot(object):
             except rospy.ServiceException as exc:
                 print("Service did not process request: " + str(exc))
 
+
     def transform_pose(self, target_frame, pose, timeout=3.0):
         """Transform PoseStamped into the target frame of reference.
         Returns a PoseStamped in the target frame.
@@ -247,7 +247,7 @@ class Scoot(object):
         )
 
         return self.xform.transformPose(target_frame, pose)
-    
+
     def getControlData(self):
         return self.control_data
 
@@ -268,6 +268,7 @@ class Scoot(object):
             rospy.logwarn("/vol_detected_service is grumpy")
             result = False
         return result
+      
 
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
@@ -308,7 +309,6 @@ class Scoot(object):
                 raise ObstacleException(value)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
-                #self.score(data)  # just for round 1 @TODO: behaviors ultimately should do this
                 raise VolatileException(value)
             elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
