@@ -270,19 +270,22 @@ class Scoot(object):
             result = False
         return result
       
-
-    def drive_to(self, place, claw_offset=0, **kwargs):
+    # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
+    def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
         the odometry reference frame. 
         
         Arguments:
         
-        * `place`: (`geometry_msgs.msg.Point` or `geometry_msgs.msg.Pose2D`): The place to drive.
+        * `place`: (`geometry_msgs.msg.Point` or `geometry_msgs.msg.Pose2D`): The place to drive. 
+        # This is OK becasue they have the same member variables.
+        # Being agnostic about the type allows us to handle Pose2D and Point messages with the same code. 
+        # Actually just requires that the object has TODO member variables and methods. 
 
         Keyword Arguments/Returns/Raises:
         
         * See `mobility.swarmie.Swarmie.drive`
-        * claw_offset to the odometry reference frame.  Appropriate value
+        * forward_offset to the odometry reference frame.  Appropriate value
         to be passed in, otherwise the reference frame remains unchanged.
             
         '''
@@ -291,7 +294,7 @@ class Scoot(object):
         angle = angles.shortest_angular_distance(loc.theta, 
                                                  math.atan2(place.y - loc.y,
                                                             place.x - loc.x))
-        effective_dist = dist - claw_offset
+        effective_dist = dist - forward_offset
 
         if effective_dist < 0:
             # The driver API skips the turn state if the request distance is
@@ -330,7 +333,7 @@ class Scoot(object):
                     'You usually want to use ignore=VISION_HOME'
                 )
             '''
-        request.timeout = 120
+        request.timeout = 120 # In seconds
         if 'timeout' in kwargs:
             request.timeout = kwargs['timeout']
 
