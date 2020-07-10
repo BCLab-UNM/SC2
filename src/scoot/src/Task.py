@@ -38,7 +38,8 @@ class Task:
 
         if rospy.has_param('~task_state'):
             self.current_state = rospy.get_param('~task_state')
-            self.print_state('<font color="red">Task manager restarted.</font>')
+            rospy.logerr('Task manager restarted.')
+
         else:
             self.current_state = Task.STATE_SCOUT_SEARCH
 
@@ -48,12 +49,6 @@ class Task:
 
     def save_state(self):
         rospy.set_param('~task_state', self.current_state)
-
-    def print_state(self, msg):
-        s = String()
-        s.data = msg
-        self.state_publisher.publish(s)
-        print(msg)
 
     def launch(self, prog):
         try:
@@ -85,12 +80,12 @@ class Task:
 
 
         except AbortException as e:
-            self.print_state('STOP! Entering manual mode.')
+            rospy.loginfo('STOP! Entering manual mode.')
             sys.exit(0)
 
         except Exception as e:
             # FIXME: What do we do with bugs in task code?
-            print('Task caught unknown exception:\n' + traceback.format_exc())
+            rospy.logerr('Task caught unknown exception:\n' + traceback.format_exc())
             sys.exit(-2)
 
 
