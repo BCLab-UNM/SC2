@@ -12,9 +12,11 @@ from scoot.msg import MoveResult
 
 from Scoot import VolatileException, ObstacleException, PathException, AbortException, MoveResult
 
+
 def turnaround(ignore=Obstacles.IS_LIDAR|Obstacles.IS_VOLATILE):
     global scoot
     scoot.turn(random.gauss(math.pi/2, math.pi/4), ignore=ignore)
+
 
 def wander():
     global scoot
@@ -46,9 +48,10 @@ def random_walk(num_moves):
         sys.exit(0)
 
 
-def main(shared_scoot):
+def main(task=None):
     global scoot
-    scoot = shared_scoot
+    if task:
+        scoot = task.scoot
     rospy.loginfo("Search Node Started")
     random_walk(num_moves=50)
     rospy.loginfo("I'm probably lost!")
