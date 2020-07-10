@@ -33,17 +33,16 @@ class Task:
 
     # Function handles for all the behaviors so if the search param was set to searchRandomWalk
     # then PROG_SCOUT_SEARCH would be scout.searchRandomWalk.main this allows running alternative behaviors at launch
-    PROG_SCOUT_SEARCH = scout.eval(rospy.get_param('search', default='search')).main
-    PROG_SCOUT_FINE_SEARCH = scout.eval(rospy.get_param('fine_search', default='fine_search')).main
+    PROG_SCOUT_SEARCH = getattr(scout, rospy.get_param('search', default='search')).main
+    PROG_SCOUT_FINE_SEARCH = getattr(scout, rospy.get_param('fine_search', default='fine_search')).main
 
-    PROG_EXCAVATOR_DIG = excavator.eval(rospy.get_param('dig', default='dig')).main
-    PROG_EXCAVATOR_DROPOFF = excavator.eval(rospy.get_param('dropoff', default='dropoff')).main
-    PROG_EXCAVATOR_GOTO_VOLATILE = excavator.eval(rospy.get_param('goto_volatile', default='goto_volatile')).main
+    PROG_EXCAVATOR_DIG = getattr(excavator, rospy.get_param('dig', default='dig')).main
+    PROG_EXCAVATOR_DROPOFF = getattr(excavator, rospy.get_param('dropoff', default='dropoff')).main
+    PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, (rospy.get_param('goto_volatile', default='goto_volatile')).main
 
-    PROG_HAULER_DUMP = excavator.eval(rospy.get_param('dump', default='dump')).main
-    PROG_HAULER_GOTO_EXCAVATOR = excavator.eval(rospy.get_param('goto_excavator', default='goto_excavator')).main
-    PROG_HAULER_GOTO_PROCESSING_PLANT = excavator.eval(
-        rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
+    PROG_HAULER_DUMP = getattr(hauler, rospy.get_param('dump', default='dump')).main
+    PROG_HAULER_GOTO_EXCAVATOR = getattr(hauler, rospy.get_param('goto_excavator', default='goto_excavator')).main
+    PROG_HAULER_GOTO_PROCESSING_PLANT = getattr(hauler, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
 
     def __init__(self):
         self.state_publisher = rospy.Publisher('/infoLog', String, queue_size=2, latch=False)
