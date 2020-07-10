@@ -145,6 +145,7 @@ class Scoot(object):
         self.rover_name = self.rover_name.strip('/')
         """
         self.rover_name = rospy.get_param('rover_name', default='scout_1')
+        self.rover_type = rospy.get_param('rover_type', default='scout')
         self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
