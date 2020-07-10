@@ -2,7 +2,6 @@
 import rospy, sys, tf
 from Scoot import *
 from geometry_msgs.msg import Point
-from nav_msgs.msg import Odometry
 from enum import Enum
 from WaypointNavigator import WaypointNavigator
 
@@ -13,37 +12,37 @@ class Span(Enum):
 def createWaypoint(x, y, altitude):
     return Point(x, y, altitude)
 
-def calculateRange(type, x1, y1, x2, y2, length):
+def calculateRange(type, start, end, length):
     # Build the range with either a walk (steps between point 1 and 2) or range (go directly to point 2)
     if type == Span.WALK:
         waypoints = []
-        xdistance = x2 - x1
-        ydistance = y2 - y1
-        distance = math.sqrt((xdistance * xdistance) + (ydistance * ydistance))
-        xratio = xdistance / distance
-        yratio = ydistance / distance
+        print "Calculating walk"
+        deltax = end.x - start.x
+        deltay = end.y - start.y
+        deltaz = end.z - start.z
+        distance = math.sqrt((deltax * deltax) + (deltay * deltay) + (deltaz * deltaz))
         for i in range(1, int(distance / length) + 1):
-            waypoints.append((x1 + (i * length * xratio),y1 + (i * length * yratio)))
+            waypoints.append(Point(start.x + (i * length * deltax / distance),
+                                   start.y + (i * length * deltay / distance),
+                                   start.z + (i * length * deltaz / distance)))
         return waypoints
     elif type == Span.RANGE:
-        return [(x2, y2)]
+        return [end]
 
 def buildWaypoint(centerx, centery, xoffset, yoffset, altitude):
     return createWaypoint(centerx + xoffset, centery + yoffset, altitude)
 
-def buildDDSAWaypoints(rangeType, centerx, centery, altitude, size, index, loops, radius, steplength):
+def buildDDSAWaypoints(rangeType, loops, altitude=0, size=1, index=0, radius=1, steplength=1):
 
     waypoints = []
-    start = Point(centerx, centery, altitude)
+    start = Point(0, 0, altitude)
     waypoints.append(start)
-    previousxoffset = 0
-    previousyoffset = 0
+    previous = start
     for loop in range(0, loops):
         for corner in range(0, 4):
 
             if (loop == 0 and corner == 0):
-                xoffset = 0
-                yoffset = index + 1
+                next = Point(0, index + 1, altitude)
             else:
                 xoffset = 1 + index + (loop * size)
                 yoffset = xoffset
@@ -54,11 +53,12 @@ def buildDDSAWaypoints(rangeType, centerx, centery, altitude, size, index, loops
                 if (corner == 2 or corner == 3):
                     yoffset = -yoffset
 
-            for (x, y) in calculateRange(rangeType, previousxoffset, previousyoffset, xoffset, yoffset, steplength):
-                waypoints.append(buildWaypoint(centerx, centery, x * radius, y * radius, altitude))
+                next = Point(xoffset, yoffset, altitude)
 
-            previousxoffset = xoffset
-            previousyoffset = yoffset
+            for waypoint in calculateRange(rangeType, previous, next, steplength):
+                waypoints.append(Point(waypoint.x * radius, waypoint.y * radius, waypoint.z))
+
+            previous = next
 
     return waypoints
 
@@ -74,10 +74,15 @@ if __name__ == '__main__':
 
     navigator = WaypointNavigator(scoot)
 
-    ddsaWaypoints = buildDDSAWaypoints(Span.RANGE,
-                                       scoot.OdomLocation.Odometry.pose.pose.position.x,
-                                       scoot.OdomLocation.Odometry.pose.pose.position.y,
-                                       0, 1, 0, 5, 1, 1)
+    while scoot.OdomLocation.Odometry == None:
+        print "Waiting for inital odom..."
+        rospy.sleep(1)
+
+    ddsaWaypoints = buildDDSAWaypoints(Span.RANGE, loops=5)
+
+    ddsaWaypoints = [Point(waypoint.x + scoot.OdomLocation.Odometry.pose.pose.position.x,
+                           waypoint.y + scoot.OdomLocation.Odometry.pose.pose.position.y,
+                           waypoint.z) for waypoint in ddsaWaypoints]
 
     rospy.loginfo("Waypoints generated, size: {}".format(len(ddsaWaypoints)))
 
