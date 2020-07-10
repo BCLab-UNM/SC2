@@ -74,12 +74,9 @@ if __name__ == '__main__':
 
     navigator = WaypointNavigator(scoot)
 
-    rospy.Subscriber("{}/odom/filtered".format(name), Odometry, navigator.position)
-    rospy.wait_for_message("{}/odom/filtered".format(name), Odometry)
-
     ddsaWaypoints = buildDDSAWaypoints(Span.RANGE,
-                                       navigator.getPosition().pose.pose.position.x,
-                                       navigator.getPosition().pose.pose.position.y,
+                                       scoot.OdomLocation.Odometry.pose.pose.position.x,
+                                       scoot.OdomLocation.Odometry.pose.pose.position.y,
                                        0, 1, 0, 5, 1, 1)
 
     rospy.loginfo("Waypoints generated, size: {}".format(len(ddsaWaypoints)))
