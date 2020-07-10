@@ -1,9 +1,11 @@
 <launch>
 
   <arg name="name"/>
+  <arg name="search"/>
 
   <param name="rover_name" value="$(arg name)"/>
   <param name="rover_name_tf" value="$(arg name)_tf"/>
+  <param name="search" value="$(arg search)"/>
 
   <include file="$(find scoot)/launch/tf.xml">
       <arg name="name_tf" value="$(arg name)_tf"/>

@@ -6,6 +6,7 @@
     </include>
     <include file="$(find scoot)/launch/scoot.xml">
       <arg name="name" value="$(arg name)"/>
+      <arg name="search" value="$(arg search)"/>
     </include>
   </group>
   
