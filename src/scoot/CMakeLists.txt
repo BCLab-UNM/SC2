@@ -164,14 +164,14 @@ catkin_install_python(PROGRAMS
   src/FakeLocalization.py
   src/Driver.py
 
-  behaviors/excavator/dig.py
-  behaviors/excavator/dropoff.py
-  behaviors/excavator/goto_volatile.py
-  behaviors/hauler/dump.py
-  behaviors/hauler/goto_excavator.py
-  behaviors/hauler/goto_processing_plant.py
-  behaviors/scout/fine_search.py
-  behaviors/scout/search.py
+  src/behaviors/excavator/dig.py
+  src/behaviors/excavator/dropoff.py
+  src/behaviors/excavator/goto_volatile.py
+  src/behaviors/hauler/dump.py
+  src/behaviors/hauler/goto_excavator.py
+  src/behaviors/hauler/goto_processing_plant.py
+  src/behaviors/scout/fine_search.py
+  src/behaviors/scout/search.py
   src/test_square.py
 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
