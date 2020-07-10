@@ -38,7 +38,7 @@ class Task:
 
     PROG_EXCAVATOR_DIG = getattr(excavator, rospy.get_param('dig', default='dig')).main
     PROG_EXCAVATOR_DROPOFF = getattr(excavator, rospy.get_param('dropoff', default='dropoff')).main
-    PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, (rospy.get_param('goto_volatile', default='goto_volatile')).main
+    PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, rospy.get_param('goto_volatile', default='goto_volatile')).main
 
     PROG_HAULER_DUMP = getattr(hauler, rospy.get_param('dump', default='dump')).main
     PROG_HAULER_GOTO_EXCAVATOR = getattr(hauler, rospy.get_param('goto_excavator', default='goto_excavator')).main
@@ -75,7 +75,6 @@ class Task:
             return_val = e.code
         return return_val
 
-    @sync(task_lock)
     def run_next(self):
         # @TODO create flow chart of behaviors and ensure match with state mech
         try:
