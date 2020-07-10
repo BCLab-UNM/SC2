@@ -19,7 +19,6 @@ task_lock = threading.Lock()
 
 
 class Task:
-    global scoot
     STATE_SCOUT_SEARCH = 0
     STATE_SCOUT_FINE_SEARCH = 1
 
@@ -45,12 +44,13 @@ class Task:
     PROG_HAULER_GOTO_PROCESSING_PLANT = getattr(hauler, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
 
     def __init__(self):
+        self.scoot = None
         self.state_publisher = rospy.Publisher('/infoLog', String, queue_size=2, latch=False)
         # Published regularly on a timer.
         self.status_pub = rospy.Publisher('status', String, queue_size=1, latch=True)
         # Published once when the status changes.
         self.task_pub = rospy.Publisher('task_state', String, queue_size=1, latch=True)
-        self.status_timer = rospy.Timer(rospy.Duration(1), self.publish_status)
+
 
         if rospy.has_param('~task_state'):
             self.current_state = rospy.get_param('~task_state')
@@ -68,7 +68,7 @@ class Task:
 
     def launch(self, prog):
         try:
-            return_val = prog(scoot)
+            return_val = prog()
             if return_val is None:
                 return_val = 0
         except SystemExit as e:
@@ -78,22 +78,22 @@ class Task:
     def run_next(self):
         # @TODO create flow chart of behaviors and ensure match with state mech
         try:
-            if scoot.rover_type == 'scout':  # If all good then would go: search->fine_search->search
+            if self.scoot.rover_type == 'scout':  # If all good then would go: search->fine_search->search
                 if self.current_state == Task.STATE_SCOUT_SEARCH:
-                    if self.launch(scoot.behaviors.search.main) == 0:
+                    if self.launch(self.PROG_SCOUT_SEARCH) == 0:
                         rospy.loginfo('Search succeeded. Do Fine Search')
                         self.current_state = Task.STATE_SCOUT_FINE_SEARCH
                     else:
                         rospy.loginfo('Search failed! Trying again')
                         self.current_state = Task.STATE_SCOUT_SEARCH
                 elif self.current_state == Task.STATE_SCOUT_FINE_SEARCH:
-                    if self.launch(scoot.behaviors.fine_search.main) == 0:
+                    if self.launch(self.PROG_SCOUT_FINE_SEARCH) == 0:
                         rospy.loginfo('Fine Search succeeded. Starting search.')
                         self.current_state = Task.STATE_SCOUT_SEARCH
                     else:
                         rospy.logwarn('Fine Search failed!')
                         self.current_state = Task.STATE_SCOUT_SEARCH
-            elif scoot.rover_type == 'hauler':
+            elif self.scoot.rover_type == 'hauler':
                 rospy.logwarn_once('Hauler behaviors are currently not implemented')
                 '''
                 PROG_HAULER_DUMP
@@ -105,7 +105,7 @@ class Task:
                 STATE_HAULER_GOTO_PROCESSING_PLANT
                 '''
                 pass
-            elif scoot.rover_type == 'excavator':
+            elif self.scoot.rover_type == 'excavator':
                 rospy.logwarn_once('Excavator behaviors are currently not implemented')
                 '''
                 PROG_EXCAVATOR_DIG
@@ -130,7 +130,7 @@ class Task:
             sys.exit(-2)
 
 def main():
-    global scoot
+    rospy.init_node('task')
     scoot.start(node_name='task')
     taskman = Task()
     while not rospy.is_shutdown():
