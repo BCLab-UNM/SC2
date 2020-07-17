@@ -62,15 +62,18 @@ def buildDDSAWaypoints(rangeType, loops, altitude=0, size=1, index=0, radius=1, 
 
     return waypoints
 
-if __name__ == '__main__':
-    rospy.init_node('ddsa_navigator')
+# We define main beacuse task expects main()
+def main( task=None ):
 
-    rospy.loginfo("DDSA Navigator started.")
-
-    name = 'scout_1'
-
-    scoot = Scoot(name)
-    scoot.start(node_name='test')
+    # Determine if main was called from the shell or by the task object
+    if task:
+        scoot = task.scoot
+    else: # Called from shell      
+        # Give the node a name
+        name = 'scout_1'
+    
+        scoot = Scoot(name)
+        scoot.start(node_name='test')
 
     navigator = WaypointNavigator(scoot)
 
@@ -88,3 +91,21 @@ if __name__ == '__main__':
 
     rospy.loginfo("Navigating Waypoints...")
     navigator.navigate(ddsaWaypoints)
+
+    # Our exit code convention is that 0 means a volatile was found
+    # None 0 means nothing was found
+    sys.exit(0)
+
+# Called from the shell
+if __name__ == '__main__':
+
+    # Create node for DDSA
+    rospy.init_node('ddsa_navigator')
+    rospy.loginfo("DDSA Navigator started.")
+    
+    # Call main and make its exit code the return value of main
+    main()
+
+    
+    
+    
