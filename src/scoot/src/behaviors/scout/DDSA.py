@@ -105,7 +105,7 @@ if __name__ == '__main__':
     
     # Call main and make its exit code the return value of main
     main()
-
+    sys.exit(0)
     
     
     
