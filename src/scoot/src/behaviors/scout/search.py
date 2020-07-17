@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 
 
-def main(**kwargs):
+def main(task=None):
     print("Search Node Started")
     sys.exit(0)
 
