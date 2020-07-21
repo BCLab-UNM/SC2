@@ -25,7 +25,6 @@ class Task:
     STATE_SCOUT_GOTO_PROCESSING_PLANT = 1
     STATE_SCOUT_HOME_ALIGNMENT = 2
 
-
     STATE_EXCAVATOR_GOTO_VOLATILE = 0
     STATE_EXCAVATOR_DIG = 1
     STATE_EXCAVATOR_DROPOFF = 2
@@ -48,7 +47,8 @@ class Task:
 
     PROG_HAULER_DUMP = getattr(hauler, rospy.get_param('dump', default='dump')).main
     PROG_HAULER_GOTO_EXCAVATOR = getattr(hauler, rospy.get_param('goto_excavator', default='goto_excavator')).main
-    PROG_GOTO_PROCESSING_PLANT = getattr(hauler, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
+    PROG_GOTO_PROCESSING_PLANT = getattr(hauler,
+                                         rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
 
     ROUND_NUMBER = rospy.get_param('round_num', default=1)
 
@@ -59,7 +59,6 @@ class Task:
         self.status_pub = rospy.Publisher('status', String, queue_size=1, latch=True)
         # Published once when the status changes.
         self.task_pub = rospy.Publisher('task_state', String, queue_size=1, latch=True)
-
 
         if rospy.has_param('~task_state'):
             self.current_state = rospy.get_param('~task_state')
@@ -82,6 +81,10 @@ class Task:
                 return_val = 0
         except SystemExit as e:
             return_val = e.code
+        except Exception as e:
+            rospy.logerr('Task caught ' + self.scoot.rover_type + ',' + str(
+                self.current_state) + 'behavior exception:\n' + traceback.format_exc())
+            return_val = -1
         return return_val
 
     def run_next(self):
@@ -186,6 +189,7 @@ class Task:
             # FIXME: What do we do with bugs in task code?
             rospy.logerr('Task caught unknown exception:\n' + traceback.format_exc())
             sys.exit(-2)
+
 
 def main():
     rospy.init_node('task')
