@@ -410,3 +410,94 @@ class Scoot(object):
     def lookDown(self):
         self._look(-math.pi / 8.0)
 
+    # # # EXCAVATOR SPECIFIC CODE # # #
+    def bucket_info(self):
+        if self.rover_type != "excavator":
+            rospy.logerr("bucket_info:" + self.rover_type + " is not an excavator")
+        pass  # get the last message from the bucket_info topic bucket_info srcp2_msgs/ExcavatorMsg
+
+    def move_mount(self, angle):
+        """ Mount "#1" has full horizontal rotation motion
+        Allows the rover "excavator" move volatiles between volatile and hauler without needing to move the wheels
+        @NOTE: Effort Limits are ignored
+        """
+        if self.rover_type != "excavator":
+            rospy.logerr("move_mount:" + self.rover_type + " is not an excavator")
+        # check bounds / convert to -pi to pi range from current state
+        pass  # publish angle on the mount_joint_controller/command topic
+
+    def move_base_arm(self, angle):
+        """ Base Arm "#2" limited vertical motion -math.pi/5 to math.pi/3 radians
+        Best bang for our buck, in regards to arm movement as its the biggest part
+        Good for reaching
+        @NOTE: Effort Limits are ignored
+        """
+        if self.rover_type != "excavator":
+            rospy.logerr("move_base_arm:" + self.rover_type + " is not an excavator")
+        # check bounds
+        pass  # publish angle on the mount_joint_controller/command topic
+
+    def move_distal_arm(self, angle):
+        """Distal Arm "#3" limited vertical motion -math.pi/3 to math.pi/3 radians
+        Good for lowering the bucket
+        @NOTE: Effort Limits are ignored
+        """
+        if self.rover_type != "excavator":
+            rospy.logerr("move_distal_arm:" + self.rover_type + " is not an excavator")
+        # check bounds
+        pass  # publish angle on the mount_joint_controller/command topic
+
+    def move_bucket(self, angle):
+        if self.rover_type != "excavator":
+            rospy.logerr("move_bucket:" + self.rover_type + " is not an excavator")
+        # check bounds
+        pass  # publish angle on the mount_joint_controller/command topic
+
+    def get_mount_angle(self):
+        if self.rover_type != "excavator":
+            rospy.logerr("get_mount_angle:" + self.rover_type + " is not an excavator")
+        # state = rospy.wait_for_message("joint_states",type here)
+        # state['mount']
+        pass
+
+    def get_base_arm_angle(self):
+        if self.rover_type != "excavator":
+            rospy.logerr("get_base_arm_angle:" + self.rover_type + " is not an excavator")
+        # state = rospy.wait_for_message("joint_states",type here)
+        # state['']
+        pass
+
+    def get_distal_arm_angle(self):
+        if self.rover_type != "excavator":
+            rospy.logerr("get_distal_arm_angle:" + self.rover_type + " is not an excavator")
+        # state = rospy.wait_for_message("joint_states",type here)
+        # state['']
+        pass
+
+    def get_bucket_angle(self):
+        if self.rover_type != "excavator":
+            rospy.logerr("get_bucket_angle:" + self.rover_type + " is not an excavator")
+        # state = rospy.wait_for_message("joint_states",type here)
+        # state['']
+        pass
+
+    # # # END EXCAVATOR SPECIFIC CODE # # #
+
+    # # # HAULER SPECIFIC CODE # # #
+    def bin_info(self):
+        if self.rover_type != "hauler":
+            rospy.logerr("bin_info:" + self.rover_type + " is not a hauler")
+        pass  # get message from bin_info return type  srcp2_msgs/HaulerMsg
+
+    def move_bin(self, angle):  # Not needed for Qualification Rounds
+        if self.rover_type != "hauler":
+            rospy.logerr("move_bin:" + self.rover_type + " is not a hauler")
+        pass  # -math.pi \ 3 to 0
+
+    # @TODO wrappers to home and dump of bin, dont need to Qualification Rounds
+
+    def get_bin_angle(self): # Not needed for Qualification Rounds
+        if self.rover_type != "hauler":
+            rospy.logerr("get_bin_angle:" + self.rover_type + " is not a hauler")
+        pass
+    # # # END HAULER SPECIFIC CODE # # #
