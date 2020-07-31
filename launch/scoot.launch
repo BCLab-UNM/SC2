@@ -2,7 +2,7 @@
 
   <!-- Default argument parameters, use different values in the command line to change them -->
   <arg name="name" default="scout_1"/>
-  <arg name="search" default="DDSA"/>
+  <arg name="search" default="search"/>
 
   <rosparam param="vol_types">["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"]</rosparam>
 
