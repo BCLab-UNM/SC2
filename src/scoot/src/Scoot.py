@@ -242,8 +242,8 @@ class Scoot(object):
         target_frame = self.rover_name + '_tf/' + target_frame.strip('/')
 
         self.xform.waitForTransform(
-            target_frame,
             pose.header.frame_id,
+            target_frame,
             pose.header.stamp,
             rospy.Duration(timeout)
         )
@@ -259,7 +259,7 @@ class Scoot(object):
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now() 
         pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
-        aprox_vol_location = self.transform_pose("volatile_sensor_static", pose_stamped)
+        aprox_vol_location = self.transform_pose("top", pose_stamped)
         result = None
         try:
             result = self.qal1ScoreService(
@@ -267,6 +267,10 @@ class Scoot(object):
                 vol_type=self.VOL_TYPES[vol_type_index])
             rospy.loginfo("Scored!")
         except ServiceException:
+            rospy.logwarn(aprox_vol_location.pose.position)
+            rospy.logwarn(aprox_vol_location.header)
+            rospy.logwarn(pose_stamped.pose)
+            rospy.logwarn(pose_stamped.header)
             rospy.logwarn("/vol_detected_service is grumpy")
             result = False
         return result
