@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 import math
-import angles 
+import angles
 import tf
 import threading
 
@@ -184,7 +184,7 @@ class Scoot(object):
 
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
-        
+
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
         self.xform = tf.TransformListener()
@@ -257,20 +257,20 @@ class Scoot(object):
     def score(self, vol_type_index=0):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
-        pose_stamped.header.stamp = rospy.Time.now() 
+        pose_stamped.header.stamp = rospy.Time.now()
         pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
         aprox_vol_location = self.transform_pose("volatile_sensor_static", pose_stamped)
         result = None
         try:
             result = self.qal1ScoreService(
-                pose=aprox_vol_location.pose.position, 
+                pose=aprox_vol_location.pose.position,
                 vol_type=self.VOL_TYPES[vol_type_index])
             rospy.loginfo("Scored!")
         except ServiceException:
             rospy.logwarn("/vol_detected_service is grumpy")
             result = False
         return result
-      
+
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
@@ -292,7 +292,7 @@ class Scoot(object):
         '''
         loc = self.getOdomLocation().getPose()
         dist = math.hypot(loc.y - place.y, loc.x - place.x)
-        angle = angles.shortest_angular_distance(loc.theta, 
+        angle = angles.shortest_angular_distance(loc.theta,
                                                  math.atan2(place.y - loc.y,
                                                             place.x - loc.x))
         effective_dist = dist - forward_offset
@@ -305,11 +305,11 @@ class Scoot(object):
             return self.drive(effective_dist, **kwargs)
 
         req = MoveRequest(
-            theta=angle, 
+            theta=angle,
             r=effective_dist,
-        )        
+        )
         return self.__drive(req, **kwargs)
-    
+
     def set_heading(self, heading, **kwargs):
         '''Turn to face an absolute heading in radians. (zero is east)
         Arguments:
@@ -318,7 +318,7 @@ class Scoot(object):
         loc = self.getOdomLocation().getPose()
         angle = angles.shortest_angular_distance(loc.theta, heading)
         self.turn(angle, **kwargs)
-    
+
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs:
@@ -334,7 +334,7 @@ class Scoot(object):
                     'You usually want to use ignore=VISION_HOME'
                 )
             '''
-        request.timeout = 120 # In seconds
+        request.timeout = 120  # In seconds
         if 'timeout' in kwargs:
             request.timeout = kwargs['timeout']
 
@@ -496,7 +496,7 @@ class Scoot(object):
 
     # @TODO wrappers to home and dump of bin, dont need to Qualification Rounds
 
-    def get_bin_angle(self): # Not needed for Qualification Rounds
+    def get_bin_angle(self):  # Not needed for Qualification Rounds
         if self.rover_type != "hauler":
             rospy.logerr("get_bin_angle:" + self.rover_type + " is not a hauler")
         pass
