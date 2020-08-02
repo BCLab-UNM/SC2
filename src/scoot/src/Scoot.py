@@ -9,7 +9,7 @@ from rospy import ServiceException
 from srcp2_msgs import msg, srv
 
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped, PoseStamped, Quaternion
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -149,6 +149,7 @@ class Scoot(object):
         self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
+        rospy.set_param('/volatile_detection_service_delay_range', 0.0)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -257,20 +258,32 @@ class Scoot(object):
     def score(self, vol_type_index=0):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
-        pose_stamped.header.stamp = rospy.Time.now() 
-        pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
-        aprox_vol_location = self.transform_pose("top", pose_stamped)
+        pose_stamped.header.stamp = rospy.Time.now()
+        pose_stamped.pose = self.OdomLocation.Odometry.pose
+                
+        ps = PoseStamped()
+        ps.header.frame_id = pose_stamped.header.frame_id
+        ps.header.stamp = pose_stamped.header.stamp
+        quat = [pose_stamped.pose.pose.orientation.x,
+                pose_stamped.pose.pose.orientation.y,
+                pose_stamped.pose.pose.orientation.z,
+                pose_stamped.pose.pose.orientation.w,
+        ]
+        (r, p, y) = tf.transformations.euler_from_quaternion(quat)
+        theta = y
+        add_x = math.cos(theta) * 1.143
+        add_y = math.sin(theta) * 1.143
+        ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
+        ps.pose.position.y = pose_stamped.pose.pose.position.y + add_y
+        ps.pose.position.z = 0.0
+        
         result = None
         try:
             result = self.qal1ScoreService(
-                pose=aprox_vol_location.pose.position, 
+                pose=ps.pose.position, 
                 vol_type=self.VOL_TYPES[vol_type_index])
-            rospy.loginfo("Scored!")
+            rospy.logwarn("Scored!")
         except ServiceException:
-            rospy.logwarn(aprox_vol_location.pose.position)
-            rospy.logwarn(aprox_vol_location.header)
-            rospy.logwarn(pose_stamped.pose)
-            rospy.logwarn(pose_stamped.header)
             rospy.logwarn("/vol_detected_service is grumpy")
             result = False
         return result
