@@ -485,10 +485,10 @@ class Scoot(object):
             return
         # checking bounds
         if angle > (math.pi / 3.0):
-            rospy.logerr("move_base_arm:" + str(angle) + "exceeds allowed limits moving to max position")
+            rospy.logerr("move_base_arm:" + str(angle) + " exceeds allowed limits moving to max position")
             self.base_arm_control.publish(math.pi / 3.0)  # max
         elif angle < (-math.pi / 5.0):
-            rospy.logerr("move_base_arm:" + str(angle) + "exceeds allowed limits moving to minimum position")
+            rospy.logerr("move_base_arm:" + str(angle) + " exceeds allowed limits moving to minimum position")
             self.base_arm_control.publish((-math.pi / 5.0))  # min
         else:
             self.base_arm_control.publish(angle)
@@ -503,10 +503,10 @@ class Scoot(object):
             return
         # checking bounds
         if angle > (math.pi / 3.0):
-            rospy.logerr("move_base_arm:" + str(angle) + "exceeds allowed limits moving to max position")
+            rospy.logerr("move_base_arm:" + str(angle) + " exceeds allowed limits moving to max position")
             self.distal_arm_control.publish(math.pi / 3.0)  # max
         elif angle < (-math.pi / 3.0):
-            rospy.logerr("move_base_arm:" + str(angle) + "exceeds allowed limits moving to minimum position")
+            rospy.logerr("move_base_arm:" + str(angle) + " exceeds allowed limits moving to minimum position")
             self.distal_arm_control.publish((-math.pi / 3.0))  # min
         else:
             self.distal_arm_control.publish(angle)
@@ -517,10 +517,10 @@ class Scoot(object):
             return
         # checking bounds
         if angle > ((5 * math.pi) / 4.0):
-            rospy.logerr("move_bucket:" + str(angle) + "exceeds allowed limits moving to max position")
+            rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to max position")
             self.bucket_control.publish((5 * math.pi) / 4.0)  # max
         elif angle < 0:
-            rospy.logerr("move_bucket:" + str(angle) + "exceeds allowed limits moving to minimum position")
+            rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to minimum position")
             self.bucket_control.publish(0)  # min
         else:
             self.bucket_control.publish(angle)
