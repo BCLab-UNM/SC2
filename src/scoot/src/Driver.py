@@ -3,6 +3,8 @@
 from __future__ import print_function
 
 import sys
+
+import numpy
 import rospy
 import angles
 import math
@@ -94,6 +96,7 @@ class State:
         State.GOAL_DISTANCE_OK = rospy.get_param("GOAL_DISTANCE_OK", default=0.1)
         State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi / 16)
         State.DRIVE_ANGLE_ABORT = rospy.get_param("DRIVE_ANGLE_ABORT", default=math.pi / 4)
+        self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
 
         self.rover_name = rospy.get_param('rover_name', default='scout_1')
 
@@ -110,12 +113,28 @@ class State:
         self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
 
         rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
-        self.brakeService = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
+        self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
         # Start a thread to do initial configuration.
         thread.start_new_thread(self.do_initial_config, ())
+
+    def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
+        """
+        Applies the brakes "gradually"
+        Given the defaults it will apply the below values to the brakes over the course of 1 second
+        [1, 1, 3, 7, 15, 31, 62, 125, 250, 499]
+        end_brake_value: is just that it it the final value that will be sent to the brake service
+        stages: is the number of distinct values that will be sent to the brake service
+        hz: is number of states that happen per a second
+        exponent: is a magic number that will control the brake value ramping
+        """
+        rate = rospy.Rate(hz)  # default 10hz
+        for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
+                                               endpoint=True, num=stages)):
+            self.brake_service.call(brake_value)
+            rate.sleep()
 
     def _stop_now(self, result):
         self.drive(0, 0, State.DRIVE_MODE_STOP)
@@ -128,7 +147,7 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
-        #self.brakeService(brake=True) # Brakes on
+        self._brake_ramp(self.MAX_BRAKES)  # Applying full brakes
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -200,7 +219,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        #self.brakeService(brake=False)  #brakes off
+        self.brake_service(0)  # immediately disengage brakes
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -226,7 +245,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
-                # self.brakeService(True) #brakes on # @TODO investigate when can be a NONE type service
+                self._brake_ramp(self.MAX_BRAKES)  # Applying full brakes
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
@@ -237,7 +256,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                #self.brakeService(brake=False)  #brakes off
+                self.brake_service(0)  # immediately disengage brakes
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
