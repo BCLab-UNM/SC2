@@ -219,7 +219,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        self.brake_service(0)  # immediately disengage brakes
+        self.brake_service.call(0)  # immediately disengage brakes
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -256,7 +256,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                self.brake_service(0)  # immediately disengage brakes
+                self.brake_service.call(0)  # immediately disengage brakes
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:

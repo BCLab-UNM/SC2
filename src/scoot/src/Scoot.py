@@ -406,13 +406,13 @@ class Scoot(object):
         if (state == "on") or (state is True) or (state is None):
             self._brake_ramp(self.MAX_BRAKES)
         elif (state == "off") or (state is False) or (state == 0.0):
-            self.brake_service(0)  # immediately disengage brakes
+            self.brake_service.call(0)  # immediately disengage brakes
         elif (type(state) != float) and (type(state) != int):
             rospy.logerr("Invalid brake value, got:" + str(state))
         elif state < 0:
             rospy.logerr("Brake value can't be negative, got:" + str(state))
             rospy.logwarn("Disengaging brakes")
-            self.brake_service(0)  # immediately disengage brakes
+            self.brake_service.call(0)  # immediately disengage brakes
         elif state >= (self.MAX_BRAKES + 1):
             rospy.logerr("Brake value can't greater/equal to "+str(self.MAX_BRAKES)+", got:" + str(state))
             rospy.logwarn("Applying full brakes")
