@@ -14,6 +14,14 @@ def main(task=None):
         scoot = Scoot("excavator")
         scoot.start(node_name='dig')
     rospy.loginfo('Dig Started')
+    ''' @TODO: Outline 
+    Check Bucket status
+    Reset to "home"
+    Open the Bucket
+    Lower the Boom
+    Start to Dig - curl the bucket inward, lowering it into the ground to scoop up volatile
+    Lift the Load - retract and raise the boom while keeping the bucket curled
+    '''
     sys.exit(0)  # "succeeded"
 
 
