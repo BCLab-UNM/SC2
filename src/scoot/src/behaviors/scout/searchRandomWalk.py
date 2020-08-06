@@ -39,12 +39,9 @@ def random_walk(num_moves):
                 sys.exit(-1)
             wander()
     except VolatileException:
-        rospy.loginfo("I found a volatile! " + scoot.VOL_TYPES[scoot.control_data])
-        result = scoot.score(scoot.control_data)
-        if not result:
-            # need to take this in mind get from the param server volatile_detection_service_delay_range
-            rospy.logwarn("First score attempt failed trying again")
-            scoot.score(scoot.control_data)
+        rospy.logwarn("I found a volatile! " + scoot.VOL_TYPES[scoot.control_data])
+        scoot.score(scoot.control_data)
+        rospy.logwarn('Exiting')
         sys.exit(0)
 
 
