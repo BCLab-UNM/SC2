@@ -3,12 +3,20 @@
 
 from __future__ import print_function
 import sys
-
-def main(**kwargs):
-    print ("Dump Node Started")
-    sys.exit(0)
+import rospy
+from Scoot import Scoot
 
 
-if __name__ == '__main__' : 
-    #scoot.start(node_name='dump')
+def main(task=None):
+    if task:
+        scoot = task.scoot
+    else:  # Called without task instance
+        scoot = Scoot("hauler")
+        scoot.start(node_name='dump')
+    rospy.loginfo('Dump Started')
+    sys.exit(0)  # "succeeded"
+
+
+if __name__ == '__main__':
+    rospy.init_node('dump')
     sys.exit(main())
