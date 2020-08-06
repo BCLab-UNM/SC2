@@ -132,6 +132,7 @@ class Scoot(object):
         self.modelStateService = None
 
         self.truePoseCalled = False
+        self.volServiceCalled = False
 
         self.OdomLocation = Location(None)
         self.control = None
@@ -256,8 +257,7 @@ class Scoot(object):
     def getControlData(self):
         return self.control_data
 
-    # @TODO: test this
-    def score(self, vol_type_index=0):
+    def getVolPose(self):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
@@ -278,17 +278,20 @@ class Scoot(object):
         ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
         ps.pose.position.y = pose_stamped.pose.pose.position.y + add_y
         ps.pose.position.z = 0.0
-        
-        result = None
+
+        return ps.pose.position
+
+    # @TODO: test this
+    def score(self, vol_type_index=0):
+        vol_loc = self.getVolPose()
         try:
             result = self.qal1ScoreService(
-                pose=ps.pose.position, 
+                pose=vol_loc,
                 vol_type=self.VOL_TYPES[vol_type_index])
             rospy.logwarn("Scored!")
+            rospy.sleep(.5)
         except ServiceException:
-            rospy.logwarn("/vol_detected_service is grumpy")
-            result = False
-        return result
+            rospy.logwarn("Score attempt failed")
       
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
