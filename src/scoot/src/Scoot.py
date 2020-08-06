@@ -4,6 +4,7 @@ import math
 import angles
 import tf
 import threading
+import numpy
 
 from rospy import ServiceException
 from srcp2_msgs import msg, srv
@@ -121,6 +122,7 @@ class Scoot(object):
         self.TURN_SPEED = 0
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
+        self.MAX_BRAKES = 0
         self.VOL_TYPES = None
 
         self.skid_topic = None
@@ -139,7 +141,7 @@ class Scoot(object):
         self.model_state_service = None
         self.light_service = None
         self.brake_service = None
-
+        
         self.truePoseCalled = False
         self.OdomLocation = Location(None)
         self.control = None
@@ -158,8 +160,8 @@ class Scoot(object):
         self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
-        rospy.loginfo(self.rover_name)
-        rospy.loginfo(self.rover_type)
+        self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
+
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
                 Documentation/Qualification-Rounds/Round-Two.md 
@@ -430,8 +432,39 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
-    def brake(self, state="on"):
-        self.brake_service(state is "on")
+    def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
+        """
+        Applies the brakes "gradually"
+        Given the defaults it will apply the below values to the brakes over the course of 1 second
+        [1, 1, 3, 7, 15, 31, 62, 125, 250, 499]
+        end_brake_value: is just that it it the final value that will be sent to the brake service
+        stages: is the number of distinct values that will be sent to the brake service
+        hz: is number of states that happen per a second
+        exponent: is a magic number that will control the brake value ramping
+        """
+        rate = rospy.Rate(hz)  # default 10hz
+        for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
+                                               endpoint=True, num=stages)):
+            self.brake_service.call(brake_value)
+            rate.sleep()
+
+    def brake(self, state=None):
+        if (state == "on") or (state is True) or (state is None):
+            self._brake_ramp(self.MAX_BRAKES)
+        elif (state == "off") or (state is False) or (state == 0.0):
+            self.brake_service.call(0)  # immediately disengage brakes
+        elif (type(state) != float) and (type(state) != int):
+            rospy.logerr("Invalid brake value, got:" + str(state))
+        elif state < 0:
+            rospy.logerr("Brake value can't be negative, got:" + str(state))
+            rospy.logwarn("Disengaging brakes")
+            self.brake_service.call(0)  # immediately disengage brakes
+        elif state >= (self.MAX_BRAKES + 1):
+            rospy.logerr("Brake value can't greater/equal to "+str(self.MAX_BRAKES)+", got:" + str(state))
+            rospy.logwarn("Applying full brakes")
+            self._brake_ramp(self.MAX_BRAKES)
+        else:
+            self._brake_ramp(state)
 
     def _light(self, state):
         self.light_service(data=state)
