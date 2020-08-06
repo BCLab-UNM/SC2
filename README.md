@@ -130,3 +130,9 @@ rosrun scoot Scoot.py __ns:=scout_1
 scoot.turn(math.pi/4)
 scoot.drive(1)
 ```
+### Scout Search Behaviors
+```roslaunch ./launch/scoot.launch "name:=scout_1" "search:=searchRandomWalk"```
+
+or
+
+```roslaunch ./launch/scoot.launch "name:=scout_1" "search:=DDSA"```
