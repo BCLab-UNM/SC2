@@ -11,6 +11,7 @@ from obstacle.msg import Obstacles
 class Obstacle:
 
     def __init__(self, name):
+        rospy.init_node('Obstacle', anonymous=True)
         self.rover_width = rospy.get_param('/rover_total_width', default=2.2098)
         self.laser_coverage = rospy.get_param('/laser_coverage', default=40)
         self.rover_width = rospy.get_param('/rover_total_width', default=2.2098)
@@ -69,7 +70,6 @@ class Obstacle:
 
     def run(self):
         # @TODO: Test for laser noise if it's bad move publish into run after taking the median
-        rospy.init_node('Obstacle', anonymous=True)
         rospy.loginfo("Obstacle Node Running")
         rospy.spin()
 
