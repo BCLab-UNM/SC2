@@ -3,12 +3,20 @@
 
 from __future__ import print_function
 import sys
-
-def main(**kwargs):
-    print ("Goto Excavator Node Started")
-    sys.exit(0)
+import rospy
+from Scoot import Scoot
 
 
-if __name__ == '__main__' : 
-    #scoot.start(node_name='goto_excavator')
+def main(task=None):
+    if task:
+        scoot = task.scoot
+    else:  # Called without task instance
+        scoot = Scoot("hauler")
+        scoot.start(node_name='goto_excavator')
+    rospy.loginfo('Goto Excavator Started')
+    sys.exit(0)  # "succeeded"
+
+
+if __name__ == '__main__':
+    rospy.init_node('goto_excavator')
     sys.exit(main())
