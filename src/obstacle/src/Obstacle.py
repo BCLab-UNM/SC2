@@ -24,7 +24,7 @@ class Obstacle:
         rospy.Subscriber("/{}/laser/scan".format(name), LaserScan, self.laser_scan_callback)
         rospy.Subscriber("/{}/volatile_sensor".format(name), VolSensorMsg, self.volatile_sensor_callback)
         self.obstaclePublisher = rospy.Publisher("/{}/obstacle".format(name), Obstacles, queue_size=5)
-        self.VOL_TYPES = rospy.get_param("vol_types", default=["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"])
+        self.VOL_TYPES = rospy.get_param("vol_types", default=["ice", "ethene", "methane", "carbon_mono", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"])
 
     def laser_scan_callback(self, data):
         self.obstacleAccumulator = Obstacles.PATH_IS_CLEAR
