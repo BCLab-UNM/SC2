@@ -162,6 +162,7 @@ class Scoot(object):
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
+        self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -334,10 +335,24 @@ class Scoot(object):
             result = self.qal1ScoreService(
                 pose=vol_loc,
                 vol_type=self.VOL_TYPES[vol_type_index])
-            rospy.logwarn("Scored!")
-            rospy.sleep(.5)
         except ServiceException:
             rospy.logwarn("Score attempt failed")
+            rospy.sleep(self.vol_delay[-1])
+            rospy.logwarn("Waited")
+            vol_loc = self.getVolPose()
+            try:
+                result = self.qal1ScoreService(
+                    pose=vol_loc,
+                    vol_type=self.VOL_TYPES[vol_type_index])
+                rospy.logwarn("Scored second time!")
+                rospy.sleep(.5)
+            except ServiceException:
+                rospy.logwarn("Failed again")
+                return False
+        else:
+            rospy.logwarn("Scored!")
+            rospy.sleep(.5)
+            return True
       
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
