@@ -337,6 +337,7 @@ class Scoot(object):
                 vol_type=self.VOL_TYPES[vol_type_index])
         except ServiceException:
             rospy.logwarn("Score attempt failed")
+            self.brake('on')
             rospy.sleep(self.vol_delay[-1])
             rospy.logwarn("Waited")
             vol_loc = self.getVolPose()
@@ -344,11 +345,15 @@ class Scoot(object):
                 result = self.qal1ScoreService(
                     pose=vol_loc,
                     vol_type=self.VOL_TYPES[vol_type_index])
-                rospy.logwarn("Scored second time!")
-                rospy.sleep(.5)
             except ServiceException:
                 rospy.logwarn("Failed again")
+                self.brake('off')
                 return False
+            else:
+                rospy.logwarn("Scored second time!")
+                self.brake('off')
+                rospy.sleep(.5)
+                return True
         else:
             rospy.logwarn("Scored!")
             rospy.sleep(.5)
