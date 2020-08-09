@@ -4,6 +4,7 @@
         <include file="launch/scoot.launch">
             <arg name="name" value="excavator_1"/>
             <arg name="round" value="2"/>
+            <arg name="mode" value="auto"/>
         </include>
     </group>
 
@@ -11,6 +12,7 @@
         <include file="launch/scoot.launch">
         <arg name="name" value="hauler_1"/>
         <arg name="round" value="2"/>
+        <arg name="mode" value="auto"/>
         </include>
     </group>
 </launch>

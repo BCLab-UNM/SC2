@@ -4,4 +4,5 @@
         <arg name="name" default="scout_1"/>
         <arg name="search" default="searchRandomWalk"/>
         <arg name="round" default="3"/>
+        <arg name="mode" value="auto"/>
 </launch>
