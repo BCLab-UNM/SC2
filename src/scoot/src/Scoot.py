@@ -172,7 +172,7 @@ class Scoot(object):
             our scoot.launch
             and matching with indexes from our Obstacles.msg '''
         self.VOL_TYPES = rospy.get_param("vol_types",
-                                         default=["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia",
+                                         default=["ice", "ethene", "methane", "carbon_mono", "carbon_dio", "ammonia",
                                                   "hydrogen_sul", "sulfur_dio"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
