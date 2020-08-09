@@ -3,6 +3,7 @@
   <arg name="name"/>
   <arg name="search"/>
   <arg name="round"/>
+  <arg name="mode"/>
 
   <param name="rover_name" value="$(arg name)"/>
   <param name="rover_name_tf" value="$(arg name)_tf"/>
@@ -13,7 +14,7 @@
   </include>
     
   <node name="Core" pkg="scoot" type="Core.py" respawn="true">
-
+    <param name="mode" value="$(arg mode)"/>
     <param name="HEADING_RESTORE_FACTOR" value="1.0"/>
     <param name="GOAL_DISTANCE_OK" value="0.1"/>
     <param name="ROTATE_THRESHOLD" value="0.19"/>
