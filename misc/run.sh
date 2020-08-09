@@ -38,7 +38,10 @@ done # end of while
 
 # run the round in the background
 # @TODO: might redirect the output so it dose not interupt
-$(dirname $0)/srcp2-competitors/docker/scripts/launch/roslaunch_docker -c -n -e --run-round $round &
+arg=""
+lspci -v | grep nvidia >/dev/null && echo "Found Nvidia Card" || (arg="-c"; echo "No Nvidia Card Using CPU")
+
+$(dirname $0)/srcp2-competitors/docker/scripts/launch/roslaunch_docker $arg -n -e --run-round $round &
 
 # wait for master to startup
 watch --chgexit rostopic list 2>&1 >/dev/null
