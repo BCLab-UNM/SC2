@@ -1,6 +1,5 @@
 #!/bin/bash
-# Trap signals then stop all docker containers
-trap "{ docker kill $(docker ps -q) ; echo q >> /tmp/srcp2RunSocket; exit 0 ; }" SIGINT SIGTERM EXIT
+
 SLEEP_INTERVAL=5
 round=1
 arg=""
@@ -14,20 +13,19 @@ do
         -r)     shift
                 round="$1"
                 ;;
-        -b)     shift
-                behavior="$1"
-                ;;
-        --help) echo "usage: ... "
+        -h | --help) echo "usage: ./run.sh [-r round] [-n no Gazebo GUI] [-b clean/build code] [--help]"
                 exit 1
                 ;;
         *)      echo "invalid argument"
-                echo "usage: ./run.sh [-r round] [-b behavior] [--help]"
+                echo "usage: ./run.sh [-r round] [-n no Gazebo GUI] [-b clean/build code] [--help]"
                 exit 2
                 ;;
     esac
 shift
 done # end of while 
 
+# Trap signals then stop all docker containers
+trap "{ docker kill $(docker ps -q) ; echo q >> /tmp/srcp2RunSocket; exit 0 ; }" SIGINT SIGTERM EXIT
 source /opt/ros/melodic/setup.bash || { echo "Is ROS melodic installed?" && exit 10 ; }
 
 _CATKIN_SETUP_DIR="$(dirname $0)/srcp2-competitors/ros_workspace/install/"
