@@ -13,9 +13,13 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
 # Converts wheel poses into wheel odometry
 class WheelEncoder:
 
-    def __init__(self, name):
-        rospy.Subscriber("/{}/joint_states".format(name), JointState, self.jointStatesCallback)
-        self.odom_pub = rospy.Publisher("/scout_1/odom", Odometry, queue_size=50)
+
+
+    def __init__(self):
+        self.name = rospy.get_param('rover_name', default='scout_1')
+
+        rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)
+        self.odom_pub = rospy.Publisher("/{}/odom".format(self.name), Odometry, queue_size=50)
         self.odom_broadcaster = tf.TransformBroadcaster()
         self.last_time = rospy.Time.now()  
         self.x = 0
@@ -62,8 +66,9 @@ class WheelEncoder:
         v_right = omega_right * self.wheel_radius
 
         v_rx = ( v_right + v_left ) /2
-        v_ry = 0 
-        v_rtheta = ( v_right - v_left ) / self.track_width 
+        v_ry = 0
+        # We increase the track width by a factor of 4 to match empirical tests
+        v_rtheta = ( v_right - v_left ) / (4 * self.track_width)
         
         # Velocities and pose in the odom frame
         # The velocities expressed in the robot base frame can be transformed into the odom frame. 
@@ -91,8 +96,17 @@ class WheelEncoder:
             (self.x, self.y, 0.),
             odom_quat,
             current_time,
-            "base_footprint",
+            "{}_tf/base_footprint".format(self.name),
             "odom"
+        )
+
+        # And link up the map
+        self.odom_broadcaster.sendTransform(
+            (0, 0, 0),
+            tf.transformations.quaternion_from_euler(0, 0, 0),
+            current_time,
+            "odom",
+            "map"
         )
 
         # next, we'll publish the odometry message over ROS
@@ -104,7 +118,7 @@ class WheelEncoder:
         odom.pose.pose = Pose(Point(self.x, self.y, 0.), Quaternion(*odom_quat))
 
         # set the velocity
-        odom.child_frame_id = "base_footprint"
+        odom.child_frame_id = "{}_tf/base_footprint".format(self.name)
         odom.twist.twist = Twist(Vector3(v_rx, v_ry, 0), Vector3(0, 0, v_rtheta))
 
         # publish the message
@@ -130,7 +144,7 @@ if __name__ == '__main__':
     rospy.on_shutdown( shutdownHandler )
 
     # Initialise the node
-    encoder = WheelEncoder('scout_1')
+    encoder = WheelEncoder()
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
