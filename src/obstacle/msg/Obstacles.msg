@@ -16,7 +16,7 @@ uint8 methane       = 2
 uint8 methanol      = 3
 uint8 carbon_dio    = 4
 uint8 ammonia       = 5
-uint8 hyrdogen_sul  = 6
+uint8 hydrogen_sul  = 6
 uint8 sulfur_dio    = 7
 
 # bitmasks
