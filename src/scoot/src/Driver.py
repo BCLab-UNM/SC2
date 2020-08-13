@@ -96,7 +96,6 @@ class State:
         State.GOAL_DISTANCE_OK = rospy.get_param("GOAL_DISTANCE_OK", default=0.1)
         State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi / 16)
         State.DRIVE_ANGLE_ABORT = rospy.get_param("DRIVE_ANGLE_ABORT", default=math.pi / 4)
-        self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
 
         self.rover_name = rospy.get_param('rover_name', default='scout_1')
 
@@ -120,22 +119,6 @@ class State:
         # Start a thread to do initial configuration.
         thread.start_new_thread(self.do_initial_config, ())
 
-    def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
-        """
-        Applies the brakes "gradually"
-        Given the defaults it will apply the below values to the brakes over the course of 1 second
-        [1, 1, 3, 7, 15, 31, 62, 125, 250, 499]
-        end_brake_value: is just that it it the final value that will be sent to the brake service
-        stages: is the number of distinct values that will be sent to the brake service
-        hz: is number of states that happen per a second
-        exponent: is a magic number that will control the brake value ramping
-        """
-        rate = rospy.Rate(hz)  # default 10hz
-        for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
-                                               endpoint=True, num=stages)):
-            self.brake_service.call(brake_value)
-            rate.sleep()
-
     def _stop_now(self, result):
         self.drive(0, 0, State.DRIVE_MODE_STOP)
         self.CurrentState = State.STATE_IDLE
@@ -147,7 +130,18 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
-        self._brake_ramp(self.MAX_BRAKES)  # Applying full brakes
+
+    def _brakes_off(self):
+        try:
+            self.brake_service.call(0)  # immediately disengage brakes
+        except rospy.ServiceException:
+            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
+            try:
+                self.brake_service.call(0)  # immediately disengage brakes
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except rospy.ServiceException:
+                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
+                rospy.logerr("If you are seeing this message you can expect strange behavior[flipping] from the rover")
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -219,7 +213,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        self.brake_service.call(0)  # immediately disengage brakes
+        self._brakes_off()
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -245,7 +239,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
-                self._brake_ramp(self.MAX_BRAKES)  # Applying full brakes
+                pass
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
@@ -256,7 +250,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                self.brake_service.call(0)  # immediately disengage brakes
+                self._brakes_off()
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
