@@ -135,7 +135,6 @@ class Scoot(object):
 
         self.bucket_info_msg = None
         self.bin_info_msg = None
-        self.brake_service = None
         self.localization_service = None
         self.model_state_service = None
         self.light_service = None
@@ -431,6 +430,18 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
+    def _brake_service_call(self, brake_value):
+        try:
+            self.brake_service.call(brake_value)
+        except rospy.ServiceException:
+            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
+            try:
+                self.brake_service.call(brake_value)
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except rospy.ServiceException:
+                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
+                rospy.logerr("If you are seeing this message you can except strange behavior (flipping) from the rover")
+
     def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
         """
         Applies the brakes "gradually"
@@ -444,20 +455,20 @@ class Scoot(object):
         rate = rospy.Rate(hz)  # default 10hz
         for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
                                                endpoint=True, num=stages)):
-            self.brake_service.call(brake_value)
+            self._brake_service_call(brake_value)
             rate.sleep()
 
     def brake(self, state=None):
         if (state == "on") or (state is True) or (state is None):
             self._brake_ramp(self.MAX_BRAKES)
         elif (state == "off") or (state is False) or (state == 0.0):
-            self.brake_service.call(0)  # immediately disengage brakes
+            self._brake_service_call(0)  # immediately disengage brakes
         elif (type(state) != float) and (type(state) != int):
             rospy.logerr("Invalid brake value, got:" + str(state))
         elif state < 0:
             rospy.logerr("Brake value can't be negative, got:" + str(state))
             rospy.logwarn("Disengaging brakes")
-            self.brake_service.call(0)  # immediately disengage brakes
+            self._brake_service_call(0)  # immediately disengage brakes
         elif state >= (self.MAX_BRAKES + 1):
             rospy.logerr("Brake value can't greater/equal to "+str(self.MAX_BRAKES)+", got:" + str(state))
             rospy.logwarn("Applying full brakes")
