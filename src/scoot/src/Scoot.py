@@ -347,11 +347,9 @@ class Scoot(object):
                     vol_type=self.VOL_TYPES[vol_type_index])
             except ServiceException:
                 rospy.logwarn("Failed again")
-                self.brake('off')
                 return False
             else:
                 rospy.logwarn("Scored second time!")
-                self.brake('off')
                 rospy.sleep(.5)
                 return True
         else:
