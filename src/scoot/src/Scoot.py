@@ -135,6 +135,7 @@ class Scoot(object):
 
         self.bucket_info_msg = None
         self.bin_info_msg = None
+
         self.localization_service = None
         self.model_state_service = None
         self.light_service = None

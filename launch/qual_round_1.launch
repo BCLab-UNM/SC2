@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <include file="launch/scoot.launch">
+        <arg name="name" value="scout_1"/>
+        <arg name="search" value="searchRandomWalk"/>
+        <arg name="round" value="1"/>
+        <arg name="mode" value="auto"/>
+    </include>
+</launch>

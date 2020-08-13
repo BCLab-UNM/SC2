@@ -50,7 +50,7 @@ class Task:
     PROG_GOTO_PROCESSING_PLANT = getattr(hauler,
                                          rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
 
-    ROUND_NUMBER = rospy.get_param('round_num', default=1)
+    ROUND_NUMBER = rospy.get_param('round', default=1)
 
     def __init__(self):
         self.scoot = None
