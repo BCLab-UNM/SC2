@@ -4,6 +4,7 @@
   <arg name="name" default="scout_1"/>
   <arg name="search" default="search"/>
   <arg name="round" default="1"/>
+  <arg name="mode" default="auto"/>
   <rosparam param="vol_types">["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"]</rosparam>
 
   <group ns="$(arg name)">
@@ -16,6 +17,7 @@
       <arg name="name" value="$(arg name)"/>
       <arg name="round" value="$(arg round)"/>
       <arg name="search" value="$(arg search)"/>
+      <arg name="mode" value="$(arg mode)"/>
     </include>
 
     <!-- The stereo_image_proc node is a part of a ROS package that does stereo image processing -->
