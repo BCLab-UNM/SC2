@@ -1,7 +1,8 @@
 #! /usr/bin/env python
-"""Fine Search node."""
+"""Home Alignment node."""
 
 from __future__ import print_function
+import sys
 import sys
 import rospy
 from Scoot import Scoot
@@ -12,11 +13,11 @@ def main(task=None):
         scoot = task.scoot
     else:  # Called without task instance
         scoot = Scoot("scout_1")
-        scoot.start(node_name='fine_search')
-    rospy.loginfo('Fine Search Started')
+        scoot.start(node_name='home_alignment')
+    rospy.loginfo('Home Alignment Started')
     sys.exit(0)  # "succeeded"
 
 
 if __name__ == '__main__':
-    rospy.init_node('fine_search')
+    rospy.init_node('home_alignment')
     sys.exit(main())
