@@ -135,7 +135,6 @@ class Scoot(object):
 
         self.bucket_info_msg = None
         self.bin_info_msg = None
-        self.light_service = None
         self.brake_service = None
         self.localization_service = None
         self.model_state_service = None
@@ -504,16 +503,33 @@ class Scoot(object):
             self._brake_ramp(state)
 
     def _light(self, state):
-        self.light_service(data=state)
+        try:
+            self.light_service.call(data=state)
+        except rospy.ServiceException:
+            rospy.logerr("Light Service Exception: Light Service Failed to Respond")
+            try:
+                self.light_service.call(data=state)
+                rospy.logwarn("Second attempt to use lights was successful")
+            except rospy.ServiceException:
+                rospy.logerr("Light Service Exception: Second attempt failed to use lights")
 
-    def lightOn(self):
+    def light_on(self):
         self._light('high')
 
-    def lightLow(self):
+    def light_low(self):
         self._light('low')
 
-    def lightOff(self):
+    def light_off(self):
         self._light('stop')
+
+    #Intensity needs to be a float interpreted as a string from 0.0 to 1.0
+    def light_intensity(self, intensity):
+        intensity = float(intensity)
+        if intensity > 1.0:
+            intensity = 1.0
+        if intensity < 0.0:
+            intensity = 0.0
+        self._light(str(intensity))
 
     def _look(self, angle):
         self.sensor_control_topic.publish(angle)

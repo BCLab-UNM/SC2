@@ -55,6 +55,7 @@ def main(task=None):
         scoot = task.scoot
     rospy.loginfo("Search Node Started")
     random_walk(num_moves=50)
+    scoot.brake()
     rospy.loginfo("I'm probably lost!")
     sys.exit(1)
 
