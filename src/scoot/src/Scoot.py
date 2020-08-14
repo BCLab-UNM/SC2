@@ -627,4 +627,31 @@ class Scoot(object):
             rospy.logerr("get_bin_angle:" + self.rover_type + " is not a hauler")
             return
         return self.get_joint_pos("bin_joint")
+
     # # # END HAULER SPECIFIC CODE # # #
+
+    def get_closest_vol_pose(self):
+        if self.ROUND_NUMBER == 2:
+            vol_list = list()
+            rover_pose = self.getOdomLocation().getPose()
+            try:
+                vol_list = self.vol_list_service.call()
+            except ServiceException:
+                rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
+                try:
+                    vol_list = self.vol_list_service.call()
+                    rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
+                except ServiceException:
+                    rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
+                    return None
+            closest_vol_pose = min(vol_list.poses,
+                                   key=lambda k: math.sqrt((k.x - rover_pose.x) ** 2 + (k.y - rover_pose.y) ** 2))
+            rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
+            rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose.x) + ", y:" + str(closest_vol_pose.y))
+            return closest_vol_pose
+            # If we wanted to return all the elements we would get the index from min or find the index
+            # where the min pose is at
+            # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
+            # vol_list.volatile_type[index])
+        else:
+            rospy.logerr("get_closest_vol_pose: it is illegal to call out of round 2")
