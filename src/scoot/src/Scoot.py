@@ -124,6 +124,7 @@ class Scoot(object):
         self.REVERSE_SPEED = 0
         self.MAX_BRAKES = 0
         self.VOL_TYPES = None
+        self.ROUND_NUMBER = 0
 
         self.skid_topic = None
         self.sensor_control_topic = None
@@ -140,14 +141,14 @@ class Scoot(object):
         self.model_state_service = None
         self.light_service = None
         self.brake_service = None
-        
+        self.vol_list_service = None
+
         self.truePoseCalled = False
         self.OdomLocation = Location(None)
         self.control = None
         self.control_data = None
         self.joint_states = None
         self.xform = None
-
 
     def start(self, **kwargs):
         if 'tf_rover_name' in kwargs:
@@ -160,6 +161,7 @@ class Scoot(object):
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
+        self.ROUND_NUMBER = rospy.get_param('round', default=1)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -175,7 +177,8 @@ class Scoot(object):
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
         self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
-        self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64, queue_size=10)
+        self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64,
+                                                    queue_size=10)
 
         # Connect to services.
         rospy.loginfo("Waiting for control service")
@@ -206,12 +209,15 @@ class Scoot(object):
             self.distal_arm_control = rospy.Publisher('/' + self.rover_name + '/distalarm_joint_controller/command',
                                                       Float64, queue_size=10)
             rospy.Subscriber('/' + self.rover_name + '/bucket_info', msg.ExcavatorMsg,
-                                                    self._bucket_info)
+                             self._bucket_info)
 
         elif self.rover_type == "hauler":
             self.bin_control = rospy.Publisher('/' + self.rover_name + '/bin_joint_controller/command', Float64,
                                                queue_size=10)
             rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
+
+        if self.ROUND_NUMBER == 2:
+            self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
 
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
@@ -459,7 +465,7 @@ class Scoot(object):
             rospy.logwarn("Disengaging brakes")
             self.brake_service.call(0)  # immediately disengage brakes
         elif state >= (self.MAX_BRAKES + 1):
-            rospy.logerr("Brake value can't greater/equal to "+str(self.MAX_BRAKES)+", got:" + str(state))
+            rospy.logerr("Brake value can't greater/equal to " + str(self.MAX_BRAKES) + ", got:" + str(state))
             rospy.logwarn("Applying full brakes")
             self._brake_ramp(self.MAX_BRAKES)
         else:
@@ -485,7 +491,7 @@ class Scoot(object):
     def light_off(self):
         self._light('stop')
 
-    #Intensity needs to be a float interpreted as a string from 0.0 to 1.0
+    # Intensity needs to be a float interpreted as a string from 0.0 to 1.0
     def light_intensity(self, intensity):
         intensity = float(intensity)
         if intensity > 1.0:
