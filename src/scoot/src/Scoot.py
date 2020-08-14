@@ -11,7 +11,7 @@ from srcp2_msgs import msg, srv
 
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped, PoseStamped, Quaternion
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -142,6 +142,7 @@ class Scoot(object):
         self.brake_service = None
         
         self.truePoseCalled = False
+        
         self.OdomLocation = Location(None)
         self.control = None
         self.control_data = None
@@ -160,6 +161,7 @@ class Scoot(object):
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
+        self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -169,7 +171,7 @@ class Scoot(object):
             our scoot.launch
             and matching with indexes from our Obstacles.msg '''
         self.VOL_TYPES = rospy.get_param("vol_types",
-                                         default=["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia",
+                                         default=["ice", "ethene", "methane", "carbon_mono", "carbon_dio", "ammonia",
                                                   "hydrogen_sul", "sulfur_dio"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
@@ -290,8 +292,8 @@ class Scoot(object):
         target_frame = self.rover_name + '_tf/' + target_frame.strip('/')
 
         self.xform.waitForTransform(
-            target_frame,
             pose.header.frame_id,
+            target_frame,
             pose.header.stamp,
             rospy.Duration(timeout)
         )
@@ -301,24 +303,59 @@ class Scoot(object):
     def getControlData(self):
         return self.control_data
 
-    # @TODO: test this
-    def score(self, vol_type_index=0):
+    def getVolPose(self):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
-        pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
-        aprox_vol_location = self.transform_pose("volatile_sensor_static", pose_stamped)
-        result = None
+        pose_stamped.pose = self.OdomLocation.Odometry.pose
+                
+        ps = PoseStamped()
+        ps.header.frame_id = pose_stamped.header.frame_id
+        ps.header.stamp = pose_stamped.header.stamp
+        quat = [pose_stamped.pose.pose.orientation.x,
+                pose_stamped.pose.pose.orientation.y,
+                pose_stamped.pose.pose.orientation.z,
+                pose_stamped.pose.pose.orientation.w,
+        ]
+        (r, p, y) = tf.transformations.euler_from_quaternion(quat)
+        theta = y
+        add_x = math.cos(theta) * 1.143
+        add_y = math.sin(theta) * 1.143
+        ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
+        ps.pose.position.y = pose_stamped.pose.pose.position.y + add_y
+        ps.pose.position.z = 0.0
+
+        return ps.pose.position
+
+    # @TODO: test this
+    def score(self, vol_type_index=0):
+        vol_loc = self.getVolPose()
         try:
             result = self.qal1ScoreService(
-                pose=aprox_vol_location.pose.position,
+                pose=vol_loc,
                 vol_type=self.VOL_TYPES[vol_type_index])
-            rospy.loginfo("Scored!")
         except ServiceException:
-            rospy.logwarn("/vol_detected_service is grumpy")
-            result = False
-        return result
-
+            rospy.logwarn("Score attempt failed")
+            self.brake('on')
+            rospy.sleep(self.vol_delay[-1])
+            rospy.logwarn("Waited")
+            vol_loc = self.getVolPose()
+            try:
+                result = self.qal1ScoreService(
+                    pose=vol_loc,
+                    vol_type=self.VOL_TYPES[vol_type_index])
+            except ServiceException:
+                rospy.logwarn("Failed again")
+                return False
+            else:
+                rospy.logwarn("Scored second time!")
+                rospy.sleep(.5)
+                return True
+        else:
+            rospy.logwarn("Scored!")
+            rospy.sleep(.5)
+            return True
+      
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
