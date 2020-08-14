@@ -66,6 +66,7 @@ class Location:
 
     def __init__(self, odo):
         self.Odometry = odo
+        self.deltaT = .1
 
     def getPose(self):  # TODO: add a ros warning if self.Odometry none
         '''Return a std_msgs.Pose from this Location. Useful because Pose 
@@ -96,6 +97,10 @@ class Location:
 
         return pose
 
+    def distance(self, x, y):
+        return(math.hypot(x - self.Odometry.pose.pose.position.x,
+                          y - self.Odometry.pose.pose.position.y))
+
     def atGoal(self, goal, distance):
         """Determine if the pose is within acceptable distance of this location
 
@@ -108,6 +113,20 @@ class Location:
 
         return dist < distance
 
+    def facing_point(self, x, y):
+        pose = self.getPose()
+        if None in (pose.x, pose.y, pose.theta):
+            return False
+        n = math.atan2(y - pose.y, x - pose.x)  # necessary_heading
+        # TODO(exm) possible bug with boundary conditions?
+        return n - self.deltaT <= pose.theta <= n + self.deltaT
+
+    def global_to_local(self, desired_angle):
+        pose = self.getPose()
+        ans = desired_angle - pose.theta
+        if ans < -math.pi:
+            ans += 2 * math.pi
+        return ans
 
 class Scoot(object):
     """Class that embodies the Scoot's API
