@@ -9,13 +9,17 @@ from Scoot import Scoot
 
 
 def main(task=None):
-    sleepy_time = .3
+    sleepy_time = 5
     if task:
-        scoot = task.scoot
+        if type(task) == Scoot:
+            scoot = task
+        else:
+            scoot = task.scoot
     else:  # Called without task instance
         scoot = Scoot("excavator")
         scoot.start(node_name='dig')
     rospy.loginfo('Dig Started')
+    scoot.brake()
     # Check Bucket status
     if scoot.bucket_info().mass_in_bucket <= 10:
         # Reset to "home"
