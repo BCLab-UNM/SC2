@@ -19,13 +19,26 @@ class ObjectDetection(object):
 
 		# generate and set the parameters for cv2 simple blob detection
 		self.simple_blob_detector_params = cv2.SimpleBlobDetector_Params()
-		self.simple_blob_detector_params.minThreshold = 1
-		self.simple_blob_detector_params.maxThreshold = 255
-		self.simple_blob_detector_params.filterByArea = True
-		self.simple_blob_detector_params.minArea = 1
-		self.simple_blob_detector_params.filterByCircularity = False
-		self.simple_blob_detector_params.filterByConvexity = False
-		self.simple_blob_detector_params.filterByInertia = False
+		self.simple_blob_detector_params.minThreshold = 1             # default = 1
+		self.simple_blob_detector_params.maxThreshold = 100           # default = 255
+
+		# filter by area
+		self.simple_blob_detector_params.filterByArea = True          # default = True
+		self.simple_blob_detector_params.minArea = 1000               # default = 1
+
+		# filter by circularity
+		self.simple_blob_detector_params.filterByCircularity = True   # default = False
+		self.simple_blob_detector_params.minCircularity = 0.5
+
+		# filter by convexity
+		self.simple_blob_detector_params.filterByConvexity = True     # default = False
+		self.simple_blob_detector_params.minConvexity = 0.25
+
+		# filter by inertia
+		self.simple_blob_detector_params.filterByInertia = False      # default = False
+		self.simple_blob_detector_params.minInertiaRatio = 0.01
+
+		self.simple_blob_detector_params.filterByColor = False         # default = False ?
 
 		# create simple blob detector object
 		self.detector = cv2.SimpleBlobDetector_create(self.simple_blob_detector_params)
@@ -33,8 +46,8 @@ class ObjectDetection(object):
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
 		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
 
-		self.blob_detection_left_publisher = rospy.Publisher('/scout_1/left/blob_detections', Image, queue_size=10)
-		self.blob_detection_right_publisher = rospy.Publisher('/scout_1/right/blob_detections', Image, queue_size=10)
+		self.blob_detection_left_publisher = rospy.Publisher('/scout_1/blob_detections/left', Image, queue_size=10)
+		self.blob_detection_right_publisher = rospy.Publisher('/scout_1/blob_detections/right', Image, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -43,9 +56,9 @@ class ObjectDetection(object):
 	def callback(self, left_camera_data, right_camera_data):
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
 
-		# convert image data from image message -> opencv image -> numpy array
-		cv_image_left = self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="mono8")
-		cv_image_right = self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="mono8")
+		# convert image data from image message -> opencv image
+		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
+		cv_image_right = cv2.cvtColor(self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 
 		# generate the blob detections
 		keypoints_left = self.detector.detect(cv_image_left)
