@@ -37,92 +37,37 @@ import sys
 from Scoot import Scoot, ObstacleException
 from obstacle.msg import Obstacles
 
-# Location is used to maintain a single current location of the robot in a
-# thread-safe manner such that the event handlers and readers can all use it without
-# issue
-
-class Dist:
-    def __init__(self):
-        self.m = threading.Lock()
-        self.left = 0
-        self.front = 0
-        self.raw = []
-
-    def update(self, data):
-        def getmin(a, b):
-            in_rng = lambda x: data.range_min <= x <= data.range_max
-            vsp = filter(in_rng, data.ranges[a:b])
-            if len(vsp) > 0:
-                return min(vsp)
-            else:
-                return sys.maxint
-
-        newfront = getmin(82, 120)
-        newleft = getmin(70, 81)
-
-        self.m.acquire()
-        self.left = newleft
-        self.front = newfront
-        self.raw = data
-        self.m.release()
-
-    def get(self):
-        self.m.acquire()
-        l = self.left
-        f = self.front
-        self.m.release()
-        return (f, l)
-
-    def angle_to_index(self, angle):
-        return int((angle - self.raw.angle_min) / self.raw.angle_increment)
-
-    # angle in radians
-    def at(self, angle):
-        def getmin(a, b):
-            in_rng = lambda x: self.raw.range_min <= x <= self.raw.range_max
-            vsp = filter(in_rng, self.raw.ranges[a:b])
-            if len(vsp) > 0:
-                return min(vsp)
-            else:
-                return sys.maxint
-
-        self.m.acquire()
-        i = self.angle_to_index(angle)
-        start = i - 40
-        if start < 0:
-            start = 0
-        end = i + 40
-        if end >= len(self.raw.ranges):
-            end = len(self.raw.ranges) - 1
-        ans = getmin(start, end)
-        self.m.release()
-        return ans
-
-
+# The bug class defines how to circumnavigate an obstacle
+# The only difference between Bug 0, 1, and 2 is how sophisticated
+# they are in deciding when to stop circumnavigating
 class Bug:
 
     MSG_STOP = 4
     def __init__(self, tx, ty):
         self.delta = 0.1
-        self.WALL_PADDING = 1
 
+        # Encode directions
         self.STRAIGHT = 0
         self.LEFT = 1
         self.RIGHT = 2
         self.BACK = 3
 
-        # Robot linear velocity in meters per second
+        # Robot movement step in m
         self.linear_dist = 1.5
 
-        # Robot angular velocity in radians per second
-        self.angle = round(math.pi / 2, 2)
+        # Robot angular step in radians
+        self.angle = round(math.pi / 8, 2)
+
+        # Set the target coordinates
         self.tx = tx
         self.ty = ty
 
+    # Stop using the break command
     def stop(self):
         global scoot
         scoot.brake()
 
+    # Function to turn movement commands into scoot function calls
     def go(self, direction):
         global scoot
         try:
@@ -141,81 +86,93 @@ class Bug:
             elif direction == self.MSG_STOP:
                 scoot.brake()
         except ObstacleException:
-            pass
+            return False
 
+        return True
+
+    # Move towards the goal coordinates until an obstacle gets in the way.
     # Return True if a wall was encountered otherwise false
     def go_until_obstacle(self):
         print "Going until destination or obstacle."
         print "Current location: ", scoot.getOdomLocation()
         print "Distance to target: ", round(scoot.OdomLocation.distance(self.tx, self.ty)), "m"
-        count = 0
-        while scoot.OdomLocation.distance(self.tx, self.ty) > self.delta:
-            (frontdist, _) = self.current_dists.get()
-            if frontdist <= self.WALL_PADDING:
-                self.go(self.BACK)
-                self.print_LiDAR_ranges()
-                return True
 
-            if scoot.OdomLocation.facing_point(self.tx, self.ty):
-                self.go(self.STRAIGHT)
-            elif scoot.OdomLocation.faster_left(self.tx, self.ty):
-                self.go(self.LEFT)
-            else:
-                self.go(self.RIGHT)
-            rospy.sleep(0.1)
-            if count % 1 == 0:
-                print "Distance to target: ", round(scoot.OdomLocation.distance(self.tx, self.ty)), "m"
-                cx, cy, t = scoot.OdomLocation.current_location()
-                print "Angle Error: ", necessary_heading(cx, cy, self.tx, self.ty) - t, "rad"
+        try: 
+            while scoot.OdomLocation.distance(self.tx, self.ty) > self.delta:
+                if scoot.OdomLocation.facing_point(self.tx, self.ty):
+                    self.go(self.STRAIGHT)
+                elif scoot.OdomLocation.faster_left(self.tx, self.ty):
+                    self.go(self.LEFT)
+                else:
+                    self.go(self.RIGHT)
+                rospy.sleep(0.1)
+        except ObstacleException:
+            print "Encountered obstacle"
+            return True
 
-                self.print_LiDAR_ranges()
-            count += 1
-
+        print "Reached target coordinates without encountering an obstacle."
         return False
 
-    def print_LiDAR_ranges(self):
-        left_range, front_range = current_dists.get()
-        if left_range > 100:
-            left_range = "max"
-        if front_range > 100:
-            front_range = "max"
-        print "LiDAR range. Front:", round(front_range, 2), "m. Left: ", round(left_range, 2), "m"
-
+    # Follow the "wall" until the appropriate Bug "should leave wall" check is true (the Bug subclass determines the criteria for "should leave wall")
     def follow_wall(self):
-        print "Following wall"
-        while current_dists.get()[0] <= self.WALL_PADDING:
-            self.print_LiDAR_ranges()
-            self.go(self.RIGHT)
-            rospy.sleep(0.1)
-        while not self.should_leave_wall():
-            (front, left) = current_dists.get()
-            if front <= self.WALL_PADDING:
-                self.print_LiDAR_ranges()
-                self.go(self.RIGHT)
-            elif self.WALL_PADDING - 0.3 <= left <= self.WALL_PADDING + .3:
-                self.print_LiDAR_ranges()
-                self.go(self.STRAIGHT)
-            elif left > self.WALL_PADDING + 0.3:
-                self.go(self.LEFT)
-            else:
-                self.go(self.RIGHT)
-            rospy.sleep(0.1)
+        print "Circumnavigating obstacle"
 
+        # Encountering obstacle. First turn to the right into the obstacle is more than wall padding distance ahead (i.e. we turned somewhat parallel to the obstacle)
+        try:
+            while not rospy.is_shutdown():
+                self.go(self.STRAIGHT)
+        except DriveException as e:
+            # Just the front
+            if e == Obstacles.LIDAR_FRONT:
+                self.go(self.RIGHT)
+
+        # While shouldn't stop going round the obstacle yet... (i.e. haven't hit the departure point)
+        # Turn right if there is an obstacle in front
+        # Go straight if there is an obstacle on the left (i.e. following the edge of the obstacle)
+        # If we are getting too far away from the obstacle (range on the left is greater than the wall padding + a little leeway)
+        # ... then turn left towards the obstacle so we get closer
+        # Otherwise we are too close to the obstacle and should turn away.
+
+        
+        while not rospy.is_shutdown():
+            try:
+                print "Don't see obstacle on left or ahead. Turning left towards the obstacle and back towards the target coordinates"
+                self.go(self.LEFT)
+
+                # Check to see if we should return to moving towards the target or keep circumnavigating
+                if self.should_leave_wall():
+                    print "Criteria for leaving the obstacle were met. Exiting wall following function."
+                    return 
+            except DriveException as e:
+                if e == Obstacles.LIDAR_CENTER:
+                    print "Too close to obstacle. Turning right."
+                    self.go(self.RIGHT)
+                elif e == Obstacles.LIDAR_LEFT:
+                    print "Still have obstacle on left. Going straight"
+                    self.go(self.STRAIGHT)
+                elif e == Obstacles.LIDAR_RIGHT:
+                    print "Rock and hard place. Backing up and turning right to try and follow the perimeter."
+                    self.go(self.BACK)
+                    self.go(self.RIGHT)
+                
+    
     def should_leave_wall(self):
-        print "You dolt! You need to subclass bug to know how to leave the wall"
-        sys.exit(0.1)
+        print "Subclass bug to define when to leave the wall"
+        sys.exit(1)
 
 
 class Bug0(Bug):
+    # Try to leave the wall if we are pointing towards the target coordinates
+    # Return false if an obstacle exception is triggered when we try to move
+    # straight towards the target coords. Return true if the way is clear.
     def should_leave_wall(self):
-        (x, y, t) = scoot.OdomLocation.current_location()
-        dir_to_go = scoot.OdomLocation.global_to_local(necessary_heading(x, y, self.tx, self.ty))
-        at = current_dists.at(dir_to_go)
-        if at > 10:
-            print "Leaving wall"
-            return True
-        return False
-
+        if scoot.OdomLocation.facing_point(self.tx, self.ty):
+            try:
+                self.go(self.STRAIGHT)
+                return True
+            except DriveException as e:
+                if e == Obstacles.LIDAR_CENTER:
+                    return False
 
 class Bug1(Bug):
     def __init__(self, tx, ty):
@@ -323,11 +280,6 @@ def location_handler(data):
     t = transform.euler_from_quaternion(q)[2]  # in [-pi, pi]
     scoot.OdomLocation.update_location(p.x, p.y, t)
 
-
-def lidar_handler(data):
-    current_dists.update(data)
-
-
 # current x, y; target x,y
 def necessary_heading(cx, cy, tx, ty):
     return math.atan2(ty - cy, tx - cx)
@@ -341,8 +293,6 @@ def main(task=None):
         scoot = Scoot("scout_1")
         scoot.start(node_name='bug_obstacle_nav')
     rospy.loginfo('Bug obstacle nav Started')
-
-    current_dists = Dist()
 
     # Parse arguments
     algorithm = sys.argv[1]
