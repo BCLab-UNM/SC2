@@ -11,6 +11,8 @@ from cv_bridge import CvBridge
 from matplotlib import pyplot as plt
 import time
 import imutils
+from scipy.spatial import distance as dist
+from collections import OrderedDict
 
 
 class ObjectDetection(object):
@@ -55,6 +57,18 @@ class ObjectDetection(object):
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
+		colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
+		
+		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
+		self.colorNames = []
+		for (i, (name, rgb)) in enumerate(colors.items()):
+			# update the L*a*b* array and the color names list
+			self.lab[i] = rgb
+			self.colorNames.append(name)
+
+		# convert the L*a*b* array from the RGB color space
+		# to L*a*b*
+		self.lab = cv2.cvtColor(self.lab, cv2.COLOR_RGB2LAB)
 
 	def detect(self, c):
 		shape = "unidentified"
@@ -71,6 +85,25 @@ class ObjectDetection(object):
 			shape = "circle"
 
 		return shape
+
+	def label(self, image, c):
+		mask = np.zeros(image.shape[:2], dtype="uint8")
+		cv2.drawContours(mask, [c], -1, 255, -1)
+		mask = cv2.erode(mask, None, iterations=2)
+		mean = cv2.mean(image, mask=mask)[:3]
+		# initialize the minimum distance found thus far
+		minDist = (np.inf, None)
+		# loop over the known L*a*b* color values
+		for (i, row) in enumerate(self.lab):
+			# compute the distance between the current L*a*b*
+			# color value and the mean of the image
+			d = dist.euclidean(row[0], mean)
+			# if the distance is smaller than the current distance,
+			# then update the bookkeeping variable
+			if d < minDist[0]:
+				minDist = (d, i)
+		# return the name of the color with the smallest distance
+		return self.colorNames[minDist[1]]
 
 
 	def callback(self, left_camera_data, right_camera_data):
@@ -94,10 +127,14 @@ class ObjectDetection(object):
 		# self.blob_detection_left_publisher.publish(imgmsg_left)
 		# self.blob_detection_right_publisher.publish(imgmsg_right)
 
+		#determine colors
+
+		#generate shapes			
 		resized_left = imutils.resize(cv_image_left, width=680)
 		ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
 		gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
-		blurred_left = cv2.GaussianBlur(gray_left, (11, 11), 0)
+		lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
+		blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
 		thresh_left = cv2.threshold(blurred_left, 60, 255, cv2.THRESH_BINARY)[1]
 		thresh_left = thresh_left.astype(np.uint8)
 		cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -108,11 +145,13 @@ class ObjectDetection(object):
 			#cX = int((M["m10"] / M["m00"]) * ratio_left)
 			#cY = int((M["m01"] / M["m00"]) * ratio_left)
 			shape = self.detect(c)
-			if shape == "triangle":
+			color = self.label(lab_left,c)
+			#print(color)
+			if shape== 'triangle':
 				c = c.astype("float")
 				c *= ratio_left
 				c = c.astype("int")
-				cv2.drawContours(resized_left, [c], -1, (0, 255, 0), 2)
+				cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 2)
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 		#resized_right = imutils.resize(cv_image_right, width=300)
@@ -133,7 +172,7 @@ class ObjectDetection(object):
 		#		c = c.astype("int")
 		#		cv2.drawContours(cv_image_right, [c], -1, (0, 255, 0), 2)
 
-		imgmsg_left = self.bridge.cv2_to_imgmsg(thresh_left, encoding="passthrough")
+		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 		#imgmsg_right = self.bridge.cv2_to_imgmsg(cv_image_right, encoding="passthrough")
 		self.blob_detection_left_publisher.publish(imgmsg_left)
 		#self.blob_detection_right_publisher.publish(imgmsg_right)
