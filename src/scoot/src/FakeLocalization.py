@@ -33,6 +33,14 @@ def publishFakeOdom():
         pose.pose.pose.position.y = m.pose.position.y
         pose.pose.pose.position.z = m.pose.position.z
 
+        pose.twist.twist.linear.x = m.twist.linear.x
+        pose.twist.twist.linear.y = m.twist.linear.y
+        pose.twist.twist.linear.z = m.twist.linear.z
+
+        pose.twist.twist.angular.x = m.twist.angular.x
+        pose.twist.twist.angular.y = m.twist.angular.y
+        pose.twist.twist.angular.z = m.twist.angular.z
+        
         pub.publish(pose)
         rate.sleep()
 
