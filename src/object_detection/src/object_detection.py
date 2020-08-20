@@ -105,6 +105,10 @@ class ObjectDetection(object):
 		# return the name of the color with the smallest distance
 		return self.colorNames[minDist[1]]
 
+	def distance_to_camera(self, knownWidth, focalLength, perWidth):
+		# compute and return the distance from the maker to the camera
+		return (knownWidth * focalLength) / perWidth
+
 
 	def callback(self, left_camera_data, right_camera_data):
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
@@ -113,6 +117,7 @@ class ObjectDetection(object):
 		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 		cv_image_right = cv2.cvtColor(self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 
+		#print(cv_image_left.shape)
 		# generate the blob detections
 		# keypoints_left = self.detector.detect(cv_image_left)
 		# keypoints_right = self.detector.detect(cv_image_right)
@@ -130,13 +135,13 @@ class ObjectDetection(object):
 		#determine colors
 
 		#generate shapes			
-		resized_left = imutils.resize(cv_image_left, width=680)
+		resized_left = imutils.resize(cv_image_left, width=640)
 		ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
 		gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
 		lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
 		blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
-		thresh_left = cv2.threshold(blurred_left, 60, 255, cv2.THRESH_BINARY)[1]
-		thresh_left = thresh_left.astype(np.uint8)
+		thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
+		#thresh_left = thresh_left.astype(np.uint8)
 		cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		cnts_left = imutils.grab_contours(cnts_left)
 
@@ -144,14 +149,24 @@ class ObjectDetection(object):
 			M = cv2.moments(c)
 			#cX = int((M["m10"] / M["m00"]) * ratio_left)
 			#cY = int((M["m01"] / M["m00"]) * ratio_left)
-			shape = self.detect(c)
-			color = self.label(lab_left,c)
+			area = cv2.contourArea(c)
+			if area > 300 and area < 2000 : 
+				shape = self.detect(c)
+				color = self.label(lab_left,c)
 			#print(color)
-			if shape== 'triangle':
-				c = c.astype("float")
-				c *= ratio_left
-				c = c.astype("int")
-				cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 2)
+				if shape== 'triangle' or color == 'blue':
+					c = c.astype("float")
+					c *= ratio_left
+					c = c.astype("int")
+					cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
+					#print(M['m10'])
+					marker = cv2.minAreaRect(c)
+					focalLength= 540
+					KNOWN_WIDTH = 3.04 #logo width in inches
+					per_width= marker[1][0]
+					inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
+					print(inches)
+
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 		#resized_right = imutils.resize(cv_image_right, width=300)
