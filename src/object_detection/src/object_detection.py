@@ -6,6 +6,7 @@ import message_filters
 import cv2
 import numpy as np
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
 from std_msgs.msg import String
 from cv_bridge import CvBridge
 from matplotlib import pyplot as plt
@@ -69,6 +70,20 @@ class ObjectDetection(object):
 		# convert the L*a*b* array from the RGB color space
 		# to L*a*b*
 		self.lab = cv2.cvtColor(self.lab, cv2.COLOR_RGB2LAB)
+
+		# subscribe to camera_info topics to get focal lengths and other camera settings/data as needed
+		self.left_camera_info_subscriber = message_filters.Subscriber('/scout_1/camera/left/camera_info', CameraInfo)
+		self.right_camera_info_subscriber = message_filters.Subscriber('/scout_1/camera/right/camera_info', CameraInfo)
+		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_info_subscriber, self.right_camera_info_subscriber], 10, 0.1, allow_headerless=True)
+		self.synchronizer.registerCallback(self.camera_info_callback)
+		self.left_camera_focal_length = 380.0
+		self.right_camera_focal_length = 380.0
+
+
+	def camera_info_callback(self, left_camera_info, right_camera_info):
+		self.left_camera_focal_length = left_camera_info.K[0]
+		self.right_camera_focal_length = right_camera_info.K[4]
+
 
 	def detect(self, c):
 		shape = "unidentified"
