@@ -165,7 +165,7 @@ class ObjectDetection(object):
 			#cX = int((M["m10"] / M["m00"]) * ratio_left)
 			#cY = int((M["m01"] / M["m00"]) * ratio_left)
 			area = cv2.contourArea(c)
-			if area > 300 and area < 2000 : 
+			if area > 300 and area < 1500 : 
 				shape = self.detect(c)
 				color = self.label(lab_left,c)
 			#print(color)
@@ -176,8 +176,8 @@ class ObjectDetection(object):
 					cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
 					#print(M['m10'])
 					marker = cv2.minAreaRect(c)
-					focalLength= 540
-					KNOWN_WIDTH = 3.04 #logo width in inches
+					focalLength= self.left_camera_focal_length
+					KNOWN_WIDTH = 2.72 #logo width in inches
 					per_width= marker[1][0]
 					inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 					print(inches)
