@@ -54,7 +54,7 @@ waypoint_queue = Queue.Queue( max_num_waypoints )
 def random_waypoint_generator( n_waypoints ):
     pub = rospy.Publisher('/scout_1/waypoints', Point, queue_size=1)
 
-    for i in range(max_num_waypoints):
+    for i in range(n_waypoints):
         wp = Point(random.uniform(-40, 40), random.uniform(-40, 40), 0)
         pub.publish(wp)
         rospy.sleep(0.1)
@@ -535,6 +535,7 @@ def near(cx, cy, x, y):
 
 def bug_algorithm(tx, ty, bug_type):
 
+    
     # Track success stats
     success_count = 0
     success_distance = 0
@@ -569,7 +570,11 @@ def bug_algorithm(tx, ty, bug_type):
     # Add the command line waypoint to the queue
     waypoint_queue.put(Point(tx, ty, 0))
     
-    random_waypoint_generator( 10 )
+    random_waypoint_generator( max_num_waypoints )
+
+    # Track total time spent
+    total_time_start = rospy.get_rostime().secs
+    
     
     # Check for new waypoints every 10 seconds
     idle = rospy.Rate(10)
@@ -629,8 +634,13 @@ def bug_algorithm(tx, ty, bug_type):
         if not stats_printed:
             print "Succeeded: ", round((success_count/max_num_waypoints)*100), "% of the time."
             print "Distance covered: ", round(success_distance,2), "m"
-            print "Time spent: ", round(success_time,2), "s"
+            print "Time spent on successful runs: ", round(success_time,2), "s"
             print "Avg Speed: ", round(success_distance/success_time,2), "m/s"
+            # Track total time spent
+            total_time_elapsed = rospy.get_rostime().secs - total_time_start
+            print "Total Time: ", round(total_time_elapsed,2), "s" 
+    
+            
             stats_printed = True
             
         idle.sleep()
