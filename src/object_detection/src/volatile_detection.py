@@ -26,11 +26,13 @@ class ObjectDetection(object):
 		# generate and set the parameters for cv2 simple blob detection
 		self.simple_blob_detector_params = cv2.SimpleBlobDetector_Params()
 		self.simple_blob_detector_params.minThreshold = 1             # default = 1
-		self.simple_blob_detector_params.maxThreshold = 100           # default = 255
+		self.simple_blob_detector_params.maxThreshold = 255          # default = 255
 
 		# filter by area
 		self.simple_blob_detector_params.filterByArea = True          # default = True
-		self.simple_blob_detector_params.minArea = 1000               # default = 1
+		self.simple_blob_detector_params.minArea = 100
+		self.simple_blob_detector_params.maxArea = 1000
+		               # default = 1
 
 		# filter by circularity
 		self.simple_blob_detector_params.filterByCircularity = True   # default = False
@@ -38,11 +40,12 @@ class ObjectDetection(object):
 
 		# filter by convexity
 		self.simple_blob_detector_params.filterByConvexity = True     # default = False
-		self.simple_blob_detector_params.minConvexity = 0.25
+		self.simple_blob_detector_params.minConvexity = 0.2
+		self.simple_blob_detector_params.minConvexity = 0.8
 
 		# filter by inertia
 		self.simple_blob_detector_params.filterByInertia = False      # default = False
-		self.simple_blob_detector_params.minInertiaRatio = 0.01
+		#self.simple_blob_detector_params.minInertiaRatio = 0.01
 
 		self.simple_blob_detector_params.filterByColor = False         # default = False ?
 
@@ -58,18 +61,18 @@ class ObjectDetection(object):
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
-		colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
+		# colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
 		
-		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
-		self.colorNames = []
-		for (i, (name, rgb)) in enumerate(colors.items()):
-			# update the L*a*b* array and the color names list
-			self.lab[i] = rgb
-			self.colorNames.append(name)
+		# self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
+		# self.colorNames = []
+		# for (i, (name, rgb)) in enumerate(colors.items()):
+		# 	# update the L*a*b* array and the color names list
+		# 	self.lab[i] = rgb
+		# 	self.colorNames.append(name)
 
-		# convert the L*a*b* array from the RGB color space
-		# to L*a*b*
-		self.lab = cv2.cvtColor(self.lab, cv2.COLOR_RGB2LAB)
+		# # convert the L*a*b* array from the RGB color space
+		# # to L*a*b*
+		# self.lab = cv2.cvtColor(self.lab, cv2.COLOR_RGB2LAB)
 
 		# subscribe to camera_info topics to get focal lengths and other camera settings/data as needed
 		self.left_camera_info_subscriber = message_filters.Subscriber('/scout_1/camera/left/camera_info', CameraInfo)
@@ -134,53 +137,53 @@ class ObjectDetection(object):
 
 		#print(cv_image_left.shape)
 		# generate the blob detections
-		# keypoints_left = self.detector.detect(cv_image_left)
-		# keypoints_right = self.detector.detect(cv_image_right)
+		keypoints_left = self.detector.detect(cv_image_left)
+		keypoints_right = self.detector.detect(cv_image_right)
 
 		# super-impose the blob detections over the original camera image
-		# im_with_keypoints_left = cv2.drawKeypoints(cv_image_left, keypoints_left, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-		# im_with_keypoints_right = cv2.drawKeypoints(cv_image_right, keypoints_right, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+		im_with_keypoints_left = cv2.drawKeypoints(cv_image_left, keypoints_left, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+		im_with_keypoints_right = cv2.drawKeypoints(cv_image_right, keypoints_right, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
 		# convert cv2 images into ros messages and publish
-		# imgmsg_left = self.bridge.cv2_to_imgmsg(im_with_keypoints_left, encoding="passthrough")
-		# imgmsg_right = self.bridge.cv2_to_imgmsg(im_with_keypoints_right, encoding="passthrough")
-		# self.blob_detection_left_publisher.publish(imgmsg_left)
-		# self.blob_detection_right_publisher.publish(imgmsg_right)
+		imgmsg_left = self.bridge.cv2_to_imgmsg(im_with_keypoints_left, encoding="passthrough")
+		imgmsg_right = self.bridge.cv2_to_imgmsg(im_with_keypoints_right, encoding="passthrough")
+		self.blob_detection_left_publisher.publish(imgmsg_left)
+		self.blob_detection_right_publisher.publish(imgmsg_right)
 
 		#determine colors
 
 		#generate shapes			
-		resized_left = imutils.resize(cv_image_left, width=640)
-		ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
-		gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
-		lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
-		blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
-		thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
-		#thresh_left = thresh_left.astype(np.uint8)
-		cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-		cnts_left = imutils.grab_contours(cnts_left)
+		# resized_left = imutils.resize(cv_image_left, width=640)
+		# ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
+		# gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
+		# lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
+		# blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
+		# thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
+		# #thresh_left = thresh_left.astype(np.uint8)
+		# cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		# cnts_left = imutils.grab_contours(cnts_left)
 
-		for c in cnts_left:
-			M = cv2.moments(c)
-			#cX = int((M["m10"] / M["m00"]) * ratio_left)
-			#cY = int((M["m01"] / M["m00"]) * ratio_left)
-			area = cv2.contourArea(c)
-			if area > 300 and area < 2000 : 
-				shape = self.detect(c)
-				color = self.label(lab_left,c)
-			#print(color)
-				if shape== 'triangle' or color == 'blue':
-					c = c.astype("float")
-					c *= ratio_left
-					c = c.astype("int")
-					cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
-					#print(M['m10'])
-					marker = cv2.minAreaRect(c)
-					focalLength= 540
-					KNOWN_WIDTH = 3.04 #logo width in inches
-					per_width= marker[1][0]
-					inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-					print(inches)
+		# for c in cnts_left:
+		# 	M = cv2.moments(c)
+		# 	#cX = int((M["m10"] / M["m00"]) * ratio_left)
+		# 	#cY = int((M["m01"] / M["m00"]) * ratio_left)
+		# 	area = cv2.contourArea(c)
+		# 	if area > 300 and area < 2000 : 
+		# 		shape = self.detect(c)
+		# 		color = self.label(lab_left,c)
+		# 	#print(color)
+		# 		if shape== 'triangle' or color == 'blue':
+		# 			c = c.astype("float")
+		# 			c *= ratio_left
+		# 			c = c.astype("int")
+		# 			cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
+		# 			#print(M['m10'])
+		# 			marker = cv2.minAreaRect(c)
+		# 			focalLength= 540
+		# 			KNOWN_WIDTH = 3.04 #logo width in inches
+		# 			per_width= marker[1][0]
+		# 			inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
+		# 			print(inches)
 
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
@@ -202,9 +205,9 @@ class ObjectDetection(object):
 		#		c = c.astype("int")
 		#		cv2.drawContours(cv_image_right, [c], -1, (0, 255, 0), 2)
 
-		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
+		#imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 		#imgmsg_right = self.bridge.cv2_to_imgmsg(cv_image_right, encoding="passthrough")
-		self.blob_detection_left_publisher.publish(imgmsg_left)
+		#self.blob_detection_left_publisher.publish(imgmsg_left)
 		#self.blob_detection_right_publisher.publish(imgmsg_right)
 
 
