@@ -539,6 +539,7 @@ def bug_algorithm(tx, ty, bug_type):
     success_count = 0
     success_distance = 0
     success_time = 0
+    stats_printed = False
     
     print "Waiting for location data on '/scout_1/odom/filtered...'"
     rospy.wait_for_message('/scout_1/odom/filtered', Odometry,)
@@ -591,8 +592,8 @@ def bug_algorithm(tx, ty, bug_type):
             # Begin timout timer
             global start_time
             start_time = rospy.get_rostime().secs
-            disctance_to_cover = round(current_location.distance(wtx, wty),2)
-            print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), ". Distance: ", round(current_location.distance(wtx, wty),2), "m."
+            distance_to_cover = current_location.distance(wtx, wty)
+            print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(distance_to_cover,2), "m."
             while current_location.distance(wtx, wty) > delta:
                 try:
                     # These two functions are the heart of the algorithm. "Go_until_obstacle" moves towards the target location when there are no
@@ -604,7 +605,7 @@ def bug_algorithm(tx, ty, bug_type):
                         bug.follow_wall()
                 except TimedOutException:
                     elapsed_time = rospy.get_rostime().secs - start_time
-                    print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", elapsed_time, "(sim) seconds. Distance: ", round(current_location.distance(wtx, wty),2)
+                    print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "(sim) seconds. Distance: ", round(current_location.distance(wtx, wty),2)
                     status_msg = "Timeout:", (wtx, wty)
                     bug_nav_status_publisher.publish(status_msg)
 
@@ -615,22 +616,25 @@ def bug_algorithm(tx, ty, bug_type):
             # Confirm the target location was reached
             if current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
-                print "Arrived at", (round(wtx,2), round(wty,2)), " after", elapsed_time, "seconds. Distance: ", round(current_location.distance(wtx, wty),2)
+                print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(current_location.distance(wtx, wty),2)
                 status_msg = "Arrived:", (wtx, wty)
                 bug_nav_status_publisher.publish(status_msg)
-                sucess_count += 1
+                success_count += 1
                 success_distance += distance_to_cover
                 success_time += elapsed_time 
                 
             bug.apply_brakes()
             print "There are", waypoint_queue.qsize(), "waypoints remaining."
+
+        if not stats_printed:
+            print "Succeeded: ", round((success_count/max_num_waypoints)*100), "% of the time."
+            print "Distance covered: ", round(success_distance,2), "m"
+            print "Time spent: ", round(success_time,2), "s"
+            print "Avg Speed: ", round(success_distance/success_time,2), "m/s"
+            stats_printed = True
             
         idle.sleep()
-
-        print "Succeeded: ", round(success_count/max_num_waypoints*100), "% of the time."
-        print "Distance covered: ", success_distance, "m"
-        print "Time spent: ", success_time, "s"
-        print "Avg Speed: ", success_distance/success_time, "m/s"
+       
 
 def sigint_handler(signal_received, frame):
     print('SIGINT or CTRL-C received. Exiting.')
