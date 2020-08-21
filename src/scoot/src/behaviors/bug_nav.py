@@ -47,7 +47,7 @@ import Queue
 class TimedOutException(Exception):
     pass
 
-max_num_waypoints = 3
+max_num_waypoints = 100
 waypoint_queue = Queue.Queue( max_num_waypoints )
 
 
