@@ -149,6 +149,7 @@ class Scoot(object):
         self.truePoseCalled = False
         
         self.OdomLocation = Location(None)
+        self.home_pose = Point()
         self.control = None
         self.control_data = None
         self.dist_data = None
