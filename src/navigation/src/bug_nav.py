@@ -47,7 +47,7 @@ import Queue
 class TimedOutException(Exception):
     pass
 
-max_num_waypoints = 2
+max_num_waypoints = 100
 waypoint_queue = Queue.Queue( max_num_waypoints )
 
 
@@ -197,7 +197,7 @@ current_location = Location()
 current_dists = Dist()
 
 # Limit on reaching waypoint
-waypoint_timeout = 30
+waypoint_timeout = 300
 timed_out = False
 start_time = 0
 
