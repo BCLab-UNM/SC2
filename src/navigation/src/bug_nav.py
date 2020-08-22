@@ -47,7 +47,7 @@ import Queue
 class TimedOutException(Exception):
     pass
 
-max_num_waypoints = 100
+max_num_waypoints = 2
 waypoint_queue = Queue.Queue( max_num_waypoints )
 
 
@@ -197,7 +197,7 @@ current_location = Location()
 current_dists = Dist()
 
 # Limit on reaching waypoint
-waypoint_timeout = 300
+waypoint_timeout = 30
 timed_out = False
 start_time = 0
 
@@ -537,9 +537,9 @@ def bug_algorithm(tx, ty, bug_type):
 
     
     # Track success stats
-    success_count = 0
-    success_distance = 0
-    success_time = 0
+    success_count = 0.0
+    success_distance = 0.0
+    success_time = 0.0
     stats_printed = False
     
     print "Waiting for location data on '/scout_1/odom/filtered...'"
@@ -624,7 +624,7 @@ def bug_algorithm(tx, ty, bug_type):
                 print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(current_location.distance(wtx, wty),2)
                 status_msg = "Arrived:", (wtx, wty)
                 bug_nav_status_publisher.publish(status_msg)
-                success_count += 1
+                success_count += 1.0
                 success_distance += distance_to_cover
                 success_time += elapsed_time 
                 
@@ -632,10 +632,20 @@ def bug_algorithm(tx, ty, bug_type):
             print "There are", waypoint_queue.qsize(), "waypoints remaining."
 
         if not stats_printed:
-            print "Succeeded: ", round((success_count/max_num_waypoints)*100), "% of the time."
+            print success_count
+            print success_count/max_num_waypoints
+            try:
+                success_perc = round((success_count/max_num_waypoints)*100)
+            except ZeroDivisionError:
+                success_perc = 0.0
+            print "Succeeded: ", success_perc, "% of the time."
             print "Distance covered: ", round(success_distance,2), "m"
             print "Time spent on successful runs: ", round(success_time,2), "s"
-            print "Avg Speed: ", round(success_distance/success_time,2), "m/s"
+            try:
+                avg_speed = round(success_distance/success_time,2)
+            except ZeroDivisionError:
+                avg_speed = 0.0
+            print "Avg Speed: ", avg_speed, "m/s"
             # Track total time spent
             total_time_elapsed = rospy.get_rostime().secs - total_time_start
             print "Total Time: ", round(total_time_elapsed,2), "s" 
