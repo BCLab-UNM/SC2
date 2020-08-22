@@ -99,6 +99,9 @@ class Location:
 
         return pose
 
+    def distance(self, x, y):
+        return math.hypot(x - self.Odometry.pose.pose.position.x, y - self.Odometry.pose.pose.position.y)
+
     def atGoal(self, goal, distance):
         """Determine if the pose is within acceptable distance of this location
 
