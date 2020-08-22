@@ -66,7 +66,9 @@ class WheelEncoder:
         v_rtheta = ( v_right - v_left ) / self.track_width 
         
         # Velocities and pose in the odom frame
-        # The velocities expressed in the robot base frame can be transformed into another coordinate system (e.g. odom). For transforming velocities into the odom frame we only need to rotate them according to the current robot orientation. Here we apply the 2D rotation matrix (we are operating in the x-y plane, we ignore altitude - which will result in erros as the robot climbs up and down).
+        # The velocities expressed in the robot base frame can be transformed into the odom frame. 
+        # To transform velocities into the odom frame we only need to rotate them according to the current robot orientation. 
+        # We are operating in the x-y plane, we ignore altitude - which will result in errors as the robot climbs up and down.
         # Integrate the velocities over time (multiply by the time differential dt and sum)
 
         v_wx = (v_rx * cos(self.theta) - v_ry * sin(self.theta)) * dt
