@@ -57,6 +57,13 @@ start_time = 0
 delta = 2 # meters. How close the robot tries to get to a waypoint
 WALL_PADDING = 3 # meters. This has to be carefully set to balance not running into objects and thinking slopes are obstacles
 
+# Track success stats
+success_count = 0.0
+success_distance = 0.0
+success_time = 0.0
+stats_printed = False
+total_time_start = 0
+
 escape_waypoint = None
 STRAIGHT = 0
 LEFT = 1
@@ -632,12 +639,12 @@ def near(cx, cy, x, y):
 
 def bug_algorithm(tx, ty, bug_type):
 
-    
     # Track success stats
-    success_count = 0.0
-    success_distance = 0.0
-    success_time = 0.0
-    stats_printed = False
+    global success_count
+    global success_distance
+    global success_time
+    global stats_printed
+    global total_time_start
     
     print "Waiting for location data on '/scout_1/odom/filtered...'"
     rospy.wait_for_message('/scout_1/odom/filtered', Odometry,)
@@ -738,8 +745,6 @@ def bug_algorithm(tx, ty, bug_type):
             print "There are", waypoint_queue.qsize(), "waypoints remaining."
 
         if not stats_printed:
-            print success_count
-            print success_count/max_num_waypoints
             try:
                 success_perc = round((success_count/max_num_waypoints)*100)
             except ZeroDivisionError:
@@ -763,6 +768,24 @@ def bug_algorithm(tx, ty, bug_type):
        
 
 def sigint_handler(signal_received, frame):
+    waypoints_processed = max_num_waypoints-waypoint_queue.qsize()
+    print "Processed", waypoints_processed,"waypoints."
+    try:
+        success_perc = round((success_count/waypoints_processed)*100)
+    except ZeroDivisionError:
+        success_perc = 0.0
+    print "Succeeded: ", success_perc, "% of the time."
+    print "Distance covered: ", round(success_distance,2), "m"
+    print "Time spent on successful runs: ", round(success_time,2), "s"
+    try:
+        avg_speed = round(success_distance/success_time,2)
+    except ZeroDivisionError:
+        avg_speed = 0.0
+    print "Avg Speed: ", avg_speed, "m/s"
+    # Track total time spent
+    total_time_elapsed = rospy.get_rostime().secs - total_time_start
+    print "Total Time: ", round(total_time_elapsed,2), "s" 
+    
     print('SIGINT or CTRL-C received. Exiting.')
     exit(0)
         
