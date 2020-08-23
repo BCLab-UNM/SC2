@@ -16,7 +16,7 @@ from scipy.spatial import distance as dist
 from collections import OrderedDict
 
 
-class VolatileDetection(object):
+class LogoDetection(object):
 
 	def __init__(self):
 		# note: required library "pip install imutils"
@@ -26,19 +26,19 @@ class VolatileDetection(object):
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
 		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
 
-		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/volatile_detections/left', Image, queue_size=10)
-		self.volatile_detection_right_publisher = rospy.Publisher('/scout_1/volatile_detections/right', Image, queue_size=10)
+		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/logo_detections/left', Image, queue_size=10)
+		self.logo_detection_right_publisher = rospy.Publisher('/scout_1/logo_detections/right', Image, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
-		colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255), "black": (0, 0, 0)})
+		colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
 		
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []
-		for (i, (name, rgbb)) in enumerate(colors.items()):
+		for (i, (name, rgb)) in enumerate(colors.items()):
 			# update the L*a*b* array and the color names list
-			self.lab[i] = rgbb
+			self.lab[i] = rgb
 			self.colorNames.append(name)
 
 		# convert the L*a*b* array from the RGB color space
@@ -106,32 +106,16 @@ class VolatileDetection(object):
 		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 		cv_image_right = cv2.cvtColor(self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 
-		#print(cv_image_left.shape)
-		# generate the blob detections
-		# keypoints_left = self.detector.detect(cv_image_left)
-		# keypoints_right = self.detector.detect(cv_image_right)
-
-		# super-impose the blob detections over the original camera image
-		# im_with_keypoints_left = cv2.drawKeypoints(cv_image_left, keypoints_left, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-		# im_with_keypoints_right = cv2.drawKeypoints(cv_image_right, keypoints_right, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
-		# convert cv2 images into ros messages and publish
-		# imgmsg_left = self.bridge.cv2_to_imgmsg(im_with_keypoints_left, encoding="passthrough")
-		# imgmsg_right = self.bridge.cv2_to_imgmsg(im_with_keypoints_right, encoding="passthrough")
-		# self.blob_detection_left_publisher.publish(imgmsg_left)
-		# self.blob_detection_right_publisher.publish(imgmsg_right)
-
 		#determine colors
 
 		#generate shapes			
+		# TODO: re-write for left and right camera
 		resized_left = imutils.resize(cv_image_left, width=640)
 		ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
 		gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
 		lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
-		# blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
-		thresh_left = cv2.threshold(gray_left, 110, 255, cv2.THRESH_BINARY)[1]
-		thresh_left= cv2.bitwise_not(thresh_left) 
-
+		blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
+		thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
 		#thresh_left = thresh_left.astype(np.uint8)
 		cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		cnts_left = imutils.grab_contours(cnts_left)
@@ -145,18 +129,18 @@ class VolatileDetection(object):
 				shape = self.detect(c)
 				color = self.label(lab_left,c)
 			#print(color)
-				
-				c = c.astype("float")
-				c *= ratio_left
-				c = c.astype("int")
-				cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
+				if shape== 'triangle' or color == 'blue':
+					c = c.astype("float")
+					c *= ratio_left
+					c = c.astype("int")
+					cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
 					#print(M['m10'])
-				marker = cv2.minAreaRect(c)
-				focalLength= 540
-				KNOWN_WIDTH = 3.04 #logo width in inches
-				per_width= marker[1][0]
-				inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-				print(inches)
+					marker = cv2.minAreaRect(c)
+					focalLength= self.left_camera_focal_length
+					KNOWN_WIDTH = 2.72 #logo width in inches
+					per_width= marker[1][0]
+					inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
+					print(inches)
 
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
@@ -180,5 +164,6 @@ class VolatileDetection(object):
 
 		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 		#imgmsg_right = self.bridge.cv2_to_imgmsg(cv_image_right, encoding="passthrough")
-		self.volatile_detection_left_publisher.publish(imgmsg_left)
-		#self.volatile_detection_right_publisher.publish(imgmsg_right)
+		self.logo_detection_left_publisher.publish(imgmsg_left)
+		#self.logo_detection_right_publisher.publish(imgmsg_right)
+
