@@ -46,7 +46,7 @@ import Queue
 
 # Constants
 OBSTACLE_EDGE_TOL = 0.5 # meters
-max_num_waypoints = 50
+max_num_waypoints = 100
 waypoint_bounds = 75 # meters. distance from center to edges
 waypoint_queue = Queue.Queue( max_num_waypoints )
 # Limit on reaching waypoint
@@ -328,14 +328,15 @@ class Bug:
     
         if current_location.distance(self.last_x, self.last_y) < self.stuck_linear_tol and current_location.distance(self.tx, self.ty) > delta:
             self.drive_mutex.acquire()
-            print "Escaping: Robot displaced by", current_location.distance(self.last_x, self.last_y), "meters over", self.stuck_check_period, " seconds."
+            #print "Escaping: Robot displaced by", current_location.distance(self.last_x, self.last_y), "meters over", self.stuck_check_period, " seconds."
             cmd = Twist()
             cmd.linear.x = self.linear_vel*random.randint(-1,1)
             if cmd.linear.x == 0:
                 cmd.angular.z = self.angular_vel
-                print "Escape: turning at ", cmd.angular.z, "rad/s"
+                #print "Escape: turning at ", cmd.angular.z, "rad/s"
             else:
-                print "Escape: driving at ", cmd.linear.x, "m/s"
+                pass
+                #print "Escape: driving at ", cmd.linear.x, "m/s"
             for i in range(10):
                 self.pub.publish(cmd)
             rospy.sleep(3)
@@ -424,7 +425,7 @@ class Bug:
     def go_until_obstacle(self):
         #print "Going until destination or obstacle."
         #self.print_error()
-        print "Travelling to waypoint"
+        #print "Travelling to waypoint"
         
         while current_location.distance(self.tx, self.ty) > delta:
             (frontdist, leftdist, rightdist) = current_dists.get()
@@ -469,7 +470,7 @@ class Bug:
         print "LiDAR range. Front:", front_range, "m. Left: ", left_range, "m. Right: ", right_range, "m"
     
     def follow_wall_anticlockwise(self):
-        print "Navigating around obstacle anticlockwise"
+        #print "Navigating around obstacle anticlockwise"
         while current_dists.get()[0] <= WALL_PADDING:
             #self.print_LiDAR_ranges()
             #print "Aligning with obstacle"
@@ -490,11 +491,11 @@ class Bug:
                 #self.print_LiDAR_ranges()
                 self.go(STRAIGHT)
             elif left > WALL_PADDING + 0.5:
-                print "Getting too far away from obstacle"
+                #print "Getting too far away from obstacle"
                 self.go(LEFT)
             elif front > WALL_PADDING and left > WALL_PADDING and right > WALL_PADDING:
                 self.go(STRAIGHT)
-                print "Free of obstacle"
+                #print "Free of obstacle"
                 return
             else:
                 #print "Aligning with obstacle again."
@@ -504,7 +505,7 @@ class Bug:
         # print "Left Obstacle"
 
     def follow_wall_clockwise(self):
-        print "Navigating around obstacle clockwise"
+        #print "Navigating around obstacle clockwise"
         while current_dists.get()[0] <= WALL_PADDING:
             #self.print_LiDAR_ranges()
             #print "Aligning with obstacle"
@@ -525,11 +526,11 @@ class Bug:
                 #self.print_LiDAR_ranges()
                 self.go(STRAIGHT)
             elif left > WALL_PADDING + 0.5:
-                print "Getting too far away from obstacle"
+                #print "Getting too far away from obstacle"
                 self.go(RIGHT)
             elif front > WALL_PADDING and left > WALL_PADDING and right > WALL_PADDING:
                 self.go(STRAIGHT)
-                print "Free of obstacle"
+                #print "Free of obstacle"
                 return
             else:
                 #print "Aligning with obstacle again."
