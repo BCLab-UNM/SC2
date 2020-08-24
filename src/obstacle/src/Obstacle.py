@@ -18,6 +18,7 @@ class Obstacle:
         self.safe_distance = rospy.get_param('/safe_distance', default=1)
         self.warning_distance = rospy.get_param('/warning_distance', default=1.5)
         self.laserScan = LaserScan()
+        self.closest = float('inf')
         self.volSensor = VolSensorMsg()
         self.obstacleAccumulator = Obstacles.PATH_IS_CLEAR
         self.obstacleMask = Obstacles.PATH_IS_CLEAR
@@ -36,6 +37,8 @@ class Obstacle:
             # If the rover was driving forward would hit something within than safe_distance
             if (w < (self.rover_width / 2.0)) and (d < self.safe_distance):
                 self.obstacleAccumulator |= Obstacles.LIDAR_BLOCK
+                if self.closest > d:
+                    self.closest = d
 
             # laser_coverage defines what percentage of the total scanned area is assigned to each subarea: LIDAR_LEFT, LIDAR_RIGHT, LIDAR_CENTER
             # so if laser_coverage was 45, as in 45%, and the sensor took 1000 readings (len(data.ranges) == 1000)
@@ -45,10 +48,14 @@ class Obstacle:
             # Blocked right side of Lidar within warning_distance
             if i < coverage_value and data.ranges[i] < self.warning_distance:
                 self.obstacleAccumulator |= Obstacles.LIDAR_RIGHT
+                if self.closest > data.ranges[i]:
+                    self.closest = d
 
             # Blocked left side of Lidar within warning_distance
             if i > (len(data.ranges) - coverage_value) and data.ranges[i] < self.warning_distance:
                 self.obstacleAccumulator |= Obstacles.LIDAR_LEFT
+                if self.closest > data.ranges[i]:
+                    self.closest = d
 
             # Blocked center
             # if range within right side
@@ -58,9 +65,11 @@ class Obstacle:
                     (i < ((len(data.ranges) / 2) + (self.laser_coverage / 2)) and
                      data.ranges[i] < self.warning_distance):
                 self.obstacleAccumulator |= Obstacles.LIDAR_CENTER
+                if self.closest > data.ranges[i]:
+                    self.closest = d
 
             self.obstaclePublisher.publish(Obstacles(self.obstacleAccumulator,
-                                                     Obstacles.IS_LIDAR, 0))
+                                                     Obstacles.IS_LIDAR, self.closest))
 
     def volatile_sensor_callback(self, data):
         self.obstaclePublisher.publish(Obstacles(
