@@ -2,7 +2,7 @@
 <package format="2">
   <name>object_detection</name>
   <version>0.0.0</version>
-  <description>object recognition node for sc2</description>
+  <description>object detection node for sc2</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
