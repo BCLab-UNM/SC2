@@ -14,6 +14,14 @@ import time
 import imutils
 from scipy.spatial import distance as dist
 from collections import OrderedDict
+from object_detection.msg import Detection
+
+# the message type for our publisher is Detection
+#     it has 3 fields:
+#         - detection_id:  the string name of the object we have detected
+#         - heading:       the heading we need to turn to face our detected object in radians
+#         - distance:      the distance to the detected object in metres
+from object_detection.msg import Detection
 
 
 class VolatileDetection(object):
