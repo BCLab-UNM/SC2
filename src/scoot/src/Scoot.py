@@ -446,6 +446,7 @@ class Scoot(object):
 
         if 'throw' not in kwargs or kwargs['throw']:
             if value == MoveResult.OBSTACLE_LASER:
+                self.control_data = data
                 raise ObstacleException(value)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
