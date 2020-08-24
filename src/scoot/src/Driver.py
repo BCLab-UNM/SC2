@@ -84,7 +84,7 @@ class State:
         self.Work = Queue()
         self.dbg_msg = None
         self.current_obstacles = 0
-        self.current_obstacle_data = 0
+        self.current_obstacle_data = float('inf')
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
@@ -171,6 +171,7 @@ class State:
         rval = MoveResult()
         rval.result = t.result
         rval.obstacle_data = self.current_obstacle_data
+        self.current_obstacle_data = float('inf')
         return rval
 
     # @sync(package_lock)
@@ -211,7 +212,11 @@ class State:
         self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
-        self.current_obstacle_data = msg.data
+        if self.current_obstacles & Obstacles.IS_LIDAR:
+            if self.current_obstacle_data > msg.data:
+                self.current_obstacle_data = msg.data
+        else:
+            self.current_obstacle_data = msg.data
         self.__check_obstacles()
 
         # @sync(package_lock)
