@@ -134,12 +134,12 @@ class State:
     def _brakes_off(self):
         try:
             self.brake_service.call(0)  # immediately disengage brakes
-        except rospy.ServiceException:
+        except (rospy.ServiceException, AttributeError):
             rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
             try:
                 self.brake_service.call(0)  # immediately disengage brakes
                 rospy.logwarn("Second attempt to disengage brakes was successful")
-            except rospy.ServiceException:
+            except (rospy.ServiceException, AttributeError):
                 rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
                 rospy.logerr("If you are seeing this message you can expect strange behavior[flipping] from the rover")
         except AttributeError:

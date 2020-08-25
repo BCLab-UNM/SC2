@@ -277,7 +277,7 @@ class Scoot(object):
                 self.truePoseCalled = True
 
                 return pose
-            except rospy.ServiceException as exc:
+            except (rospy.ServiceException, AttributeError) as exc:
                 print("Service did not process request: " + str(exc))
 
     def transform_pose(self, target_frame, pose, timeout=3.0):
@@ -340,7 +340,7 @@ class Scoot(object):
             result = self.qal1ScoreService(
                 pose=vol_loc,
                 vol_type=self.VOL_TYPES[vol_type_index])
-        except ServiceException:
+        except (ServiceException, AttributeError):
             rospy.logwarn("Score attempt failed")
             self.brake('on')
             rospy.sleep(self.vol_delay[-1])
@@ -350,7 +350,7 @@ class Scoot(object):
                 result = self.qal1ScoreService(
                     pose=vol_loc,
                     vol_type=self.VOL_TYPES[vol_type_index])
-            except ServiceException:
+            except (ServiceException, AttributeError):
                 rospy.logwarn("Failed again")
                 return False
             else:
@@ -477,12 +477,12 @@ class Scoot(object):
     def _brake_service_call(self, brake_value):
         try:
             self.brake_service.call(brake_value)
-        except rospy.ServiceException:
+        except (rospy.ServiceException, AttributeError):
             rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
             try:
                 self.brake_service.call(brake_value)
                 rospy.logwarn("Second attempt to disengage brakes was successful")
-            except rospy.ServiceException:
+            except (rospy.ServiceException, AttributeError):
                 rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
                 rospy.logerr("If you are seeing this message you can except strange behavior (flipping) from the rover")
 
@@ -523,12 +523,12 @@ class Scoot(object):
     def _light(self, state):
         try:
             self.light_service.call(data=state)
-        except rospy.ServiceException:
+        except (rospy.ServiceException, AttributeError):
             rospy.logerr("Light Service Exception: Light Service Failed to Respond")
             try:
                 self.light_service.call(data=state)
                 rospy.logwarn("Second attempt to use lights was successful")
-            except rospy.ServiceException:
+            except (rospy.ServiceException, AttributeError):
                 rospy.logerr("Light Service Exception: Second attempt failed to use lights")
 
     def light_on(self):
@@ -685,12 +685,12 @@ class Scoot(object):
             rover_pose = self.getOdomLocation().getPose()
             try:
                 vol_list = self.vol_list_service.call()
-            except ServiceException:
+            except (ServiceException, AttributeError):
                 rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
                 try:
                     vol_list = self.vol_list_service.call()
                     rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
-                except ServiceException:
+                except (ServiceException, AttributeError):
                     rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
                     return None
             closest_vol_pose = min(vol_list.poses,
