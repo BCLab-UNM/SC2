@@ -144,10 +144,10 @@ class LogoDetection(object):
 					#print(M['m10'])
 					marker = cv2.minAreaRect(c)
 					focalLength= self.left_camera_focal_length
-					KNOWN_WIDTH = 2.72 #logo width in inches
+					KNOWN_WIDTH = 1.27 #logo width in meters
 					per_width= marker[1][0]
-					inches = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-					print(inches)
+					distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
+					print(distance_meters)
 
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
