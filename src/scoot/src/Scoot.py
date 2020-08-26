@@ -37,9 +37,10 @@ class VolatileException(DriveException):
 
 
 class ObstacleException(DriveException):
-    def __init__(self, st, obstacle):
+    def __init__(self, st, obstacle, distance):
         self.status = st
         self.obstacle = obstacle
+        self.distance = distance
 
 
 class PathException(DriveException):
@@ -452,7 +453,7 @@ class Scoot(object):
         if 'throw' not in kwargs or kwargs['throw']:
             if value == MoveResult.OBSTACLE_LASER:
                 self.dist_data = dist
-                raise ObstacleException(value, obstacle)
+                raise ObstacleException(value, obstacle, dist)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
                 raise VolatileException(value)
