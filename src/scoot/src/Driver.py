@@ -3,6 +3,8 @@
 from __future__ import print_function
 
 import sys
+
+import numpy
 import rospy
 import angles
 import math
@@ -68,7 +70,7 @@ class State:
     ROTATE_THRESHOLD = 0
     DRIVE_ANGLE_ABORT = 0
 
-    DRIVE_SPEED_MAX = 0.6
+    DRIVE_SPEED_MAX = 2*math.pi
     TURN_SPEED_MAX = 1.2
 
     def __init__(self):
@@ -86,16 +88,16 @@ class State:
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
-        # Configuration 
-        State.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=5)
-        State.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=5)
-        State.TURN_SPEED = rospy.get_param("TURN_SPEED", default=5)
-        State.HEADING_RESTORE_FACTOR = rospy.get_param("HEADING_RESTORE_FACTOR", default=2)
-        State.GOAL_DISTANCE_OK = rospy.get_param("GOAL_DISTANCE_OK", default=0.1)
-        State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi / 16)
-        State.DRIVE_ANGLE_ABORT = rospy.get_param("DRIVE_ANGLE_ABORT", default=math.pi / 4)
-
         self.rover_name = rospy.get_param('rover_name', default='scout_1')
+        
+        # Configuration 
+        State.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
+        State.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
+        State.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
+        State.HEADING_RESTORE_FACTOR = rospy.get_param("/"+self.rover_name+"/Core/HEADING_RESTORE_FACTOR", default=2)
+        State.GOAL_DISTANCE_OK = rospy.get_param("/"+self.rover_name+"/Core/GOAL_DISTANCE_OK", default=0.1)
+        State.ROTATE_THRESHOLD = rospy.get_param("/"+self.rover_name+"/Core/ROTATE_THRESHOLD", default=math.pi / 16)
+        State.DRIVE_ANGLE_ABORT = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_ANGLE_ABORT", default=math.pi / 4)
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
@@ -110,7 +112,7 @@ class State:
         self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
 
         rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
-        self.brakeService = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
+        self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
@@ -128,7 +130,25 @@ class State:
 
         if self.Doing is not None:
             self.Doing.result = result
-        #self.brakeService(brake=True) # Brakes on
+
+    def _brakes_off(self):
+        try:
+            self.brake_service.call(0)  # immediately disengage brakes
+        except rospy.ServiceException:
+            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
+            try:
+                self.brake_service.call(0)  # immediately disengage brakes
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except rospy.ServiceException:
+                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
+                rospy.logerr("If you are seeing this message you can expect strange behavior[flipping] from the rover")
+        except AttributeError:
+            rospy.logerr("Attribute Error raised")
+            try:
+                self.brake_service.call(0)
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except AttributeError:
+                pass
 
     def _control(self, req):
         for r in req.req[:-1]:
@@ -200,7 +220,7 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        #self.brakeService(brake=False)  #brakes off
+        self._brakes_off()
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
@@ -226,7 +246,7 @@ class State:
                 self.Doing = None
 
             if self.Work.empty():
-                # self.brakeService(True) #brakes on # @TODO investigate when can be a NONE type service
+                pass
                 '''
                 # Let the joystick drive.
                 lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
@@ -237,7 +257,7 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                #self.brakeService(brake=False)  #brakes off
+                self._brakes_off()
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
