@@ -72,6 +72,7 @@ class Obstacle:
 
             self.obstaclePublisher.publish(Obstacles(self.obstacleAccumulator,
                                                      Obstacles.IS_LIDAR, 0, self.closest))
+            self.closest = float('inf')
 
     def volatile_sensor_callback(self, data):
         self.obstaclePublisher.publish(Obstacles(
