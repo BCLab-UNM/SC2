@@ -37,7 +37,9 @@ class VolatileException(DriveException):
 
 
 class ObstacleException(DriveException):
-    pass
+    def __init__(self, st, obstacle):
+        self.status = st
+        self.obstacle = obstacle
 
 
 class PathException(DriveException):
@@ -437,6 +439,7 @@ class Scoot(object):
 
         move_result = self.control([request]).result
         value = move_result.result
+        obstacle = move_result.obstacle
         data = move_result.obstacle_data
 
         # Always raise AbortExceptions when the service response is USER_ABORT,
@@ -446,7 +449,7 @@ class Scoot(object):
 
         if 'throw' not in kwargs or kwargs['throw']:
             if value == MoveResult.OBSTACLE_LASER:
-                raise ObstacleException(value)
+                raise ObstacleException(value, obstacle)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
                 raise VolatileException(value)

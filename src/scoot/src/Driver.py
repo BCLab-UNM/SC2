@@ -170,7 +170,10 @@ class State:
 
         rval = MoveResult()
         rval.result = t.result
+        rval.obstacle = self.current_obstacles
         rval.obstacle_data = self.current_obstacle_data
+        self.current_obstacles = 0
+        self.current_obstacle_data = 0
         return rval
 
     # @sync(package_lock)
@@ -208,7 +211,6 @@ class State:
 
     # @sync(package_lock)
     def _obstacle(self, msg):
-        self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
         self.current_obstacle_data = msg.data
