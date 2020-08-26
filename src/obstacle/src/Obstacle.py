@@ -10,8 +10,10 @@ from obstacle.msg import Obstacles
 
 class Obstacle:
 
-    def __init__(self, name):
+    def __init__(self):
         rospy.init_node('Obstacle', anonymous=True)
+        self.name = rospy.get_namespace()
+        self.name = self.rover_name.strip('/')
         self.rover_width = rospy.get_param('/rover_total_width', default=2.2098)
         self.laser_coverage = rospy.get_param('/laser_coverage', default=40)
         self.rover_width = rospy.get_param('/rover_total_width', default=2.2098)
@@ -86,7 +88,7 @@ class Obstacle:
 
 if __name__ == '__main__':
     rospy.loginfo("Obstacle Node Initializing")
-    obstacleInstance = Obstacle("scout_1")
+    obstacleInstance = Obstacle()
     try:
         obstacleInstance.run()
     except rospy.ROSInterruptException:
