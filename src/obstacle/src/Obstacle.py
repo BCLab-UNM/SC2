@@ -88,8 +88,7 @@ class Obstacle:
 
 if __name__ == '__main__':
     rospy.loginfo("Obstacle Node Initializing")
-    name = rospy.get_param('rover_name', default='excavator_1')
-    obstacleInstance = Obstacle(name)
+    obstacleInstance = Obstacle()
     try:
         obstacleInstance.run()
     except rospy.ROSInterruptException:
