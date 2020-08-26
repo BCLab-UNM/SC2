@@ -164,6 +164,7 @@ catkin_install_python(PROGRAMS
   src/FakeLocalization.py
   src/Driver.py
 
+  src/behaviors/excavator/waypoint_search.py
   src/behaviors/excavator/dig.py
   src/behaviors/excavator/dropoff.py
   src/behaviors/excavator/goto_volatile.py

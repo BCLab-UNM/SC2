@@ -21,7 +21,8 @@ task_lock = threading.Lock()
 class Task:
     STATE_SCOUT_SEARCH = 0
     STATE_SCOUT_FINE_SEARCH = 1
-
+    
+    STATE_EXCAVATOR_SEARCH = 3
     STATE_EXCAVATOR_GOTO_VOLATILE = 0
     STATE_EXCAVATOR_DIG = 1
     STATE_EXCAVATOR_DROPOFF = 2
@@ -35,6 +36,7 @@ class Task:
     PROG_SCOUT_SEARCH = getattr(scout, rospy.get_param('search', default='search')).main
     PROG_SCOUT_FINE_SEARCH = getattr(scout, rospy.get_param('fine_search', default='fine_search')).main
 
+    PROG_EXCAVATOR_SEARCH = getattr(excavator, rospy.get_param('waypoint_search', default='waypoint_search')).main
     PROG_EXCAVATOR_DIG = getattr(excavator, rospy.get_param('dig', default='dig')).main
     PROG_EXCAVATOR_DROPOFF = getattr(excavator, rospy.get_param('dropoff', default='dropoff')).main
     PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, rospy.get_param('goto_volatile', default='goto_volatile')).main
@@ -116,7 +118,9 @@ class Task:
                 STATE_EXCAVATOR_DROPOFF
                 STATE_EXCAVATOR_GOTO_VOLATILE
                 '''
-                pass
+                if self.current_state == Task.STATE_EXCAVATOR_SEARCH:
+                    if self.launch(self.PROG_EXCAVAVTOR) == 0:
+                        rospy.loginfo('Search succeeded.')
             else:
                 rospy.logerr_throttle(20, "UNKNOWN rover type: " + scoot.rover_type)
 
