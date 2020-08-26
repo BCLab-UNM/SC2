@@ -174,6 +174,8 @@ class State:
         rval.obstacle_data = self.current_obstacle_data
         rval.distance = self.current_distance
         self.current_distance = float('inf')
+        self.current_obstacles = 0
+        self.current_obstacle_data = 0
         return rval
 
     # @sync(package_lock)
@@ -214,6 +216,7 @@ class State:
         self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
+        self.current_distance = float('inf')
         if self.current_obstacles & Obstacles.IS_LIDAR:
             if self.current_distance > msg.distance:
                 self.current_distance = msg.distance
