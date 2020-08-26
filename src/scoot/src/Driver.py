@@ -84,7 +84,8 @@ class State:
         self.Work = Queue()
         self.dbg_msg = None
         self.current_obstacles = 0
-        self.current_obstacle_data = float('inf')
+        self.current_obstacle_data = 0
+        self.current_distance = float('inf')
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
@@ -170,9 +171,9 @@ class State:
 
         rval = MoveResult()
         rval.result = t.result
-        rval.obstacle_data = 0
-        rval.distance = self.current_obstacle_data
-        self.current_obstacle_data = float('inf')
+        rval.obstacle_data = self.current_obstacle_data
+        rval.distance = self.current_distance
+        self.current_distance = float('inf')
         return rval
 
     # @sync(package_lock)
@@ -214,10 +215,10 @@ class State:
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
         if self.current_obstacles & Obstacles.IS_LIDAR:
-            if self.current_obstacle_data > msg.distance:
-                self.current_obstacle_data = msg.distance
+            if self.current_distance > msg.distance:
+                self.current_distance = msg.distance
         else:
-            self.current_obstacle_data = msg.distance
+            self.current_obstacle_data = msg.data
         self.__check_obstacles()
 
         # @sync(package_lock)
