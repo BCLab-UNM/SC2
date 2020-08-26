@@ -216,7 +216,6 @@ class State:
     def _obstacle(self, msg):
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
-        self.current_distance = float('inf')
         if self.current_obstacles & Obstacles.IS_LIDAR:
             if self.current_distance > msg.distance:
                 self.current_distance = msg.distance
