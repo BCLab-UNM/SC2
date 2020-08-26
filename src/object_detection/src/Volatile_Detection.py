@@ -34,8 +34,11 @@ class VolatileDetection(object):
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
 		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
 
-		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/volatile_detections/left', Image, queue_size=10)
-		self.volatile_detection_right_publisher = rospy.Publisher('/scout_1/volatile_detections/right', Image, queue_size=10)
+		self.volatile_detection_image_left_publisher = rospy.Publisher('/scout_1/volatile_detections/image/left', Image, queue_size=10)
+		self.volatile_detection_image_right_publisher = rospy.Publisher('/scout_1/volatile_detections/image/right', Image, queue_size=10)
+
+		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/volatile_detections/left', Detection, queue_size=10)
+		self.volatile_detection_right_publisher = rospy.Publisher('/scout_1/volatile_detections/right', Detection, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -108,6 +111,13 @@ class VolatileDetection(object):
 
 
 	def callback(self, left_camera_data, right_camera_data):
+		left_detection_msg = Detection()
+		left_detection_msg.detection_id = "volatile"
+		left_detection_msg.heading = 0.0
+		left_detection_msg.distance = 0.0
+		right_detection_msg = None
+
+
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
 
 		# convert image data from image message -> opencv image
@@ -164,6 +174,7 @@ class VolatileDetection(object):
 				KNOWN_WIDTH = 1 #logo width in meter
 				per_width= marker[1][0]
 				distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
+				left_detection_msg.distance = distance_meters
 				print(str(distance_meters) + "meters" )
 
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -188,5 +199,10 @@ class VolatileDetection(object):
 
 		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 		#imgmsg_right = self.bridge.cv2_to_imgmsg(cv_image_right, encoding="passthrough")
-		self.volatile_detection_left_publisher.publish(imgmsg_left)
-		#self.volatile_detection_right_publisher.publish(imgmsg_right)
+
+		self.volatile_detection_image_left_publisher.publish(imgmsg_left)
+		#self.volatile_detection_image_right_publisher.publish(imgmsg_right)
+
+		self.volatile_detection_left_publisher.publish(left_detection_msg)
+		#self.volatile_detection_right_publisher.publish()
+
