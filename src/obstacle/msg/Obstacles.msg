@@ -33,4 +33,5 @@ int32 VISION_HOME      = 2560
 
 int32 msg 
 int32 mask
-uint8 data #used for vol_type_index
+int32 data #used for vol_type_index
+float32 distance

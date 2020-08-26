@@ -10,3 +10,4 @@ int32 OBSTACLE_CORNER  = 8
 
 int32 result 
 int8 obstacle_data
+float32 distance

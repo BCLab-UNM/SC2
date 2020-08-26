@@ -69,13 +69,14 @@ class Obstacle:
                     self.closest = d
 
             self.obstaclePublisher.publish(Obstacles(self.obstacleAccumulator,
-                                                     Obstacles.IS_LIDAR, self.closest))
+                                                     Obstacles.IS_LIDAR, 0, self.closest))
 
     def volatile_sensor_callback(self, data):
         self.obstaclePublisher.publish(Obstacles(
             Obstacles.VOLATILE,
             Obstacles.IS_VOLATILE,
-            self.VOL_TYPES.index(data.vol_type)))
+            self.VOL_TYPES.index(data.vol_type),
+            0))
 
     def run(self):
         # @TODO: Test for laser noise if it's bad move publish into run after taking the median

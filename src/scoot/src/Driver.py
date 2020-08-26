@@ -170,7 +170,8 @@ class State:
 
         rval = MoveResult()
         rval.result = t.result
-        rval.obstacle_data = self.current_obstacle_data
+        rval.obstacle_data = 0
+        rval.distance = self.current_obstacle_data
         self.current_obstacle_data = float('inf')
         return rval
 
@@ -213,10 +214,10 @@ class State:
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
         if self.current_obstacles & Obstacles.IS_LIDAR:
-            if self.current_obstacle_data > msg.data:
-                self.current_obstacle_data = msg.data
+            if self.current_obstacle_data > msg.distance:
+                self.current_obstacle_data = msg.distance
         else:
-            self.current_obstacle_data = msg.data
+            self.current_obstacle_data = msg.distance
         self.__check_obstacles()
 
         # @sync(package_lock)
