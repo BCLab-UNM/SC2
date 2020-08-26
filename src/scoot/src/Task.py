@@ -28,6 +28,7 @@ class Task:
     STATE_EXCAVATOR_GOTO_VOLATILE = 0
     STATE_EXCAVATOR_DIG = 1
     STATE_EXCAVATOR_DROPOFF = 2
+    STATE_EXCAVATOR_SEARCH = 3
 
     STATE_HAULER_GOTO_EXCAVATOR = 0
     STATE_HAULER_WAITING = 1
@@ -38,9 +39,9 @@ class Task:
     # then PROG_SCOUT_SEARCH would be scout.searchRandomWalk.main this allows running alternative behaviors at launch
     PROG_SCOUT_SEARCH = getattr(scout, rospy.get_param('search', default='search')).main
     PROG_SCOUT_FINE_SEARCH = getattr(scout, rospy.get_param('fine_search', default='fine_search')).main
-
     PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
-
+    
+    PROG_EXCAVATOR_SEARCH = getattr(excavator, rospy.get_param('waypoint_search', default='waypoint_search')).main
     PROG_EXCAVATOR_DIG = getattr(excavator, rospy.get_param('dig', default='dig')).main
     PROG_EXCAVATOR_DROPOFF = getattr(excavator, rospy.get_param('dropoff', default='dropoff')).main
     PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, rospy.get_param('goto_volatile', default='goto_volatile')).main
@@ -150,6 +151,10 @@ class Task:
 
             elif self.scoot.rover_type == 'excavator':
                 rospy.logwarn_once('Excavator behaviors are currently not implemented')
+
+                if self.current_state == Task.STATE_EXCAVATOR_SEARCH:
+                    if self.launch(self.PROG_EXCAVAVTOR) == 0:
+                        rospy.loginfo('Search succeeded.')
                 if self.current_state == Task.STATE_EXCAVATOR_GOTO_VOLATILE:
                     if self.launch(self.PROG_EXCAVATOR_GOTO_VOLATILE) == 0:
                         rospy.loginfo('Excavator Arrived at Volatile')

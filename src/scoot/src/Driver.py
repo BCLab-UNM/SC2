@@ -171,6 +171,7 @@ class State:
 
         rval = MoveResult()
         rval.result = t.result
+        rval.obstacle = self.current_obstacles
         rval.obstacle_data = self.current_obstacle_data
         rval.distance = self.current_distance
         self.current_distance = float('inf')
@@ -213,7 +214,6 @@ class State:
 
     # @sync(package_lock)
     def _obstacle(self, msg):
-        self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
         self.current_distance = float('inf')
