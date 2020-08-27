@@ -24,7 +24,7 @@ def bug_0(loc):
     while not scoot.getOdomLocation().atGoal(loc, distance=2):
         try:
             rospy.loginfo('driving')
-            scoot.drive_to(waypoint)
+            scoot.drive_to(loc)
         except ObstacleException as e:
             if e.obstacle & Obstacles.LIDAR_LEFT == Obstacles.LIDAR_LEFT:
                 rospy.loginfo('turn right')
@@ -54,7 +54,7 @@ def bug_0(loc):
                     rospy.loginfo('another obstacle')
                     pass
     rospy.loginfo('Reached waypoint')
-    rospy.loginfo("Waypoint: " + str(waypoint.x) + ", " +  str(waypoint.y))
+    rospy.loginfo("Waypoint: " + str(loc.x) + ", " +  str(loc.y))
     rospy.loginfo("My loc: " + str(scoot.getOdomLocation().getPose().x) + ", " + str(scoot.getOdomLocation().getPose().y))
     
                 
