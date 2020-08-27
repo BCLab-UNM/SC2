@@ -36,4 +36,5 @@ int32 SAFE      = 3840 # 0b111100000000
 
 int32 msg 
 int32 mask
-uint8 data #used for vol_type_index
+int32 data #used for vol_type_index
+float32 distance
