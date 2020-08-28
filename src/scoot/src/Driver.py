@@ -27,6 +27,7 @@ from srcp2_msgs import msg, srv
 from scoot.srv import Core
 from scoot.msg import MoveResult
 from obstacle.msg import Obstacles
+from object_detection.msg import Detection
 from angles import shortest_angular_distance
 
 import threading
@@ -86,6 +87,7 @@ class State:
         self.current_obstacles = 0
         self.current_obstacle_data = 0
         self.current_distance = float('inf')
+        self.obstacle_heading = 0
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
@@ -103,6 +105,8 @@ class State:
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
         rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
+        rospy.Subscriber('/' + self.rover_name + '/logo_detections/left', Detection, self._vision)
+        rospy.Subscriber('/' + self.rover_name + '/volatile_detections/left', Detection, self._vision)
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
 
         # Services 
@@ -174,9 +178,11 @@ class State:
         rval.obstacle = self.current_obstacles
         rval.obstacle_data = self.current_obstacle_data
         rval.distance = self.current_distance
-        self.current_distance = float('inf')
+        rval.heading = self.obstacle_heading
         self.current_obstacles = 0
         self.current_obstacle_data = 0
+        self.current_distance = float('inf')
+        self.obstacle_heading = 0
         return rval
 
     # @sync(package_lock)
@@ -207,10 +213,12 @@ class State:
             if (detected & Obstacles.IS_LIDAR) != 0:
                 self._stop_now(MoveResult.OBSTACLE_LASER)
                 self.print_debug("__check_obstacles: MoveResult.OBSTACLE_LASER")
-
-            if (detected & Obstacles.IS_VOLATILE) != 0:
+            elif (detected & Obstacles.IS_VOLATILE) != 0:
                 self._stop_now(MoveResult.OBSTACLE_VOLATILE)
                 self.print_debug("__check_obstacles: MoveResult.OBSTACLE_VOLATILE")
+            elif (detected & Obstacles.IS_VISION_T) != 0:
+                self._stop_now(MoveResult.OBSTACLE_TAG) #TODO change this for readablity
+                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_TAG")
 
     # @sync(package_lock)
     def _obstacle(self, msg):
@@ -223,8 +231,17 @@ class State:
             self.current_obstacle_data = msg.data
         self.__check_obstacles()
 
-        # @sync(package_lock)
-
+    # @sync(package_lock)
+    def _vision(self, msg):
+        rospy.loginfo("Driver.py's _vision called with:")
+        rospy.loginfo(msg)
+        if msg.detection_id & Obstacles.IS_VISION_T:
+            #  self.current_obstacles = msg.detection_id # if it changes to an int
+            self.current_distance = msg.distance
+            self.obstacle_heading = msg.heading
+        self.__check_obstacles()
+    
+    # @sync(package_lock)
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
