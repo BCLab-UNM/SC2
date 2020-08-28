@@ -12,3 +12,5 @@ int32 result
 int32 obstacle
 int8 obstacle_data
 float32 distance
+float32 heading
+
