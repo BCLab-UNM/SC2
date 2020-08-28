@@ -42,6 +42,7 @@ class Task:
     PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
     
     PROG_EXCAVATOR_SEARCH = getattr(excavator, rospy.get_param('waypoint_search', default='waypoint_search')).main
+
     PROG_EXCAVATOR_DIG = getattr(excavator, rospy.get_param('dig', default='dig')).main
     PROG_EXCAVATOR_DROPOFF = getattr(excavator, rospy.get_param('dropoff', default='dropoff')).main
     PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, rospy.get_param('goto_volatile', default='goto_volatile')).main

@@ -13,6 +13,7 @@ int32 TAG_HOME         = 512
 int32 TAG_PRIORI       = 1024
 int32 HOME_FIDUCIAL    = 2048
 
+
 # Tracking HaulerMsg.msg's comment
 # in srcp2-competitors/ros_workspace/install/shares/rcp2_msgs/msg/
 uint8 ice           = 0
@@ -29,6 +30,7 @@ int32 IS_LIDAR         = 15 #  0b000000001111
 int32 IS_VISION_O      = 240 # 0b000011110000
 int32 IS_VOLATILE      = 256 # 0b000100000000
 int32 IS_VISION_T      = 3584 #0b111000000000
+
 
 # convenience masks
 # All IS_VISION_T and IS_VOLATILE obstacles that are generally safe to ignore
