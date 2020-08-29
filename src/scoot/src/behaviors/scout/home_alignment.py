@@ -10,6 +10,12 @@ from scoot.msg import MoveResult
 from Scoot import Scoot, VolatileException, ObstacleException, PathException, AbortException, MoveResult
 
 # @TODO Whiteboard test the angles are not quite right 
+def side_align(distance, side, sides, start_pose, home_pose):
+    global scoot
+    
+    scoot.drive(distance, ignore=Obstacles.IS_VOLATILE)
+    scoot.set_heading(start_pose.theta + math.pi/2, ignore=-1)
+
 def main(task=None):
     global scoot
     if task:
@@ -38,6 +44,15 @@ def main(task=None):
         # @TODO: Set heading torwards home
         
 
+    
+    start_pose = scoot.getOdomLocation().getPose()
+    
+    sides = 6
+    for i in range(0,(sides+1)):
+        if i == 0:
+            side_align(distance / 2.0, i,sides, start_pose, home_pose)
+        else: 
+    
     sys.exit(0)  # "succeeded"
 
 
