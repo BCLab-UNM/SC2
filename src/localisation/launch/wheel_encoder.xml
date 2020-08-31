@@ -1,0 +1,6 @@
+<launch>
+  <arg name="name"/>
+  <param name="rover_name" value="$(arg name)"/>
+  <node name="wheel_encoder" pkg="localisation" type="wheel_encoder.py" args="$(arg name)" respawn="true" >
+  </node>
+</launch>
