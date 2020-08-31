@@ -15,6 +15,7 @@ from Scoot import VolatileException, ObstacleException, PathException, AbortExce
 
 def turnaround(ignore=Obstacles.IS_LIDAR|Obstacles.IS_VOLATILE):
     global scoot
+    scoot.drive(-0.275 * 2, ignore=ignore) #back up by wheel diameter
     scoot.turn(random.gauss(math.pi/2, math.pi/4), ignore=ignore)
 
 
