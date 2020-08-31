@@ -36,11 +36,16 @@ class LogoDetection(object):
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
-		colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
+		self.colors_blue = OrderedDict()
 		
-		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
+		for i in range(1, 256):
+			temp = {"blue_" + str(i) : (0,0,255)}
+			self.colors_blue.update(temp)
+		# colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
+		
+		self.lab = np.zeros((len(self.colors_blue), 1, 3), dtype="uint8")
 		self.colorNames = []
-		for (i, (name, rgb)) in enumerate(colors.items()):
+		for (i, (name, rgb)) in enumerate(self.colors_blue.items()):
 			# update the L*a*b* array and the color names list
 			self.lab[i] = rgb
 			self.colorNames.append(name)
@@ -139,8 +144,9 @@ class LogoDetection(object):
 			if area > 300 and area < 1500 : 
 				shape = self.detect(c)
 				color = self.label(lab_left,c)
+				# print(color)
 			#print(color)
-				if shape== 'triangle' or color == 'blue':
+				if shape == 'triangle' and color in self.colors_blue:
 					c = c.astype("float")
 					c *= ratio_left
 					c = c.astype("int")
@@ -148,12 +154,12 @@ class LogoDetection(object):
 					#print(M['m10'])
 					marker = cv2.minAreaRect(c)
 					focalLength= self.left_camera_focal_length
-					KNOWN_WIDTH = 1.27 #logo width in meters
+					KNOWN_WIDTH = 1.27 #logo width in meterswith
 					per_width= marker[1][0]
 					distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 					detection_msg.distance = distance_meters					
 					print(distance_meters)
-
+# withwith
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 		#resized_right = imutils.resize(cv_image_right, width=300)

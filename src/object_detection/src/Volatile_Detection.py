@@ -15,6 +15,7 @@ import time
 import imutils
 from scipy.spatial import distance as dist
 from collections import OrderedDict
+import math
 from object_detection.msg import Detection
 
 
@@ -162,7 +163,7 @@ class VolatileDetection(object):
 					#print(M['m10'])
 				marker = cv2.minAreaRect(c)
 				focalLength= self.left_camera_focal_length
-				KNOWN_WIDTH = 1 #logo width in meter
+				KNOWN_WIDTH = 0.5 #logo width in meters
 				per_width= marker[1][0]
 				distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 				detection_msg.distance = distance_meters
