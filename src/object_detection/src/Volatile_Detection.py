@@ -14,6 +14,7 @@ import time
 import imutils
 from scipy.spatial import distance as dist
 from collections import OrderedDict
+import math
 
 
 # the message type for our publisher is Detection
@@ -171,11 +172,11 @@ class VolatileDetection(object):
 					#print(M['m10'])
 				marker = cv2.minAreaRect(c)
 				focalLength= self.left_camera_focal_length
-				KNOWN_WIDTH = 1 #logo width in meter
+				KNOWN_WIDTH = 0.5 #logo width in meters
 				per_width= marker[1][0]
 				distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 				left_detection_msg.distance = distance_meters
-				print(str(distance_meters) + "meters" )
+				print(distance_meters )
 
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
