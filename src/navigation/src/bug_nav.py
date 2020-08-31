@@ -163,6 +163,7 @@ class Dist:
     def __init__(self):
         self.m = threading.Lock()
         self.left = 0
+        self.right = 0
         self.front = 0
         self.raw = []
 
@@ -724,8 +725,14 @@ def bug_algorithm(tx, ty, bug_type):
             start_time = rospy.get_rostime().secs
             est_distance_to_cover = estimated_current_location.distance(wtx, wty)
             act_distance_to_cover = actual_current_location.distance(wtx, wty)
-            print("Est (x,y):",  (estimated_current_location.current_location()[0] , estimated_current_location.current_location()[1]))
-            print("Actual (x,y):",  (actual_current_location.current_location()[0] , actual_current_location.current_location()[1]))
+            est_x = estimated_current_location.current_location()[0]
+            est_y = estimated_current_location.current_location()[1]
+            act_x = actual_current_location.current_location()[0]
+            act_y = actual_current_location.current_location()[1]
+            
+            print "Estimate (x,y):",  est_x, est_y
+            print "Actual (x,y):", act_x, act_y
+            print "World vs Odom Offset:", est_x - act_x, est_y - act_y
             print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(est_distance_to_cover,2), "m."
             print "Actual Distance: ", round(act_distance_to_cover,2), "m."
             while estimated_current_location.distance(wtx, wty) > delta:
@@ -760,7 +767,7 @@ def bug_algorithm(tx, ty, bug_type):
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
                     success_count += 1.0
-                    success_distance += distance_to_cover
+                    success_distance += act_distance_to_cover
                     success_time += elapsed_time 
                 
             bug.apply_brakes()
@@ -772,7 +779,7 @@ def bug_algorithm(tx, ty, bug_type):
             except ZeroDivisionError:
                 success_perc = 0.0
             print "Succeeded: ", success_perc, "% of the time."
-            print "Distance covered: ", round(success_distance,2), "m"
+            print "Actual Distance covered: ", round(success_distance,2), "m"
             print "Time spent on successful runs: ", round(success_time,2), "s"
             try:
                 avg_speed = round(success_distance/success_time,2)
