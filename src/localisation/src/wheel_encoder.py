@@ -41,7 +41,7 @@ class WheelEncoder:
         
         current_time = rospy.Time.now()  
         dt = (current_time - self.last_time).to_sec()
-        
+                
         ### Calculate angular velocity ###
         
         # Angular displacement in radians - could use all four wheels, start with just two
@@ -49,9 +49,12 @@ class WheelEncoder:
         angle_displacement_right = front_right_wheel_angle - self.previous_front_right_wheel_angle 
         
         # Left angular velocities in rad/s
-        omega_left = angle_displacement_left/dt
-        omega_right = angle_displacement_right/dt
-        
+        try:
+            omega_left = angle_displacement_left/dt
+            omega_right = angle_displacement_right/dt
+        except ZeroDivisionError:
+            omega_left = omega_right = 0
+            
         # Velocities at the center of the base_footprint, i.e. in the robot frame
         # Subscript r indicates varables in the robot frame
         # v_left:  left velocity
