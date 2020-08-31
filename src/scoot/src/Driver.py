@@ -152,6 +152,9 @@ class State:
                 pass
 
     def _control(self, req):
+        self.current_distance = float('inf')
+        self.current_obstacles = 0
+        self.current_obstacle_data = 0
         for r in req.req[:-1]:
             self.Work.put(Task(r, False), False)
 
