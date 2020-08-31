@@ -41,6 +41,8 @@ class WheelEncoder:
         
         current_time = rospy.Time.now()  
         dt = (current_time - self.last_time).to_sec()
+        if dt == 0:
+            dt = 0.0001
         
         ### Calculate angular velocity ###
         
