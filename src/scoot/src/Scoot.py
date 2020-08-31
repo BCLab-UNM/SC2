@@ -356,14 +356,15 @@ class Scoot(object):
                     vol_type=self.VOL_TYPES[vol_type_index])
             except (ServiceException, AttributeError):
                 rospy.logwarn("Failed again")
+                rospy.sleep(0.5)
                 return False
             else:
                 rospy.logwarn("Scored second time!")
-                rospy.sleep(.5)
+                rospy.sleep(0.5)
                 return True
         else:
             rospy.logwarn("Scored!")
-            rospy.sleep(.5)
+            rospy.sleep(0.5)
             return True
       
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 

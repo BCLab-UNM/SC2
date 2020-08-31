@@ -40,11 +40,12 @@ def random_walk(num_moves):
             wander()
     except VolatileException:
         rospy.logwarn("I found a volatile! " + scoot.VOL_TYPES[scoot.control_data])
+        rospy.logwarn(scoot.control_data)
         res = scoot.score(scoot.control_data)
         if not res:
             rospy.logwarn("Turning around")
             turnaround()
-            rospy.sleep(.5)
+        rospy.sleep(3.0)
         rospy.logwarn('Exiting')
         sys.exit(0)
 

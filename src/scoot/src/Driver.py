@@ -102,7 +102,7 @@ class State:
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
-        rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
+        rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle, queue_size=1)
         rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
 
         # Services 
