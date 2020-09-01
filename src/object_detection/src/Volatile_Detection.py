@@ -107,8 +107,10 @@ class VolatileDetection(object):
 	def callback(self, left_camera_data, right_camera_data):
 		detection_msg = Detection()
 		detection_msg.detection_id = Obstacles.VOLATILE # this is an integer ID defined in the obstacle package
-		detection_msg.heading = 0.0
-		detection_msg.distance = 0.0
+		detection_msg.left_heading = 0.0
+		detection_msg.left_distance = 0.0
+		detection_msg.right_heading = 0.0
+		detection_msg.right_distance = 0.0
 
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
 
@@ -166,7 +168,7 @@ class VolatileDetection(object):
 				KNOWN_WIDTH = 0.5 #logo width in meters
 				per_width= marker[1][0]
 				distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-				detection_msg.distance = distance_meters
+				detection_msg.left_distance = distance_meters
 				print(str(distance_meters) + "meters" )
 
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
