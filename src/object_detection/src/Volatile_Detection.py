@@ -170,7 +170,8 @@ class VolatileDetection(object):
 				distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 				detection_msg.left_distance = distance_meters
 				print(str(distance_meters) + "meters" )
-
+				self.volatile_detection_publisher.publish(detection_msg)
+				#self.volatile_detection_right_publisher.publish()
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 		#resized_right = imutils.resize(cv_image_right, width=300)
@@ -196,7 +197,4 @@ class VolatileDetection(object):
 
 		self.volatile_detection_image_left_publisher.publish(imgmsg_left)
 		#self.volatile_detection_image_right_publisher.publish(imgmsg_right)
-
-		self.volatile_detection_publisher.publish(detection_msg)
-		#self.volatile_detection_right_publisher.publish()
 

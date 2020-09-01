@@ -159,6 +159,8 @@ class LogoDetection(object):
 					distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 					detection_msg.left_distance = distance_meters					
 					print(distance_meters)
+					self.logo_detection_publisher.publish(detection_msg)
+
 # withwith
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
@@ -185,6 +187,4 @@ class LogoDetection(object):
 
 		self.logo_detection_image_left_publisher.publish(imgmsg_left)
 		#self.logo_detection_image_right_publisher.publish(imgmsg_right)
-
-		self.logo_detection_publisher.publish(detection_msg)
 
