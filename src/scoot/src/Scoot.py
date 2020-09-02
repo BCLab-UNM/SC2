@@ -226,7 +226,7 @@ class Scoot(object):
             self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
 
         # Subscribe to topics.
-        rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
