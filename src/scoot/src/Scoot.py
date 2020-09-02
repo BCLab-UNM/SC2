@@ -148,8 +148,10 @@ class Scoot(object):
         self.vol_list_service = None
 
         self.truePoseCalled = False
-        
+        self.true_pose_got = None
+
         self.OdomLocation = Location(None)
+        self.world_offset = None
         self.control = None
         self.control_data = None
         self.dist_data = None
@@ -266,22 +268,11 @@ class Scoot(object):
             return
         else:
             try:
-                l = self.localization_service(call=True)
-                quat = [l.pose.orientation.x,
-                        l.pose.orientation.y,
-                        l.pose.orientation.z,
-                        l.pose.orientation.w,
-                        ]
-                (r, p, y) = tf.transformations.euler_from_quaternion(quat)
-
-                pose = Pose2D()
-                pose.x = l.pose.position.x
-                pose.y = l.pose.position.y
-                pose.theta = y
-
                 self.truePoseCalled = True
-
-                return pose
+                self.true_pose_got = self.localization_service(call=True).pose
+                rospy.logwarn("true_pose_got:")
+                rospy.logwarn(self.true_pose_got.position)
+                return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
             except (rospy.ServiceException, AttributeError) as exc:
                 print("Service did not process request: " + str(exc))
 
@@ -318,8 +309,20 @@ class Scoot(object):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
-        pose_stamped.pose = self.OdomLocation.Odometry.pose
-                
+        odom_p = self.OdomLocation.Odometry.pose.pose.position
+        odom_o = self.OdomLocation.Odometry.pose.pose.orientation
+        if self.world_offset is None:
+            true_pos = self.getTruePose()  # Pose
+            true_p = true_pos.position  # Point
+            # @NOTE: if we find the IMU does not align properly might need the orientation in the offset
+            # true_o = true_pos.orientation  # Quaternion
+            # self.world_offset = Pose(Point(odom_p.x - true_p.x, odom_p.y - true_p.y,  odom_p.z - true_p.z),
+            #                         Quaternion(odom_o.x - true_o.x, odom_o.y - true_o.y, odom_o.z - true_o.z,
+            #                                    odom_o.w - true_o.w))
+            self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
+
+        pose_stamped.pose.pose.position = Point(odom_p.x + self.world_offset.x, odom_p.y + self.world_offset.y,
+                                                odom_p.z + self.world_offset.z)
         ps = PoseStamped()
         ps.header.frame_id = pose_stamped.header.frame_id
         ps.header.stamp = pose_stamped.header.stamp
@@ -327,9 +330,8 @@ class Scoot(object):
                 pose_stamped.pose.pose.orientation.y,
                 pose_stamped.pose.pose.orientation.z,
                 pose_stamped.pose.pose.orientation.w,
-        ]
-        (r, p, y) = tf.transformations.euler_from_quaternion(quat)
-        theta = y
+                ]
+        (r, p, theta) = tf.transformations.euler_from_quaternion(quat)
         add_x = math.cos(theta) * 1.143
         add_y = math.sin(theta) * 1.143
         ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
@@ -341,6 +343,8 @@ class Scoot(object):
     # @TODO: test this
     def score(self, vol_type_index=0):
         vol_loc = self.getVolPose()
+        rospy.logwarn("trying vol_loc:")
+        rospy.logwarn(vol_loc)
         try:
             result = self.qal1ScoreService(
                 pose=vol_loc,
@@ -351,6 +355,8 @@ class Scoot(object):
             rospy.sleep(self.vol_delay[-1])
             rospy.logwarn("Waited")
             vol_loc = self.getVolPose()
+            rospy.logwarn("trying vol_loc:")
+            rospy.logwarn(vol_loc)
             try:
                 result = self.qal1ScoreService(
                     pose=vol_loc,
