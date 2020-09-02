@@ -11,7 +11,8 @@ from srcp2_msgs import msg, srv
 
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped, PoseStamped, Quaternion
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovariance, PoseWithCovarianceStamped, PoseStamped, \
+    Quaternion, Pose
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
