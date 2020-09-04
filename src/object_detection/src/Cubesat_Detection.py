@@ -24,7 +24,7 @@ from collections import OrderedDict
 from object_detection.msg import Detection
 
 
-class LogoDetection(object):
+class CubesatDetection(object):
 
 	def __init__(self):
 		# note: required library "pip install imutils"
@@ -34,11 +34,11 @@ class LogoDetection(object):
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
 		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
 
-		self.logo_detection_image_left_publisher = rospy.Publisher('/scout_1/logo_detections/image/left', Image, queue_size=10)
-		self.logo_detection_image_right_publisher = rospy.Publisher('/scout_1/logo_detections/image/right', Image, queue_size=10)
+		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=10)
+		self.cubesat_detection_image_right_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/right', Image, queue_size=10)
 
-		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/logo_detections/left', Detection, queue_size=10)
-		self.logo_detection_right_publisher = rospy.Publisher('/scout_1/logo_detections/right', Detection, queue_size=10)
+		self.cubesat_detection_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/left', Detection, queue_size=10)
+		self.cubesat_detection_right_publisher = rospy.Publisher('/scout_1/cubesat_detections/right', Detection, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -120,7 +120,7 @@ class LogoDetection(object):
 		# left_detection.heading = 3.14
 		# left_detection.distance = 10.05
 		left_detection_msg = Detection()
-		left_detection_msg.detection_id = "processing plant logo"
+		left_detection_msg.detection_id = "Cubesat Detection"
 		left_detection_msg.heading = 0.0
 		left_detection_msg.distance = 0.0
 
@@ -133,6 +133,8 @@ class LogoDetection(object):
 		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 		cv_image_right = cv2.cvtColor(self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 
+		# print(cv_image_left.shape)
+		
 		#determine colors
 
 		#generate shapes			
@@ -150,15 +152,15 @@ class LogoDetection(object):
 		for c in cnts_left:
 			M = cv2.moments(c)
 			if M["m00"] != 0:
-				cX = int((M["m10"] / M["m00"]) * ratio_left)
-				cY = int((M["m01"] / M["m00"]) * ratio_left)
+				cX = int((M["m10"] / M["m00"]))
+				cY = int((M["m01"] / M["m00"]))
 				area = cv2.contourArea(c)
 				if area > 300 and area < 1500 : 
 					shape = self.detect(c)
 					color = self.label(lab_left,c)
 					# print(color)
 				
-					if shape == 'triangle' and color in self.colors_blue:
+					if shape == 'rectangle':
 					# if shape == 'triangle':
 						c = c.astype("float")
 						c *= ratio_left
@@ -167,7 +169,7 @@ class LogoDetection(object):
 						#print(M['m10'])
 						marker = cv2.minAreaRect(c)
 						focalLength= self.left_camera_focal_length
-						KNOWN_WIDTH = 0.955 #logo width in meterswith
+						KNOWN_WIDTH = 1 #cubesat width in meters
 						per_width= marker[1][0]
 						distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 						left_detection_msg.distance = distance_meters					
@@ -197,9 +199,9 @@ class LogoDetection(object):
 		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 		#imgmsg_right = self.bridge.cv2_to_imgmsg(cv_image_right, encoding="passthrough")
 
-		self.logo_detection_image_left_publisher.publish(imgmsg_left)
-		#self.logo_detection_image_right_publisher.publish(imgmsg_right)
+		self.cubesat_detection_image_left_publisher.publish(imgmsg_left)
+		#self.cubesat_detection_image_right_publisher.publish(imgmsg_right)
 
-		self.logo_detection_left_publisher.publish(left_detection_msg)
-		#self.logo_detection_right_publisher.publish()
+		self.cubesat_detection_left_publisher.publish(left_detection_msg)
+		#self.cubesat_detection_right_publisher.publish()
 
