@@ -314,15 +314,17 @@ class Scoot(object):
         if self.world_offset is None:
             true_pos = self.getTruePose()  # Pose
             true_p = true_pos.position  # Point
-            # @NOTE: if we find the IMU does not align properly might need the orientation in the offset
-            # true_o = true_pos.orientation  # Quaternion
-            # self.world_offset = Pose(Point(odom_p.x - true_p.x, odom_p.y - true_p.y,  odom_p.z - true_p.z),
-            #                         Quaternion(odom_o.x - true_o.x, odom_o.y - true_o.y, odom_o.z - true_o.z,
-            #                                    odom_o.w - true_o.w))
-            self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
-
-        pose_stamped.pose.pose.position = Point(odom_p.x + self.world_offset.x, odom_p.y + self.world_offset.y,
-                                                odom_p.z + self.world_offset.z)
+            true_o = true_pos.orientation  # Quaternion
+            self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y,  true_p.z - odom_p.z),
+                                     Quaternion(true_o.x-odom_o.x, true_o.y - odom_o.y , true_o.z - odom_o.z,
+                                                odom_o.w - true_o.w))
+            #self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
+        offset_pos = self.world_offset.position  # Point
+        offset_ori = self.world_offset.orientation  # Quaternion
+        pose_stamped.pose.pose.position = Point(odom_p.x + offset_pos.x, odom_p.y + offset_pos.y,
+                                                odom_p.z + offset_pos.z)
+        pose_stamped.pose.pose.orientation = Quaternion(odom_o.x + offset_ori.x, odom_o.y + offset_ori.y,
+                                                        odom_o.z + offset_ori.z, odom_o.w + offset_ori.w)
         ps = PoseStamped()
         ps.header.frame_id = pose_stamped.header.frame_id
         ps.header.stamp = pose_stamped.header.stamp
