@@ -265,7 +265,7 @@ class Scoot(object):
     def getTruePose(self):
         if self.truePoseCalled:
             print("True pose already called once.")
-            return
+            return self.true_pose_got
         else:
             try:
                 self.truePoseCalled = True
