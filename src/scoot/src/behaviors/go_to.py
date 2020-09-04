@@ -6,17 +6,22 @@ import sys
 import rospy
 import math
 from Scoot import Scoot
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Pose, Quaternion
 from std_msgs.msg import String
+from Scoot import Scoot, Location
+from nav_msgs.msg import Odometry
 
+scoot = None
 pub = None
 status_topic = '/scout_1/bug_nav_status'
 last_status_msg = None
 
 def goto(x, y, timeout, tolerance):
+    global last_status_msg
+    global scoot
     wp = Point(x, y, 0)
-    pub.publish(wp)
-    rospy.loginfo('published waypoint')
+    while not rospy.is_shutdown():
+        pub.publish(wp)
 
     # Wait for bug_nav to return a status
     rospy.wait_for_message( status_topic, String )
@@ -26,11 +31,13 @@ def goto(x, y, timeout, tolerance):
         return False
 
 def status_handler(msg):
+    global last_status_msg
     rospy.logwarn("Received status from bug nav: " + str(msg))
     last_status_msg = msg
 
 def main(task=None):
     global pub
+    global scoot
     pub = rospy.Publisher('/scout_1/waypoints', Point, queue_size=1)
     sub = rospy.Subscriber(status_topic, String, status_handler)
 

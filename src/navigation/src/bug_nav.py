@@ -792,11 +792,11 @@ def sigint_handler(signal_received, frame):
     exit(0)
 
 def main( task=None ):
-
-    #init_listener()
-    rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    while not rospy.is_shutdown():
+        #init_listener()
+        rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
     
-    signal(SIGINT, sigint_handler)
+        signal(SIGINT, sigint_handler)
 
     sys.exit(0)
 
@@ -804,6 +804,5 @@ if __name__ == '__main__':
     rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
     rospy.loginfo('Bug nav started.')
 
-    main()
-    sys.exit(0)
+    sys.exit(main())
 
