@@ -8,6 +8,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from std_msgs.msg import String
+from obstacle.msg import Obstacles
 from cv_bridge import CvBridge
 from matplotlib import pyplot as plt
 import time
@@ -15,13 +16,6 @@ import imutils
 from scipy.spatial import distance as dist
 from collections import OrderedDict
 import math
-
-
-# the message type for our publisher is Detection
-#     it has 3 fields:
-#         - detection_id:  the string name of the object we have detected
-#         - heading:       the heading we need to turn to face our detected object in radians
-#         - distance:      the distance to the detected object in metres
 from object_detection.msg import Detection
 
 
@@ -38,8 +32,7 @@ class VolatileDetection(object):
 		self.volatile_detection_image_left_publisher = rospy.Publisher('/scout_1/volatile_detections/image/left', Image, queue_size=10)
 		self.volatile_detection_image_right_publisher = rospy.Publisher('/scout_1/volatile_detections/image/right', Image, queue_size=10)
 
-		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/volatile_detections/left', Detection, queue_size=10)
-		self.volatile_detection_right_publisher = rospy.Publisher('/scout_1/volatile_detections/right', Detection, queue_size=10)
+		self.volatile_detection_publisher = rospy.Publisher('/scout_1/object_detections', Detection, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -112,12 +105,12 @@ class VolatileDetection(object):
 
 
 	def callback(self, left_camera_data, right_camera_data):
-		left_detection_msg = Detection()
-		left_detection_msg.detection_id = "volatile"
-		left_detection_msg.heading = 0.0
-		left_detection_msg.distance = 0.0
-		right_detection_msg = None
-
+		detection_msg = Detection()
+		detection_msg.detection_id = Obstacles.VOLATILE # this is an integer ID defined in the obstacle package
+		detection_msg.left_heading = 0.0
+		detection_msg.left_distance = 0.0
+		detection_msg.right_heading = 0.0
+		detection_msg.right_distance = 0.0
 
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
 
@@ -175,9 +168,10 @@ class VolatileDetection(object):
 				KNOWN_WIDTH = 0.5 #logo width in meters
 				per_width= marker[1][0]
 				distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-				left_detection_msg.distance = distance_meters
-				print(distance_meters )
-
+				detection_msg.left_distance = distance_meters
+				print(str(distance_meters) + "meters" )
+				self.volatile_detection_publisher.publish(detection_msg)
+				#self.volatile_detection_right_publisher.publish()
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 		#resized_right = imutils.resize(cv_image_right, width=300)
@@ -203,7 +197,4 @@ class VolatileDetection(object):
 
 		self.volatile_detection_image_left_publisher.publish(imgmsg_left)
 		#self.volatile_detection_image_right_publisher.publish(imgmsg_right)
-
-		self.volatile_detection_left_publisher.publish(left_detection_msg)
-		#self.volatile_detection_right_publisher.publish()
 
