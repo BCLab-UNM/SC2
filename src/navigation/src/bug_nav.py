@@ -95,6 +95,7 @@ def waypoint_handler( msg ):
     # print("Waypoint Queue Length:", waypoint_queue.qsize())
     
     waypoint_queue.put(msg)
+    bug_algorithm(msg.x, msg.y, bug_type=0)
     
     
 # Location is used to maintain a single current location of the robot in a
@@ -165,6 +166,7 @@ class Dist:
         self.left = 0
         self.front = 0
         self.raw = []
+        self.right = 0
 
     def update(self, data):
         def getmin(a, b):
@@ -229,19 +231,18 @@ current_location = Location()
 current_dists = Dist()
 
 def init_listener():
-    rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
+
     rospy.Subscriber('/scout_1/odom/filtered', Odometry, location_handler)
     rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
     
-    # print("Waiting for brake service...")
+    rospy.logwarn("Waiting for brake service...")
     rospy.wait_for_service('/scout_1/brake_rover')
     brakeService = rospy.ServiceProxy('/scout_1/brake_rover', srv.BrakeRoverSrv)
-    # print("... active.")
+    rospy.logwarn("... active.")
 
     waypoint_topic = "/scout_1/waypoints"
-    # print("Subscribing to", waypoint_topic)
-    rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    rospy.logwarn("Subscribing to", waypoint_topic)
 
 def location_handler(data):
     p = data.pose.pose.position
@@ -676,11 +677,11 @@ def bug_algorithm(tx, ty, bug_type):
     waypoint_queue.put(Point(tx, ty, 0))
 
     # Generate waypoints - use a thread so we don't continue until the waypoints are completed
-    thread = threading.Thread(target=random_waypoint_generator( max_num_waypoints ))
-    thread.start()
+    #thread = threading.Thread(target=random_waypoint_generator( max_num_waypoints ))
+    #thread.start()
 
     # wait here for waitpoint generation to complete
-    thread.join()
+    #thread.join()
     
 
     # Track total time spent
@@ -789,32 +790,20 @@ def sigint_handler(signal_received, frame):
     
     print('SIGINT or CTRL-C received. Exiting.')
     exit(0)
-        
-# Parse arguments
-algorithm = sys.argv[1]
-algorithms = ["bug0", "bug1", "bug2"]
-if algorithm not in algorithms:
-    print "First argument should be one of ", algorithms, ". Was ", algorithm
-    sys.exit(1)
 
-if len(sys.argv) < 4:
-    print "Usage: rosrun scoot bug_obstacle_nav.py bug<0|1|2> target_x target_y"
-    sys.exit(1)
-(command_tx, command_ty) = map(float, sys.argv[2:4])
+def main( task=None ):
 
-signal(SIGINT, sigint_handler)
+    #init_listener()
+    rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    
+    signal(SIGINT, sigint_handler)
 
-print('Running. Press CTRL-C to exit.')
+    sys.exit(0)
 
-init_listener()
- 
-print "Target given as argument:", (command_tx, command_ty)
-bug = None
-if algorithm == "bug0":
-    bug_type = 0
-elif algorithm == "bug1":
-    bug_type = 1
-elif algorithm == "bug2":
-    bug_type = 2
-bug_algorithm(command_tx, command_ty, bug_type)
+if __name__ == '__main__':
+    rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
+    rospy.loginfo('Bug nav started.')
+
+    main()
+    sys.exit(0)
 
