@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
+from sensor_msgs.point_cloud2 import PointCloud2
+import sensor_msgs.point_cloud2 as pc2
 from std_msgs.msg import String
 from cv_bridge import CvBridge
 from matplotlib import pyplot as plt
@@ -14,13 +16,6 @@ import time
 import imutils
 from scipy.spatial import distance as dist
 from collections import OrderedDict
-
-
-# the message type for our publisher is Detection
-#     it has 3 fields:
-#         - detection_id:  the string name of the object we have detected
-#         - heading:       the heading we need to turn to face our detected object in radians
-#         - distance:      the distance to the detected object in metres
 from object_detection.msg import Detection
 
 
@@ -31,16 +26,13 @@ class CubesatDetection(object):
 
 		self.bridge = CvBridge()
 
+		self.point_cloud_subscriber = message_filters.Subscriber('/scout_1/points2', PointCloud2)
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
-		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
 
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=10)
-		self.cubesat_detection_image_right_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/right', Image, queue_size=10)
+		self.cubesat_detection_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/', Detection, queue_size=10)
 
-		self.cubesat_detection_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/left', Detection, queue_size=10)
-		self.cubesat_detection_right_publisher = rospy.Publisher('/scout_1/cubesat_detections/right', Detection, queue_size=10)
-
-		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
+		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.point_cloud_subscriber, self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
 		self.colors_blue = OrderedDict()
@@ -68,6 +60,21 @@ class CubesatDetection(object):
 		self.synchronizer.registerCallback(self.camera_info_callback)
 		self.left_camera_focal_length = 380.0
 		self.right_camera_focal_length = 380.0
+
+
+	def point_cloud_callback(self, point_cloud_msg):
+		height = point_cloud_msg.height
+		width = point_cloud_msg.width
+		
+		print('height = ' + str(height))
+		print('width = ' + str(width))
+		
+		points_list = []
+
+		for data in pc2.read_points(point_cloud_msg, skip_nans=False):
+	        	points_list.append([data[0], data[1], data[2], data[3]])
+
+		print(len(points_list))
 
 
 	def camera_info_callback(self, left_camera_info, right_camera_info):
@@ -115,14 +122,19 @@ class CubesatDetection(object):
 		return (knownWidth * focalLength) / perWidth
 
 
-	def callback(self, left_camera_data, right_camera_data):
+	def callback(self, point_cloud_msg, right_camera_data):
+		# get a list of [x, y, z] tuples from the point cloud
+		points_list = []
+		for data in pc2.read_points(point_cloud_msg, skip_nans=False):
+	        	points_list.append([data[0], data[1], data[2]])
+
 		# left_detection.detection_id = string name of detection (volatile, processing plant logo, cube sat)
 		# left_detection.heading = 3.14
 		# left_detection.distance = 10.05
 		left_detection_msg = Detection()
-		left_detection_msg.detection_id = "Cubesat Detection"
-		left_detection_msg.heading = 0.0
-		left_detection_msg.distance = 0.0
+		left_detection_msg.detection_id = 999 #"Cubesat Detection" TODO: change this
+		left_detection_msg.left_heading = 0.0
+		left_detection_msg.left_distance = 0.0
 
 		right_detection_msg = None
 
@@ -172,9 +184,13 @@ class CubesatDetection(object):
 						KNOWN_WIDTH = 1 #cubesat width in meters
 						per_width= marker[1][0]
 						distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-						left_detection_msg.distance = distance_meters					
+						left_detection_msg.left_distance = distance_meters					
 						print(str(distance_meters) + ' meters')
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
+						x = cX;
+						y = cY * point_cloud_msg.width
+						index = x + y
+						print(points_list[index])
 	# withwith
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
