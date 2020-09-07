@@ -128,10 +128,10 @@ class CubesatDetection(object):
 		for c in cnts_left:
 			M = cv2.moments(c)
 			if M["m00"] != 0:
-				cX = int((M["m10"] / M["m00"]))
-				cY = int((M["m01"] / M["m00"]))
+				cX = int((M["m10"] / M["m00"])  * ratio_left)
+				cY = int((M["m01"] / M["m00"])  * ratio_left)
 				area = cv2.contourArea(c)
-				if area > 300 and area < 1500 : 
+				if area > 300 and area < 1000 : 
 					shape = self.detect(c)
 					color = self.label(lab_left,c)
 					# print(color)
@@ -149,13 +149,17 @@ class CubesatDetection(object):
 						left_detection_msg.left_distance = distance_meters					
 						print(str(distance_meters) + ' meters')
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
-
-						angle = (math.pi / 2) - ((cY / 480) * math.pi / 2)
 						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
-						camera_offset_from_ground = 0.5
-						z = (distance_meters * math.sin(angle)) + camera_offset_from_ground
 
-						print('\nheading? = ' + str(heading))
+						# y_angle = (((cY -240)/ 480) * (math.pi / 4))
+						camera_offset_from_ground = 0.5
+						# x_angle = ((math.pi/4)* (cX - 320) / 640)
+						z = ( distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
+
+						
+
+						# print('angle '+ str(y_angle+x_angle + 0.78)) 
+						print('\nheading? = ' + str(left_detection_msg.left_heading))
 						print('z? = ' + str(z))
 
 						# x = cX;
