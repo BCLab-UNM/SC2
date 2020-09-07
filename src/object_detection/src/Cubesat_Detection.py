@@ -37,6 +37,8 @@ class CubesatDetection(object):
 		self.synchronizer.registerCallback(self.callback)
 
 		self.colors_blue = OrderedDict()
+
+		self.z_value_list = []
 		
 		for i in range(1, 256):
 			temp = {"blue_" + str(i) : (0,0,255)}
@@ -156,11 +158,17 @@ class CubesatDetection(object):
 						# x_angle = ((math.pi/4)* (cX - 320) / 640)
 						z = ( distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
 
-						
+						self.z_value_list.append(z)
+
+						if (len(self.z_value_list)>=20):
+							self.z_value_list.pop(0)
+
+						z_average = sum(self.z_value_list) / len(self.z_value_list)
+
 
 						# print('angle '+ str(y_angle+x_angle + 0.78)) 
 						print('\nheading? = ' + str(left_detection_msg.left_heading))
-						print('z? = ' + str(z))
+						print('z? = ' + str(z_average))
 
 						# x = cX;
 						# y = cY * point_cloud_msg.width
