@@ -18,6 +18,10 @@ import math
 from scipy.spatial import distance as dist
 from collections import OrderedDict
 from object_detection.msg import Detection
+import tf2_ros
+# sudo apt-get install ros-melodic-geometry2
+import tf2_geometry_msgs
+from geometry_msgs.msg import PoseStamped
 
 
 class CubesatDetection(object):
@@ -27,7 +31,7 @@ class CubesatDetection(object):
 
 		self.bridge = CvBridge()
 
-		self.point_cloud_subscriber = message_filters.Subscriber('/scout_1/points2', PointCloud2)
+		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
 
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=10)
@@ -61,6 +65,48 @@ class CubesatDetection(object):
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_info_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.camera_info_callback)
 		self.left_camera_focal_length = 380.0
+		
+		self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) # tf buffer length
+		self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+		self.pose_transformed = None
+		self.heading = None
+
+
+	def pc_callback(self, point_cloud_msg):
+		points_list = []
+		
+		for data in pc2.read_points(point_cloud_msg, skip_nans=True):
+			points_list.append([data[0], data[1], data[2]])
+
+		if len(points_list) == 0:
+			print('no point cloud')
+			return
+
+		# scout_1_tf/base_footprint
+		try:
+			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+
+			index = int(len(points_list)/2)
+			point = points_list[index]
+			pose_stamped = PoseStamped()
+			pose_stamped.header = point_cloud_msg.header
+			pose_stamped.pose.position.x = point[0] # see stereo_image_proc docs, the xyz need to be remapped
+			pose_stamped.pose.position.y = point[1]
+			pose_stamped.pose.position.z = point[2]
+			# pose_stamped.pose.orientation = transform.transform.rotation
+			
+			pre_pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
+			self.pose_transformed = PoseStamped()
+			self.pose_transformed.header = pre_pose_transformed.header
+			self.pose_transformed.pose.position.x = -pre_pose_transformed.pose.position.x
+			self.pose_transformed.pose.position.y = pre_pose_transformed.pose.position.y
+			self.pose_transformed.pose.position.z = pre_pose_transformed.pose.position.z
+			self.pose_transformed.orientation = pre_pose_transformed.orientation
+			# self.pose_transformed = pre_pose_transformed
+
+		except Exception:
+			# self.pose_transformed = None
+			return
 
 
 	def camera_info_callback(self, left_camera_info):
@@ -102,6 +148,7 @@ class CubesatDetection(object):
 		# return the name of the color with the smallest distance
 		return self.colorNames[minDist[1]]
 
+
 	def distance_to_camera(self, knownWidth, focalLength, perWidth):
 		# compute and return the distance from the maker to the camera
 		return (knownWidth * focalLength) / perWidth
@@ -133,7 +180,7 @@ class CubesatDetection(object):
 				cX = int((M["m10"] / M["m00"])  * ratio_left)
 				cY = int((M["m01"] / M["m00"])  * ratio_left)
 				area = cv2.contourArea(c)
-				if area > 300 and area < 1000 : 
+				if area > 50 and area < 1500 : # 300 1000
 					shape = self.detect(c)
 					color = self.label(lab_left,c)
 					# print(color)
@@ -153,10 +200,8 @@ class CubesatDetection(object):
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
 						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
 
-						# y_angle = (((cY -240)/ 480) * (math.pi / 4))
 						camera_offset_from_ground = 0.5
-						# x_angle = ((math.pi/4)* (cX - 320) / 640)
-						z = ( distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
+						z = (distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
 
 						self.z_value_list.append(z)
 
@@ -165,15 +210,13 @@ class CubesatDetection(object):
 
 						z_average = sum(self.z_value_list) / len(self.z_value_list)
 
+						print('heading = ' + str(left_detection_msg.left_heading))
+						print('z = ' + str(z_average))
 
-						# print('angle '+ str(y_angle+x_angle + 0.78)) 
-						print('\nheading? = ' + str(left_detection_msg.left_heading))
-						print('z? = ' + str(z_average))
-
-						# x = cX;
-						# y = cY * point_cloud_msg.width
-						# index = x + y
-						# print(points_list[index])
+						if self.pose_transformed != None:
+							print(self.pose_transformed)
+							# print(type(self.pose_transformed))
+							self.pose_transformed = None
 
 						self.cubesat_detection_left_publisher.publish(left_detection_msg)
 
