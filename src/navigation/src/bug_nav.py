@@ -73,6 +73,9 @@ MSG_STOP = 4
 CLOCKWISE = 5
 ANTICLOCKWISE = 6
 
+current_location = None
+current_dists = None
+
 # Timout exception
 class TimedOutException(Exception):
     pass
@@ -227,9 +230,6 @@ class Dist:
 
         return min(self.raw.ranges)
     
-current_location = Location()
-current_dists = Dist()
-
 def init_listener():
 
     rospy.Subscriber('/scout_1/odom/filtered', Odometry, location_handler)
@@ -242,7 +242,8 @@ def init_listener():
     rospy.logwarn("... active.")
 
     waypoint_topic = "/scout_1/waypoints"
-    rospy.logwarn("Subscribing to", waypoint_topic)
+    rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    rospy.logwarn("Subscribing to"+ waypoint_topic)
 
 def location_handler(data):
     p = data.pose.pose.position
@@ -736,7 +737,7 @@ def bug_algorithm(tx, ty, bug_type):
             if current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
                 print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(current_location.distance(wtx, wty),2)
-                status_msg = "Arrived:", (wtx, wty)
+                status_msg = "Arrived!"
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
                     success_count += 1.0
@@ -792,11 +793,15 @@ def sigint_handler(signal_received, frame):
     exit(0)
 
 def main( task=None ):
-    while not rospy.is_shutdown():
-        #init_listener()
-        rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    global current_location
+    global current_dists
     
-        signal(SIGINT, sigint_handler)
+    current_location = Location()
+    current_dists = Dist()
+
+    init_listener()
+    signal(SIGINT, sigint_handler)
+    rospy.spin()
 
     sys.exit(0)
 
