@@ -113,9 +113,16 @@ class Task:
                     else:
                         rospy.logerr_throttle(20, "UNKNOWN Scout state: " + str(self.current_state))
                 elif self.ROUND_NUMBER == 3:
+                    if self.current_state == Task.STATE_SCOUT_GOTO_PROCESSING_PLANT:
+                        if self.launch(self.PROG_GOTO_PROCESSING_PLANT) == 0:
+                            rospy.loginfo('Go to processing plant suceeded.')
+                            self.current_state = Task.STATE_SCOUT_GOTO_PROCESSING_PLANT
+                        else:
+                            rospy.loginfo('Go to processing failed!')
+                            self.current_state = Task.STATE_SCOUT_SEARCH
                     # If all good then would go: search->...
                     # @TODO: state mech for scout's round 3
-                    pass  # PROG_GOTO_PROCESSING_PLANT
+                    #
                 else:
                     rospy.logerr_throttle(20, 'Scout instance should not be running this round')
 

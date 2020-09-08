@@ -24,16 +24,19 @@ def goto(x, y, timeout, tolerance):
         pub.publish(wp)
 
     # Wait for bug_nav to return a status
+    rospy.loginfo('waiting for status')
     rospy.wait_for_message( status_topic, String )
-    if  last_status_msg == "Arrived":
+    print(last_status_msg)
+    if last_status_msg == "Arrived!":
+        print('returned true')
         return True
     else:
         return False
 
 def status_handler(msg):
     global last_status_msg
-    rospy.logwarn("Received status from bug nav: " + str(msg))
-    last_status_msg = msg
+    rospy.logwarn("Received status from bug nav: " + str(msg.data))
+    last_status_msg = msg.data
 
 def main(task=None):
     global pub

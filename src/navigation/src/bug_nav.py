@@ -232,7 +232,7 @@ class Dist:
     
 
 def init_listener():
-    rospy.Subscriber('/scout_1/odometry/filtered', Odometry, location_handler)
+    rospy.Subscriber('/scout_1/odometry/filtered', Odometry, estimated_location_handler)
     rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
     
@@ -751,12 +751,12 @@ def bug_algorithm(tx, ty, bug_type):
             # Confirm the target location was reached
             if estimated_current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
-                print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(current_location.distance(wtx, wty),2)
+                print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(actual_current_location.distance(wtx, wty),2)
                 status_msg = "Arrived!"
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
                     success_count += 1.0
-                    success_distance += distance_to_cover
+                    success_distance += act_distance_to_cover
                     success_time += elapsed_time 
                 
             bug.apply_brakes()
@@ -808,10 +808,12 @@ def sigint_handler(signal_received, frame):
     exit(0)
 
 def main( task=None ):
-    global current_location
+    global estimated_current_location
+    global actual_current_location
     global current_dists
-    
-    current_location = Location()
+
+    estimated_current_location = Location()
+    actual_current_location = Location()
     current_dists = Dist()
 
     init_listener()
