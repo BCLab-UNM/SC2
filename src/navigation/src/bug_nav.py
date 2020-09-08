@@ -230,9 +230,9 @@ class Dist:
 
         return min(self.raw.ranges)
     
-def init_listener():
 
-    rospy.Subscriber('/scout_1/odom/filtered', Odometry, location_handler)
+def init_listener():
+    rospy.Subscriber('/scout_1/odometry/filtered', Odometry, location_handler)
     rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
     
@@ -245,7 +245,7 @@ def init_listener():
     rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
     rospy.logwarn("Subscribing to"+ waypoint_topic)
 
-def location_handler(data):
+def estimated_location_handler(data):
     p = data.pose.pose.position
     q = (
             data.pose.pose.orientation.x,
@@ -253,7 +253,17 @@ def location_handler(data):
             data.pose.pose.orientation.z,
             data.pose.pose.orientation.w)
     roll, pitch, yaw = transform.euler_from_quaternion(q) # in [-pi, pi]
-    current_location.update_location(p.x, p.y, yaw, pitch)
+    estimated_current_location.update_location(p.x, p.y, yaw, pitch)
+
+def actual_location_handler(data):
+    p = data.pose.pose.position
+    q = (
+            data.pose.pose.orientation.x,
+            data.pose.pose.orientation.y,
+            data.pose.pose.orientation.z,
+            data.pose.pose.orientation.w)
+    roll, pitch, yaw = transform.euler_from_quaternion(q) # in [-pi, pi]
+    actual_current_location.update_location(p.x, p.y, yaw, pitch)
 
 def lidar_handler(data):
     current_dists.update(data)
@@ -322,13 +332,13 @@ class Bug:
             timed_out = True
             return
         
-        x, y, h, pitch = current_location.current_location()
+        x, y, h, pitch = estimated_current_location.current_location()
         
         #print "delta_x: ", abs(x - self.last_x)
         #print "delta_y: ", abs(y - self.last_y)
         #print "delta_h: ", abs(h - self.last_h)
     
-        if current_location.distance(self.last_x, self.last_y) < self.stuck_linear_tol and current_location.distance(self.tx, self.ty) > delta:
+        if estimated_current_location.distance(self.last_x, self.last_y) < self.stuck_linear_tol and estimated_current_location.distance(self.tx, self.ty) > delta:
             self.drive_mutex.acquire()
             #print "Escaping: Robot displaced by", current_location.distance(self.last_x, self.last_y), "meters over", self.stuck_check_period, " seconds."
             cmd = Twist()
@@ -419,8 +429,9 @@ class Bug:
         self.drive_mutex.release()
         
     def print_error(self):
-        print "Distance to target: ", round(current_location.distance(self.tx, self.ty)), "m"
-        cx, cy, t, pitch = current_location.current_location()
+        cx, cy, t, pitch = estimated_current_location.current_location()
+        print "Estamated distance to target: ", round(estimated_current_location.distance(self.tx, self.ty)), "m"
+        print "Actual distance to target: ", round(actual_current_location.distance(self.tx, self.ty)), "m"
         print "Angle Error: ", necessary_heading(cx, cy, self.tx, self.ty)-t, "rad"
         
     # Return True if a wall was encountered otherwise false
@@ -429,9 +440,9 @@ class Bug:
         #self.print_error()
         #print "Travelling to waypoint"
         
-        while current_location.distance(self.tx, self.ty) > delta:
+        while estimated_current_location.distance(self.tx, self.ty) > delta:
             (frontdist, leftdist, rightdist) = current_dists.get()
-            _, _, _, pitch = current_location.current_location()
+            _, _, _, pitch = estimated_current_location.current_location()
             
             if frontdist <= WALL_PADDING and leftdist <= WALL_PADDING:
                 #self.go(MSG_STOP)
@@ -451,9 +462,9 @@ class Bug:
             #elif leftdist <= WALL_PADDING:
             #    self.go(RIGHT)
             
-            if current_location.facing_point(self.tx, self.ty):
+            if estimated_current_location.facing_point(self.tx, self.ty):
                 self.go(STRAIGHT)
-            elif current_location.faster_left(self.tx, self.ty):
+            elif estimated_current_location.faster_left(self.tx, self.ty):
                 self.go(LEFT)
             else:
                 self.go(RIGHT)
@@ -478,7 +489,7 @@ class Bug:
             #print "Aligning with obstacle"
             self.go(RIGHT)
             rospy.sleep(0.1)
-        while not self.should_leave_wall() and current_location.distance(self.tx, self.ty) > delta:
+        while not self.should_leave_wall() and estimated_current_location.distance(self.tx, self.ty) > delta:
             rospy.sleep(0.1)
             (front, left, right) = current_dists.get()
             #if front <= WALL_PADDING-OBSTACLE_EDGE_TOL:
@@ -513,7 +524,7 @@ class Bug:
             #print "Aligning with obstacle"
             self.go(LEFT)
             rospy.sleep(0.1)
-        while not self.should_leave_wall() and current_location.distance(self.tx, self.ty) > delta:
+        while not self.should_leave_wall() and estimated_current_location.distance(self.tx, self.ty) > delta:
             rospy.sleep(0.1)
             (front, left, right) = current_dists.get()
             #if front <= WALL_PADDING-OBSTACLE_EDGE_TOL:
@@ -549,8 +560,8 @@ class Bug0(Bug):
 
     # If we are pointing towards the target location and the way is clear leave the obstacle
     def should_leave_wall(self):
-        (x, y, t, _) = current_location.current_location()
-        dir_to_go = current_location.global_to_local(necessary_heading(x, y, self.tx, self.ty))
+        (x, y, t, _) = estimated_current_location.current_location()
+        dir_to_go = estimated_current_location.global_to_local(necessary_heading(x, y, self.tx, self.ty))
 
         if abs(dir_to_go - t) < math.pi/4 and current_dists.get()[0] > 5:
                 #self.print_error()
@@ -566,15 +577,15 @@ class Bug1(Bug):
         self.circumnavigated = False
 
     def should_leave_wall(self):
-        (x, y, t, _) = current_location.current_location()
+        (x, y, t, _) = estimated_current_location.current_location()
 
         if None in self.closest_point:
             self.origin = (x, y)
             self.closest_point = (x, y)
-            self.closest_distance = current_location.distance(self.tx, self.ty)
+            self.closest_distance = estimated_current_location.distance(self.tx, self.ty)
             self.left_origin_point = False
             return False
-        d = current_location.distance(self.tx, self.ty)
+        d = estimated_current_location.distance(self.tx, self.ty)
         if d < self.closest_distance:
             print "New closest point at", (x, y)
             self.closest_distance = d
@@ -609,7 +620,7 @@ class Bug2(Bug):
         self.encountered_wall_at = (None, None)
 
     def face_goal(self):
-        while not current_location.facing_point(self.tx, self.ty):
+        while not estimated_current_location.facing_point(self.tx, self.ty):
             self.go(RIGHT)
             rospy.sleep(.01)
 
@@ -618,7 +629,7 @@ class Bug2(Bug):
         self.face_goal()
 
     def should_leave_wall(self):
-        (x, y, _, _) = current_location.current_location()
+        (x, y, _, _) = estimated_current_location.current_location()
         if None in self.encountered_wall_at:
             self.encountered_wall_at = (x, y)
             self.lh = necessary_heading(x, y, self.tx, self.ty)
@@ -710,9 +721,13 @@ def bug_algorithm(tx, ty, bug_type):
             # Begin timout timer
             global start_time
             start_time = rospy.get_rostime().secs
-            distance_to_cover = current_location.distance(wtx, wty)
-            print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(distance_to_cover,2), "m."
-            while current_location.distance(wtx, wty) > delta:
+            est_distance_to_cover = estimated_current_location.distance(wtx, wty)
+            act_distance_to_cover = actual_current_location.distance(wtx, wty)
+            print("Est (x,y):",  (estimated_current_location.current_location()[0] , estimated_current_location.current_location()[1]))
+            print("Actual (x,y):",  (actual_current_location.current_location()[0] , actual_current_location.current_location()[1]))
+            print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(est_distance_to_cover,2), "m."
+            print "Actual Distance: ", round(act_distance_to_cover,2), "m."
+            while estimated_current_location.distance(wtx, wty) > delta:
                 try:
                     # These two functions are the heart of the algorithm. "Go_until_obstacle" moves towards the target location when there are no
                     # detected obstacles.
@@ -725,7 +740,7 @@ def bug_algorithm(tx, ty, bug_type):
                         bug.follow_wall_anticlockwise()
                 except TimedOutException:
                     elapsed_time = rospy.get_rostime().secs - start_time
-                    print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "(sim) seconds. Distance: ", round(current_location.distance(wtx, wty),2)
+                    print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "(sim) seconds. Distance: ", round(estimated_current_location.distance(wtx, wty),2)
                     status_msg = "Timeout:", (wtx, wty)
                     bug_nav_status_publisher.publish(status_msg)
 
@@ -734,7 +749,7 @@ def bug_algorithm(tx, ty, bug_type):
                     break
                     
             # Confirm the target location was reached
-            if current_location.distance(wtx, wty) < delta:
+            if estimated_current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
                 print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(current_location.distance(wtx, wty),2)
                 status_msg = "Arrived!"

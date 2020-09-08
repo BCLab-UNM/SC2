@@ -11,7 +11,8 @@ from srcp2_msgs import msg, srv
 
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped, PoseStamped, Quaternion
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovariance, PoseWithCovarianceStamped, PoseStamped, \
+    Quaternion, Pose
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -147,8 +148,10 @@ class Scoot(object):
         self.vol_list_service = None
 
         self.truePoseCalled = False
-        
+        self.true_pose_got = None
+
         self.OdomLocation = Location(None)
+        self.world_offset = None
         self.control = None
         self.control_data = None
         self.dist_data = None
@@ -226,7 +229,7 @@ class Scoot(object):
             self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
 
         # Subscribe to topics.
-        rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
@@ -262,25 +265,14 @@ class Scoot(object):
     def getTruePose(self):
         if self.truePoseCalled:
             print("True pose already called once.")
-            return
+            return self.true_pose_got
         else:
             try:
-                l = self.localization_service(call=True)
-                quat = [l.pose.orientation.x,
-                        l.pose.orientation.y,
-                        l.pose.orientation.z,
-                        l.pose.orientation.w,
-                        ]
-                (r, p, y) = tf.transformations.euler_from_quaternion(quat)
-
-                pose = Pose2D()
-                pose.x = l.pose.position.x
-                pose.y = l.pose.position.y
-                pose.theta = y
-
                 self.truePoseCalled = True
-
-                return pose
+                self.true_pose_got = self.localization_service(call=True).pose
+                rospy.logwarn("true_pose_got:")
+                rospy.logwarn(self.true_pose_got.position)
+                return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
             except (rospy.ServiceException, AttributeError) as exc:
                 print("Service did not process request: " + str(exc))
 
@@ -317,8 +309,22 @@ class Scoot(object):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
-        pose_stamped.pose = self.OdomLocation.Odometry.pose
-                
+        odom_p = self.OdomLocation.Odometry.pose.pose.position
+        odom_o = self.OdomLocation.Odometry.pose.pose.orientation
+        if self.world_offset is None:
+            true_pos = self.getTruePose()  # Pose
+            true_p = true_pos.position  # Point
+            true_o = true_pos.orientation  # Quaternion
+            self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y,  true_p.z - odom_p.z),
+                                     Quaternion(true_o.x-odom_o.x, true_o.y - odom_o.y , true_o.z - odom_o.z,
+                                                odom_o.w - true_o.w))
+            #self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
+        offset_pos = self.world_offset.position  # Point
+        offset_ori = self.world_offset.orientation  # Quaternion
+        pose_stamped.pose.pose.position = Point(odom_p.x + offset_pos.x, odom_p.y + offset_pos.y,
+                                                odom_p.z + offset_pos.z)
+        pose_stamped.pose.pose.orientation = Quaternion(odom_o.x + offset_ori.x, odom_o.y + offset_ori.y,
+                                                        odom_o.z + offset_ori.z, odom_o.w + offset_ori.w)
         ps = PoseStamped()
         ps.header.frame_id = pose_stamped.header.frame_id
         ps.header.stamp = pose_stamped.header.stamp
@@ -326,9 +332,8 @@ class Scoot(object):
                 pose_stamped.pose.pose.orientation.y,
                 pose_stamped.pose.pose.orientation.z,
                 pose_stamped.pose.pose.orientation.w,
-        ]
-        (r, p, y) = tf.transformations.euler_from_quaternion(quat)
-        theta = y
+                ]
+        (r, p, theta) = tf.transformations.euler_from_quaternion(quat)
         add_x = math.cos(theta) * 1.143
         add_y = math.sin(theta) * 1.143
         ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
@@ -340,6 +345,8 @@ class Scoot(object):
     # @TODO: test this
     def score(self, vol_type_index=0):
         vol_loc = self.getVolPose()
+        rospy.logwarn("trying vol_loc:")
+        rospy.logwarn(vol_loc)
         try:
             result = self.qal1ScoreService(
                 pose=vol_loc,
@@ -350,6 +357,8 @@ class Scoot(object):
             rospy.sleep(self.vol_delay[-1])
             rospy.logwarn("Waited")
             vol_loc = self.getVolPose()
+            rospy.logwarn("trying vol_loc:")
+            rospy.logwarn(vol_loc)
             try:
                 result = self.qal1ScoreService(
                     pose=vol_loc,
