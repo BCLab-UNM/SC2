@@ -93,12 +93,12 @@ class CubesatDetection(object):
 			pose_stamped.pose.position.x = point[0] # see stereo_image_proc docs, the xyz need to be remapped
 			pose_stamped.pose.position.y = point[1]
 			pose_stamped.pose.position.z = point[2]
-			# pose_stamped.pose.orientation = transform.transform.rotation
+			# pose_stamped.pose.orientation = transform.pose.orientation
 			
 			pre_pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
 			self.pose_transformed = PoseStamped()
 			self.pose_transformed.header = pre_pose_transformed.header
-			self.pose_transformed.pose.position.x = -pre_pose_transformed.pose.position.x
+			self.pose_transformed.pose.position.x = pre_pose_transformed.pose.position.x
 			self.pose_transformed.pose.position.y = pre_pose_transformed.pose.position.y
 			self.pose_transformed.pose.position.z = pre_pose_transformed.pose.position.z
 			self.pose_transformed.orientation = pre_pose_transformed.orientation
@@ -199,14 +199,16 @@ class CubesatDetection(object):
 						print(str(distance_meters) + ' meters')
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
 						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
+						y_heading = (((cY - 240) / 480) * 2.0944) - 0.78
 
+						
 						# Calculation x,y,z without point clouds##############################
-						# y_angle = (math.pi/4) *((cY -240)/ 480) 
+						y_angle = (math.pi/4) *cY  
 						camera_offset_from_ground = 0.5
-						# x_angle = ((math.pi/4)* (cX - 320) / 640)
+						x_angle = (math.pi/4)* cX 
 						z = ( distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
-						# y_pos = ( distance_meters * math.sin(x_angle) )+ camera_offset_from_ground
-						# x_pos = ( distance_meters * math.sin(y_angle) )+ camera_offset_from_ground
+						y_pos = ( distance_meters * math.sin(x_angle) )+ camera_offset_from_ground
+						x_pos = ( distance_meters * math.sin(y_angle) )+ camera_offset_from_ground
 
 						self.z_value_list.append(z)
 
@@ -221,8 +223,12 @@ class CubesatDetection(object):
 							self.pose_transformed = None
 
 						# print('angle '+ str(y_angle+x_angle + 0.78)) 
-						print('heading? = ' + str(left_detection_msg.left_heading))
+						print('headingX? = ' + str(left_detection_msg.left_heading))
+						print('headingY? = ' + str(y_heading))
+						print('x? = ' + str(x_pos))
+						print('y? = ' + str(y_pos))
 						print('z? = ' + str(z_average))
+
 						#########################################################################333
 						# x = cX;
 						# y = cY * point_cloud_msg.width
