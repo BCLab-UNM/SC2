@@ -200,8 +200,13 @@ class CubesatDetection(object):
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
 						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
 
+						# Calculation x,y,z without point clouds##############################
+						# y_angle = (math.pi/4) *((cY -240)/ 480) 
 						camera_offset_from_ground = 0.5
-						z = (distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
+						# x_angle = ((math.pi/4)* (cX - 320) / 640)
+						z = ( distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
+						# y_pos = ( distance_meters * math.sin(x_angle) )+ camera_offset_from_ground
+						# x_pos = ( distance_meters * math.sin(y_angle) )+ camera_offset_from_ground
 
 						self.z_value_list.append(z)
 
@@ -210,13 +215,19 @@ class CubesatDetection(object):
 
 						z_average = sum(self.z_value_list) / len(self.z_value_list)
 
-						print('heading = ' + str(left_detection_msg.left_heading))
-						print('z = ' + str(z_average))
-
 						if self.pose_transformed != None:
 							print(self.pose_transformed)
 							# print(type(self.pose_transformed))
 							self.pose_transformed = None
+
+						# print('angle '+ str(y_angle+x_angle + 0.78)) 
+						print('heading? = ' + str(left_detection_msg.left_heading))
+						print('z? = ' + str(z_average))
+						#########################################################################333
+						# x = cX;
+						# y = cY * point_cloud_msg.width
+						# index = x + y
+						# print(points_list[index])
 
 						self.cubesat_detection_left_publisher.publish(left_detection_msg)
 
