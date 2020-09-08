@@ -32,9 +32,9 @@
     <param name="TURN_SPEED_FAST" value="1.1"/>
   </node>
 
-    <node name="odom" pkg="scoot" type="FakeLocalization.py"
-          args="$(arg name)" respawn="true" >
-      <param name="publish_debug_topic" value="false" />
-    </node>
+<!--    <node name="odom" pkg="scoot" type="FakeLocalization.py"-->
+<!--          args="$(arg name)" respawn="true" >-->
+<!--      <param name="publish_debug_topic" value="false" />-->
+<!--    </node>-->
     
 </launch>
