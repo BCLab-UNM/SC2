@@ -40,18 +40,14 @@ class CubesatDetection(object):
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
-		self.colors_blue = OrderedDict()
+		
 
 		self.z_value_list = []
 		
-		for i in range(1, 256):
-			temp = {"blue_" + str(i) : (0,0,255)}
-			self.colors_blue.update(temp)
-		# colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
-		
-		self.lab = np.zeros((len(self.colors_blue), 1, 3), dtype="uint8")
+		colors = OrderedDict({"yellow": (255, 195, 0),"blue": (0, 0, 255), "white": (255, 255, 255)})
+		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []
-		for (i, (name, rgb)) in enumerate(self.colors_blue.items()):
+		for (i, (name, rgb)) in enumerate(colors.items()):
 			# update the L*a*b* array and the color names list
 			self.lab[i] = rgb
 			self.colorNames.append(name)
@@ -183,9 +179,9 @@ class CubesatDetection(object):
 				if area > 50 and area < 1500 : # 300 1000
 					shape = self.detect(c)
 					color = self.label(lab_left,c)
-					# print(color)
+					print(color)
 				
-					if shape == 'rectangle':
+					if shape == 'rectangle' and color == 'yellow' and color != 'white':
 						c = c.astype("float")
 						c *= ratio_left
 						c = c.astype("int")
@@ -199,16 +195,17 @@ class CubesatDetection(object):
 						print(str(distance_meters) + ' meters')
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
 						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
-						y_heading = (((cY - 240) / 480) * 2.0944) - 0.78
+						y_heading = (((cY - 240) / 480) * 2.0944) 
 
 						
-						# Calculation x,y,z without point clouds##############################
-						y_angle = (math.pi/4) *cY  
+						# Calculation x,y,z without poi
 						camera_offset_from_ground = 0.5
-						x_angle = (math.pi/4)* cX 
+					 
+
 						z = ( distance_meters * math.sin(math.pi/4)) + camera_offset_from_ground
-						y_pos = ( distance_meters * math.sin(x_angle) )+ camera_offset_from_ground
-						x_pos = ( distance_meters * math.sin(y_angle) )+ camera_offset_from_ground
+
+						y_pos =  ( distance_meters *  math.sin(left_detection_msg.left_heading))+ camera_offset_from_ground
+						x_pos = ( distance_meters * math.sin(y_heading))+ camera_offset_from_ground 
 
 						self.z_value_list.append(z)
 

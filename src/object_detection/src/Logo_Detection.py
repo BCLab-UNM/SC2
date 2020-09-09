@@ -7,16 +7,22 @@ import cv2
 import numpy as np
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
+from sensor_msgs.point_cloud2 import PointCloud2
+import sensor_msgs.point_cloud2 as pc2
 from std_msgs.msg import String
 from obstacle.msg import Obstacles
 from cv_bridge import CvBridge
 from matplotlib import pyplot as plt
 import time
 import imutils
+import math
 from scipy.spatial import distance as dist
 from collections import OrderedDict
-
 from object_detection.msg import Detection
+import tf2_ros
+import tf2_geometry_msgs
+from geometry_msgs.msg import PoseStamped
+
 
 
 class LogoDetection(object):
@@ -26,27 +32,31 @@ class LogoDetection(object):
 
 		self.bridge = CvBridge()
 
+		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
-		self.right_camera_subscriber = message_filters.Subscriber('/scout_1/camera/right/image_raw', Image)
+		
 
 		self.logo_detection_image_left_publisher = rospy.Publisher('/scout_1/logo_detections/image/left', Image, queue_size=10)
-		self.logo_detection_image_right_publisher = rospy.Publisher('/scout_1/logo_detections/image/right', Image, queue_size=10)
+		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/object_detections', Detection, queue_size=10)
 
-		self.logo_detection_publisher = rospy.Publisher('/scout_1/object_detections', Detection, queue_size=10)
-
-		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber, self.right_camera_subscriber], 10, 0.1, allow_headerless=True)
+		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
 
-		self.colors_blue = OrderedDict()
+		self.z_value_list = []
+
+
+		# self.colors_blue = OrderedDict()
+		# self.colors_blue.update( {"red" : (255,0,0)})
+		# self.colors_blue.update( {"blue" : (0,0,255)})
+
+		# for i in range(1, 256):
+			# temp = {"blue_" + str(i) : (0,0,i)}
+			# self.colors_blue.update(temp)
+		colors = OrderedDict({"blue": (0, 0, 255),"red": (255, 0, 0), "green": (0, 255, 0)})
 		
-		for i in range(1, 256):
-			temp = {"blue_" + str(i) : (0,0,255)}
-			self.colors_blue.update(temp)
-		# colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255)})
-		
-		self.lab = np.zeros((len(self.colors_blue), 1, 3), dtype="uint8")
+		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []
-		for (i, (name, rgb)) in enumerate(self.colors_blue.items()):
+		for (i, (name, rgb)) in enumerate(colors.items()):
 			# update the L*a*b* array and the color names list
 			self.lab[i] = rgb
 			self.colorNames.append(name)
@@ -61,12 +71,51 @@ class LogoDetection(object):
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_info_subscriber, self.right_camera_info_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.camera_info_callback)
 		self.left_camera_focal_length = 380.0
-		self.right_camera_focal_length = 380.0
 
+		self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) # tf buffer length
+		self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+		self.pose_transformed = None
+		self.heading = None
+		
+
+	def pc_callback(self, point_cloud_msg):
+		points_list = []
+		
+		for data in pc2.read_points(point_cloud_msg, skip_nans=True):
+			points_list.append([data[0], data[1], data[2]])
+
+		if len(points_list) == 0:
+			print('no point cloud')
+			return
+
+		# scout_1_tf/base_footprint
+		try:
+			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+
+			index = int(len(points_list)/2)
+			point = points_list[index]
+			pose_stamped = PoseStamped()
+			pose_stamped.header = point_cloud_msg.header
+			pose_stamped.pose.position.x = point[0] # see stereo_image_proc docs, the xyz need to be remapped
+			pose_stamped.pose.position.y = point[1]
+			pose_stamped.pose.position.z = point[2]
+			# pose_stamped.pose.orientation = transform.pose.orientation
+			
+			pre_pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
+			self.pose_transformed = PoseStamped()
+			self.pose_transformed.header = pre_pose_transformed.header
+			self.pose_transformed.pose.position.x = pre_pose_transformed.pose.position.x
+			self.pose_transformed.pose.position.y = pre_pose_transformed.pose.position.y
+			self.pose_transformed.pose.position.z = pre_pose_transformed.pose.position.z
+			self.pose_transformed.orientation = pre_pose_transformed.orientation
+			# self.pose_transformed = pre_pose_transformed
+
+		except Exception:
+			# self.pose_transformed = None
+			return
 
 	def camera_info_callback(self, left_camera_info, right_camera_info):
 		self.left_camera_focal_length = left_camera_info.K[0]
-		self.right_camera_focal_length = right_camera_info.K[4]
 
 
 	def detect(self, c):
@@ -109,20 +158,18 @@ class LogoDetection(object):
 		return (knownWidth * focalLength) / perWidth
 
 
-	def callback(self, left_camera_data, right_camera_data):
-		detection_msg = Detection()
-		detection_msg.detection_id = Obstacles.HOME_FIDUCIAL # this is an integer ID defined in the obstacle package
-		detection_msg.left_heading = 0.0
-		detection_msg.left_distance = 0.0
-		detection_msg.right_heading = 0.0
-		detection_msg.right_distance = 0.0
+	def callback(self, left_camera_data):
+		left_detection_msg = Detection()
+		left_detection_msg.detection_id = Obstacles.HOME_FIDUCIAL # this is an integer ID defined in the obstacle package
+		left_detection_msg.left_heading = 0.0
+		left_detection_msg.left_distance = 0.0
+		
 
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
 
 		# convert image data from image message -> opencv image
 		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
-		cv_image_right = cv2.cvtColor(self.bridge.imgmsg_to_cv2(right_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
-
+		
 		#determine colors
 
 		#generate shapes			
@@ -144,12 +191,12 @@ class LogoDetection(object):
 				cX = int((M["m10"] / M["m00"]) * ratio_left)
 				cY = int((M["m01"] / M["m00"]) * ratio_left)
 				area = cv2.contourArea(c)
-				if area > 300 and area < 1500 : 
+				if area > 300 and area < 1000 : 
 					shape = self.detect(c)
 					color = self.label(lab_left,c)
-					# print(color)
+					print(color)
 				
-					if shape == 'triangle' and color in self.colors_blue:
+					# if color == 'red':
 					# if shape == 'triangle':
 						c = c.astype("float")
 						c *= ratio_left
@@ -161,34 +208,48 @@ class LogoDetection(object):
 						KNOWN_WIDTH = 0.955 #logo width in meterswith
 						per_width= marker[1][0]
 						distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-						left_detection_msg.distance = distance_meters					
+						left_detection_msg.left_distance = distance_meters					
 						print(str(distance_meters) + ' meters')
 						print('X = ' + str(cX) + ' Y = ' + str(cY))
-						self.logo_detection_publisher.publish(detection_msg)
+						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
+						y_heading = (((cY - 240) / 480) * 2.0944) 
+
+						camera_offset_from_ground = 0.5
+					 
+
+						z = ( distance_meters * math.sin(0.0)) + camera_offset_from_ground
+
+						y_pos =  ( distance_meters *  math.sin(left_detection_msg.left_heading))+ camera_offset_from_ground
+						x_pos = ( distance_meters * math.sin(y_heading))+ camera_offset_from_ground 
+
+						self.z_value_list.append(z)
+
+						if (len(self.z_value_list)>=20):
+							self.z_value_list.pop(0)
+
+						z_average = sum(self.z_value_list) / len(self.z_value_list)
+
+						if self.pose_transformed != None:
+							print(self.pose_transformed)
+							# print(type(self.pose_transformed))
+							self.pose_transformed = None
+
+						# print('angle '+ str(y_angle+x_angle + 0.78)) 
+						print('headingX? = ' + str(left_detection_msg.left_heading))
+						print('headingY? = ' + str(y_heading))
+						print('x? = ' + str(x_pos))
+						print('y? = ' + str(y_pos))
+						print('z? = ' + str(z_average))
+
+
+						self.logo_detection_left_publisher.publish(left_detection_msg)
 	
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-		#resized_right = imutils.resize(cv_image_right, width=300)
-		#ratio_right = resized_right.shape[0] / float(resized_right.shape[0])
-		#gray_right = cv2.cvtColor(resized_right, cv2.COLOR_BGR2GRAY)
-		#blurred_right = cv2.GaussianBlur(gray_right, (5, 5), 0)
-		#thresh_right = cv2.threshold(blurred_right, 60, 255, cv2.THRESH_BINARY)[1]
-		#thresh_right = thresh_right.astype(np.uint8)
-		#cnts_right = cv2.findContours(thresh_right.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-		#cnts_right = imutils.grab_contours(cnts_right)
-
-		#for c in cnts_right:
-		#	M = cv2.moments(c)
-			#cX = int((M["m10"] / M["m00"]) * ratio_right)
-			#cY = int((M["m01"] / M["m00"]) * ratio_right)
-		#	shape = self.detect(c)
-		#	if shape is "rectangle":
-		#		c = c.astype("int")
-		#		cv2.drawContours(cv_image_right, [c], -1, (0, 255, 0), 2)
+		
 
 		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
-		#imgmsg_right = self.bridge.cv2_to_imgmsg(cv_image_right, encoding="passthrough")
 
 		self.logo_detection_image_left_publisher.publish(imgmsg_left)
-		#self.logo_detection_image_right_publisher.publish(imgmsg_right)
+		
 
