@@ -6,7 +6,8 @@ int32 LIDAR_BLOCK      = 8
 int32 VOLATILE         = 256
 int32 TAG_HOME         = 512
 int32 TAG_PRIORI       = 1024
-int32 HOME_FIDUCIAL      = 2048
+int32 HOME_FIDUCIAL    = 2048
+int32 CUBESAT          = 1337
 
 # Tracking HaulerMsg.msg's comment
 # in srcp2-competitors/ros_workspace/install/shares/rcp2_msgs/msg/
