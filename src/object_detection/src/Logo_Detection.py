@@ -8,8 +8,10 @@ import numpy as np
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.point_cloud2 import PointCloud2
+from nav_msgs.msg import Odometry
 import sensor_msgs.point_cloud2 as pc2
 from std_msgs.msg import String
+from std_msgs.msg import Bool
 from obstacle.msg import Obstacles
 from cv_bridge import CvBridge
 from matplotlib import pyplot as plt
@@ -17,6 +19,7 @@ import time
 import imutils
 import math
 from scipy.spatial import distance as dist
+from scipy.spatial.transform import Rotation
 from collections import OrderedDict
 from object_detection.msg import Detection
 import tf2_ros
@@ -33,11 +36,12 @@ class LogoDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)
-		
+		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odom/filtered', Odometry, self.odom_callback)
+		self.on_off_switch_subscriber = rospy.Subscriber('/scout_1/logo_detections/on_off_switch', Bool, self.on_off_callback)
+		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)		
 
 		self.logo_detection_image_left_publisher = rospy.Publisher('/scout_1/logo_detections/image/left', Image, queue_size=10)
-		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/object_detections', Detection, queue_size=10)
+		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -76,7 +80,32 @@ class LogoDetection(object):
 		self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 		self.pose_transformed = None
 		self.heading = None
+		self.heading_correction = None
+		self.odom_pose = None
+		self.use_detection = False
 		
+
+	def on_off_callback(self, msg):		
+		if msg.data == True:
+			#if self.debug == True:
+			#	print('Logo Detection: deactivated')
+			self.use_detection = True
+		else:
+			#if self.debug == True:
+			#	print('Logo Detection: activated')
+			self.use_detection = False
+
+
+	def odom_callback(self, odom_msg):
+		# extract the robot's XYZ position and heading (q) from the odometry message
+		self.odom_pose = [0, 0, 0]
+		self.odom_pose[0] = odom_msg.pose.pose.position.x
+		self.odom_pose[1] = odom_msg.pose.pose.position.y
+		self.odom_pose[2] = odom_msg.pose.pose.position.z
+		q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
+		h = Rotation.from_quat(q)
+		self.heading = (h.as_rotvec())[2]
+
 
 	def pc_callback(self, point_cloud_msg):
 		points_list = []
@@ -158,12 +187,30 @@ class LogoDetection(object):
 		return (knownWidth * focalLength) / perWidth
 
 
+	def calculate_xyz(self, d):
+		if self.heading == None:
+			return None
+
+		xyz = [0, 0, 0]
+
+		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) + self.odom_pose[0]
+		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) + self.odom_pose[1]
+		xyz[2] = 1.0 + self.odom_pose[2] # assuming the logo is 1m off of the ground
+
+		return xyz
+
+
 	def callback(self, left_camera_data):
+		if self.use_detection == False:
+			return
+
 		left_detection_msg = Detection()
 		left_detection_msg.detection_id = Obstacles.HOME_FIDUCIAL # this is an integer ID defined in the obstacle package
-		left_detection_msg.left_heading = 0.0
-		left_detection_msg.left_distance = 0.0
-		
+		left_detection_msg.heading = None
+		left_detection_msg.distance = None
+		left_detection_msg.x = None
+		left_detection_msg.y = None
+		left_detection_msg.z = None
 
 		# left_camera_data and right_camera_data are sensor_msg/Image data types
 
@@ -208,48 +255,54 @@ class LogoDetection(object):
 						KNOWN_WIDTH = 0.955 #logo width in meterswith
 						per_width= marker[1][0]
 						distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-						left_detection_msg.left_distance = distance_meters					
-						print(str(distance_meters) + ' meters')
-						print('X = ' + str(cX) + ' Y = ' + str(cY))
-						left_detection_msg.left_heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
-						y_heading = (((cY - 240) / 480) * 2.0944) 
+					
+						self.heading_correction = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
+						xyz = self.calculate_xyz(distance_meters)
 
-						camera_offset_from_ground = 0.5
+						if xyz == None: # we don't have enough data to continue
+							return
+
+						left_detection_msg.heading = self.heading_correction
+						left_detection_msg.distance = distance_meters
+						left_detection_msg.x = xyz[0]
+						left_detection_msg.y = xyz[1]
+						left_detection_msg.z = xyz[2]
+						
+						# print(str(distance_meters) + ' meters')
+						# print('X = ' + str(cX) + ' Y = ' + str(cY))
+						# y_heading = (((cY - 240) / 480) * 2.0944) 
+
+						# camera_offset_from_ground = 0.5
 					 
+						# z = (distance_meters * math.sin(0.0)) + camera_offset_from_ground
 
-						z = ( distance_meters * math.sin(0.0)) + camera_offset_from_ground
+						# y_pos =  ( distance_meters *  math.sin(left_detection_msg.left_heading))+ camera_offset_from_ground
+						# x_pos = ( distance_meters * math.sin(y_heading))+ camera_offset_from_ground 
 
-						y_pos =  ( distance_meters *  math.sin(left_detection_msg.left_heading))+ camera_offset_from_ground
-						x_pos = ( distance_meters * math.sin(y_heading))+ camera_offset_from_ground 
+						# self.z_value_list.append(z)
 
-						self.z_value_list.append(z)
+						# if (len(self.z_value_list)>=20):
+						# 	self.z_value_list.pop(0)
 
-						if (len(self.z_value_list)>=20):
-							self.z_value_list.pop(0)
+						# z_average = sum(self.z_value_list) / len(self.z_value_list)
 
-						z_average = sum(self.z_value_list) / len(self.z_value_list)
-
-						if self.pose_transformed != None:
-							print(self.pose_transformed)
-							# print(type(self.pose_transformed))
-							self.pose_transformed = None
+						# if self.pose_transformed != None:
+						# 	print(self.pose_transformed)
+						# 	# print(type(self.pose_transformed))
+						# 	self.pose_transformed = None
 
 						# print('angle '+ str(y_angle+x_angle + 0.78)) 
-						print('headingX? = ' + str(left_detection_msg.left_heading))
-						print('headingY? = ' + str(y_heading))
-						print('x? = ' + str(x_pos))
-						print('y? = ' + str(y_pos))
-						print('z? = ' + str(z_average))
-
+						# print('headingX? = ' + str(left_detection_msg.left_heading))
+						# print('headingY? = ' + str(y_heading))
+						# print('x? = ' + str(x_pos))
+						# print('y? = ' + str(y_pos))
+						# print('z? = ' + str(z_average))
 
 						self.logo_detection_left_publisher.publish(left_detection_msg)
 	
 				#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-		
-
 		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
-
 		self.logo_detection_image_left_publisher.publish(imgmsg_left)
 		
 
