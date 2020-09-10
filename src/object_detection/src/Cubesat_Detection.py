@@ -38,7 +38,6 @@ class CubesatDetection(object):
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
 		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odom/filtered', Odometry, self.odom_callback)
-		self.camera_angle_subscriber = rospy.Subscriber('/scout_1/sensor_controller/command', Float64, self.sensor_callback)
 		self.left_camera_subscriber = rospy.Subscriber('/scout_1/camera/left/image_raw', Image, self.cam_callback)
 
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=10)
@@ -65,20 +64,7 @@ class CubesatDetection(object):
 		self.odom_pose = None
 		self.detection_pose = None
 		self.heading_correction = 0.0
-		self.use_detection = False
 		self.debug = False
-
-
-	def sensor_callback(self, sensor_msg):
-		camera_angle = sensor_msg.data
-		if camera_angle == 0.0:
-			if self.debug == True:
-				print('Cubesat Detection: deactivated')
-			self.use_detection = False
-		else:
-			if self.debug == True:
-				print('Cubesat Detection: activated')
-			self.use_detection = True
 
 
 	def odom_callback(self, odom_msg):
@@ -242,8 +228,7 @@ class CubesatDetection(object):
 							detection_msg.heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
 							self.heading_correction = detection_msg.heading
 							self.detection_pose = None
-							if self.use_detection == True:
-								self.cubesat_detection_publisher.publish(detection_msg)
+							self.cubesat_detection_publisher.publish(detection_msg)
 
 		# publish the detection image topic showing the detected object contour
 		# used for debugging and visualisation
