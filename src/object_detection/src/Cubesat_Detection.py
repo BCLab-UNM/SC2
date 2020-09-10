@@ -71,14 +71,15 @@ class CubesatDetection(object):
 
 
 	def on_off_callback(self, msg):
+		
 		if msg.data == True:
 			if self.debug == True:
 				print('Cubesat Detection: deactivated')
-			self.use_detection = False
+			self.use_detection = True
 		else:
 			if self.debug == True:
 				print('Cubesat Detection: activated')
-			self.use_detection = True
+			self.use_detection = False
 
 
 	def odom_callback(self, odom_msg):
