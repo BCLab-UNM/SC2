@@ -205,7 +205,7 @@ class Scoot(object):
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
 
-        if self.rover_type == "scout":
+        if self.rover_type == "scout" and self.ROUND_NUMBER == 1:
             rospy.wait_for_service('/vol_detected_service')
             self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
 

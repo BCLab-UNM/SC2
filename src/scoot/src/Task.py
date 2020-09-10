@@ -40,6 +40,7 @@ class Task:
     PROG_SCOUT_SEARCH = getattr(scout, rospy.get_param('search', default='search')).main
     PROG_SCOUT_FINE_SEARCH = getattr(scout, rospy.get_param('fine_search', default='fine_search')).main
     PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
+    PROG_SCOUT_GOTO_PROCESSING_PLANT = getattr(scout, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
     
     PROG_EXCAVATOR_SEARCH = getattr(excavator, rospy.get_param('waypoint_search', default='waypoint_search')).main
 

@@ -36,6 +36,7 @@ from srcp2_msgs import msg, srv
 from sensor_msgs.msg import LaserScan, Imu
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
+from obstacle.msg import Obstacles
 import threading
 import sys
 import random
@@ -63,6 +64,7 @@ success_distance = 0.0
 success_time = 0.0
 stats_printed = False
 total_time_start = 0
+status_msg = None
 
 escape_waypoint = None
 STRAIGHT = 0
@@ -235,6 +237,7 @@ def init_listener():
     rospy.Subscriber('/scout_1/odometry/filtered', Odometry, estimated_location_handler)
     rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
+    rospy.Subscriber('/scout_1/obstacle', Obstacles, obstacle_handler) 
     
     rospy.logwarn("Waiting for brake service...")
     rospy.wait_for_service('/scout_1/brake_rover')
@@ -275,6 +278,9 @@ def imu_handler( data ):
             data.orientation.z,
             data.orientation.w)
     roll, pitch, yaw = transform.euler_from_quaternion(q) # in [-pi, pi]
+
+def obstacle_handler(data):
+    pass
     
 class Bug:
 
@@ -742,6 +748,7 @@ def bug_algorithm(tx, ty, bug_type):
                     elapsed_time = rospy.get_rostime().secs - start_time
                     print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "(sim) seconds. Distance: ", round(estimated_current_location.distance(wtx, wty),2)
                     status_msg = "Timeout:", (wtx, wty)
+                    global status_msg
                     bug_nav_status_publisher.publish(status_msg)
 
                     global timed_out
@@ -752,6 +759,7 @@ def bug_algorithm(tx, ty, bug_type):
             if estimated_current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
                 print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(actual_current_location.distance(wtx, wty),2)
+                global status_msg
                 status_msg = "Arrived!"
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
@@ -811,6 +819,7 @@ def main( task=None ):
     global estimated_current_location
     global actual_current_location
     global current_dists
+    global status_msg
 
     estimated_current_location = Location()
     actual_current_location = Location()
@@ -818,10 +827,13 @@ def main( task=None ):
 
     init_listener()
     signal(SIGINT, sigint_handler)
-    rospy.spin()
-
-    sys.exit(0)
-
+    while not rospy.is_shutdown():
+        if status_msg is not None:
+            if status_msg == "Arrived!":
+                sys.exit(0)
+            else:
+                sys.exit(1)
+            
 if __name__ == '__main__':
     rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
     rospy.loginfo('Bug nav started.')

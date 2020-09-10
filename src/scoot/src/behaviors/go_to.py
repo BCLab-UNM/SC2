@@ -23,15 +23,13 @@ def goto(x, y, timeout, tolerance):
     while not rospy.is_shutdown():
         pub.publish(wp)
 
-    # Wait for bug_nav to return a status
-    rospy.loginfo('waiting for status')
-    rospy.wait_for_message( status_topic, String )
-    print(last_status_msg)
-    if last_status_msg == "Arrived!":
-        print('returned true')
-        return True
-    else:
-        return False
+        # Wait for bug_nav to return a status
+        if last_status_msg is not None:
+            if last_status_msg == "Arrived!":
+                print('returned true')
+                return True
+            else:
+                return False
 
 def status_handler(msg):
     global last_status_msg
@@ -51,9 +49,6 @@ def main(task=None):
             scoot = task
         else:
             scoot = task.scoot
-    else:  # Called without task instance
-        scoot = Scoot("scout_1")
-        scoot.start(node_name='waypoint_stub')
     rospy.loginfo('Waypoint scoot stub started')
     if rospy.is_shutdown():
         rospy.loginfo('shutdown')
