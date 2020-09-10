@@ -197,7 +197,7 @@ class LogoDetection(object):
 					print(color)
 				
 					# if color == 'red':
-					# if shape == 'triangle':
+					if shape == 'triangle':
 						c = c.astype("float")
 						c *= ratio_left
 						c = c.astype("int")
