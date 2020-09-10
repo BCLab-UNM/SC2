@@ -205,6 +205,9 @@ class CubesatDetection(object):
 
 
 	def cam_callback(self, left_camera_data):
+		if self.use_detection == False:
+			return
+
 		# convert image data from image message -> opencv image
 		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 
@@ -241,9 +244,7 @@ class CubesatDetection(object):
 							detection_msg.distance = self.distance
 							detection_msg.heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
 							self.heading_correction = detection_msg.heading
-							self.detection_pose = None
-							if self.use_detection == True:
-								self.cubesat_detection_publisher.publish(detection_msg)
+							self.cubesat_detection_publisher.publish(detection_msg)
 
 		# publish the detection image topic showing the detected object contour
 		# used for debugging and visualisation
