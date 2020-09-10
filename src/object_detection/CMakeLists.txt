@@ -165,6 +165,7 @@ catkin_install_python(PROGRAMS
   src/Volatile_Detection.py
   src/Logo_Detection.py
   src/Cubesat_Detection.py
+  src/Leg_Detection.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

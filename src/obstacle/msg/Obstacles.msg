@@ -8,6 +8,7 @@ int32 TAG_HOME         = 512
 int32 TAG_PRIORI       = 1024
 int32 HOME_FIDUCIAL    = 2048
 int32 CUBESAT          = 4096
+int32 HOME_LEG         = 8192
 
 # Tracking HaulerMsg.msg's comment
 # in srcp2-competitors/ros_workspace/install/shares/rcp2_msgs/msg/
