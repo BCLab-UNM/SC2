@@ -9,8 +9,9 @@ from Cubesat_Detection import CubesatDetection
 
 if __name__ == '__main__':
 	rospy.init_node('scoot_object_detection')
-	# LogoDetection()
+	LogoDetection()
+	# LegDetection()
 	# VolatileDetection()
-	CubesatDetection()
+	# CubesatDetection()
 	rospy.spin()
 
