@@ -70,7 +70,7 @@ class State:
     ROTATE_THRESHOLD = 0
     DRIVE_ANGLE_ABORT = 0
 
-    DRIVE_SPEED_MAX = 0.6
+    DRIVE_SPEED_MAX = 2*math.pi
     TURN_SPEED_MAX = 1.2
 
     def __init__(self):
@@ -85,24 +85,25 @@ class State:
         self.dbg_msg = None
         self.current_obstacles = 0
         self.current_obstacle_data = 0
+        self.current_distance = float('inf')
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
-        # Configuration 
-        State.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=5)
-        State.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=5)
-        State.TURN_SPEED = rospy.get_param("TURN_SPEED", default=5)
-        State.HEADING_RESTORE_FACTOR = rospy.get_param("HEADING_RESTORE_FACTOR", default=2)
-        State.GOAL_DISTANCE_OK = rospy.get_param("GOAL_DISTANCE_OK", default=0.1)
-        State.ROTATE_THRESHOLD = rospy.get_param("ROTATE_THRESHOLD", default=math.pi / 16)
-        State.DRIVE_ANGLE_ABORT = rospy.get_param("DRIVE_ANGLE_ABORT", default=math.pi / 4)
-
         self.rover_name = rospy.get_param('rover_name', default='scout_1')
+        
+        # Configuration 
+        State.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
+        State.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
+        State.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
+        State.HEADING_RESTORE_FACTOR = rospy.get_param("/"+self.rover_name+"/Core/HEADING_RESTORE_FACTOR", default=2)
+        State.GOAL_DISTANCE_OK = rospy.get_param("/"+self.rover_name+"/Core/GOAL_DISTANCE_OK", default=0.1)
+        State.ROTATE_THRESHOLD = rospy.get_param("/"+self.rover_name+"/Core/ROTATE_THRESHOLD", default=math.pi / 16)
+        State.DRIVE_ANGLE_ABORT = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_ANGLE_ABORT", default=math.pi / 4)
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
         rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
-        rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
 
         # Services 
         self.control = rospy.Service('control', Core, self._control)
@@ -134,16 +135,26 @@ class State:
     def _brakes_off(self):
         try:
             self.brake_service.call(0)  # immediately disengage brakes
-        except rospy.ServiceException:
+        except (rospy.ServiceException, AttributeError):
             rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
             try:
                 self.brake_service.call(0)  # immediately disengage brakes
                 rospy.logwarn("Second attempt to disengage brakes was successful")
-            except rospy.ServiceException:
+            except (rospy.ServiceException, AttributeError):
                 rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
                 rospy.logerr("If you are seeing this message you can expect strange behavior[flipping] from the rover")
+        except AttributeError:
+            rospy.logerr("Attribute Error raised")
+            try:
+                self.brake_service.call(0)
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except AttributeError:
+                pass
 
     def _control(self, req):
+        self.current_distance = float('inf')
+        self.current_obstacles = 0
+        self.current_obstacle_data = 0
         for r in req.req[:-1]:
             self.Work.put(Task(r, False), False)
 
@@ -163,7 +174,12 @@ class State:
 
         rval = MoveResult()
         rval.result = t.result
+        rval.obstacle = self.current_obstacles
         rval.obstacle_data = self.current_obstacle_data
+        rval.distance = self.current_distance
+        self.current_distance = float('inf')
+        self.current_obstacles = 0
+        self.current_obstacle_data = 0
         return rval
 
     # @sync(package_lock)
@@ -201,10 +217,13 @@ class State:
 
     # @sync(package_lock)
     def _obstacle(self, msg):
-        self.current_obstacles = 0 #@TODO remove as breaks the accumulator for testing
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
-        self.current_obstacle_data = msg.data
+        if self.current_obstacles & Obstacles.IS_LIDAR:
+            if self.current_distance > msg.distance:
+                self.current_distance = msg.distance
+        else:
+            self.current_obstacle_data = msg.data
         self.__check_obstacles()
 
         # @sync(package_lock)

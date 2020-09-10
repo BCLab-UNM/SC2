@@ -9,4 +9,6 @@ int32 TIMEOUT          = 7
 int32 OBSTACLE_CORNER  = 8
 
 int32 result 
+int32 obstacle
 int8 obstacle_data
+float32 distance

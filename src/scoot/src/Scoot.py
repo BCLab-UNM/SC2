@@ -11,7 +11,8 @@ from srcp2_msgs import msg, srv
 
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovarianceStamped
+from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovariance, PoseWithCovarianceStamped, PoseStamped, \
+    Quaternion, Pose
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 
@@ -37,7 +38,10 @@ class VolatileException(DriveException):
 
 
 class ObstacleException(DriveException):
-    pass
+    def __init__(self, st, obstacle, distance):
+        self.status = st
+        self.obstacle = obstacle
+        self.distance = distance
 
 
 class PathException(DriveException):
@@ -124,6 +128,7 @@ class Scoot(object):
         self.REVERSE_SPEED = 0
         self.MAX_BRAKES = 0
         self.VOL_TYPES = None
+        self.ROUND_NUMBER = 0
 
         self.skid_topic = None
         self.sensor_control_topic = None
@@ -135,19 +140,23 @@ class Scoot(object):
 
         self.bucket_info_msg = None
         self.bin_info_msg = None
-        self.brake_service = None
+
         self.localization_service = None
         self.model_state_service = None
         self.light_service = None
         self.brake_service = None
-        
+        self.vol_list_service = None
+
         self.truePoseCalled = False
+        self.true_pose_got = None
+
         self.OdomLocation = Location(None)
+        self.world_offset = None
         self.control = None
         self.control_data = None
+        self.dist_data = None
         self.joint_states = None
         self.xform = None
-
 
     def start(self, **kwargs):
         if 'tf_rover_name' in kwargs:
@@ -160,22 +169,25 @@ class Scoot(object):
         self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
         self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
+        self.ROUND_NUMBER = rospy.get_param('round', default=1)
+        self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
                 Documentation/Qualification-Rounds/Round-Two.md 
-                Documentation/Qualification-Rounds/Round-Two.md 
+                Documentation/Qualification-Rounds/Round-Two.md d
             HaulerMsg.msg's comment in srcp2-competitors/ros_workspace/install/shares/rcp2_msgs/msg/
             our scoot.launch
             and matching with indexes from our Obstacles.msg '''
         self.VOL_TYPES = rospy.get_param("vol_types",
-                                         default=["ice", "ethene", "methane", "methanol", "carbon_dio", "ammonia",
+                                         default=["ice", "ethene", "methane", "carbon_mono", "carbon_dio", "ammonia",
                                                   "hydrogen_sul", "sulfur_dio"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
         self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
-        self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64, queue_size=10)
+        self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64,
+                                                    queue_size=10)
 
         # Connect to services.
         rospy.loginfo("Waiting for control service")
@@ -206,15 +218,18 @@ class Scoot(object):
             self.distal_arm_control = rospy.Publisher('/' + self.rover_name + '/distalarm_joint_controller/command',
                                                       Float64, queue_size=10)
             rospy.Subscriber('/' + self.rover_name + '/bucket_info', msg.ExcavatorMsg,
-                                                    self._bucket_info)
+                             self._bucket_info)
 
         elif self.rover_type == "hauler":
             self.bin_control = rospy.Publisher('/' + self.rover_name + '/bin_joint_controller/command', Float64,
                                                queue_size=10)
             rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
 
+        if self.ROUND_NUMBER == 2:
+            self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
+
         # Subscribe to topics.
-        rospy.Subscriber('/' + self.rover_name + '/odom/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
@@ -250,26 +265,15 @@ class Scoot(object):
     def getTruePose(self):
         if self.truePoseCalled:
             print("True pose already called once.")
-            return
+            return self.true_pose_got
         else:
             try:
-                l = self.localization_service(call=True)
-                quat = [l.pose.orientation.x,
-                        l.pose.orientation.y,
-                        l.pose.orientation.z,
-                        l.pose.orientation.w,
-                        ]
-                (r, p, y) = tf.transformations.euler_from_quaternion(quat)
-
-                pose = Pose2D()
-                pose.x = l.pose.position.x
-                pose.y = l.pose.position.y
-                pose.theta = y
-
                 self.truePoseCalled = True
-
-                return pose
-            except rospy.ServiceException as exc:
+                self.true_pose_got = self.localization_service(call=True).pose
+                rospy.logwarn("true_pose_got:")
+                rospy.logwarn(self.true_pose_got.position)
+                return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
+            except (rospy.ServiceException, AttributeError) as exc:
                 print("Service did not process request: " + str(exc))
 
     def transform_pose(self, target_frame, pose, timeout=3.0):
@@ -290,8 +294,8 @@ class Scoot(object):
         target_frame = self.rover_name + '_tf/' + target_frame.strip('/')
 
         self.xform.waitForTransform(
-            target_frame,
             pose.header.frame_id,
+            target_frame,
             pose.header.stamp,
             rospy.Duration(timeout)
         )
@@ -301,24 +305,76 @@ class Scoot(object):
     def getControlData(self):
         return self.control_data
 
-    # @TODO: test this
-    def score(self, vol_type_index=0):
+    def getVolPose(self):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
-        pose_stamped.pose = self.OdomLocation.Odometry.pose.pose
-        aprox_vol_location = self.transform_pose("volatile_sensor_static", pose_stamped)
-        result = None
+        odom_p = self.OdomLocation.Odometry.pose.pose.position
+        odom_o = self.OdomLocation.Odometry.pose.pose.orientation
+        if self.world_offset is None:
+            true_pos = self.getTruePose()  # Pose
+            true_p = true_pos.position  # Point
+            true_o = true_pos.orientation  # Quaternion
+            self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y,  true_p.z - odom_p.z),
+                                     Quaternion(true_o.x-odom_o.x, true_o.y - odom_o.y , true_o.z - odom_o.z,
+                                                odom_o.w - true_o.w))
+            #self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
+        offset_pos = self.world_offset.position  # Point
+        offset_ori = self.world_offset.orientation  # Quaternion
+        pose_stamped.pose.pose.position = Point(odom_p.x + offset_pos.x, odom_p.y + offset_pos.y,
+                                                odom_p.z + offset_pos.z)
+        pose_stamped.pose.pose.orientation = Quaternion(odom_o.x + offset_ori.x, odom_o.y + offset_ori.y,
+                                                        odom_o.z + offset_ori.z, odom_o.w + offset_ori.w)
+        ps = PoseStamped()
+        ps.header.frame_id = pose_stamped.header.frame_id
+        ps.header.stamp = pose_stamped.header.stamp
+        quat = [pose_stamped.pose.pose.orientation.x,
+                pose_stamped.pose.pose.orientation.y,
+                pose_stamped.pose.pose.orientation.z,
+                pose_stamped.pose.pose.orientation.w,
+                ]
+        (r, p, theta) = tf.transformations.euler_from_quaternion(quat)
+        add_x = math.cos(theta) * 1.143
+        add_y = math.sin(theta) * 1.143
+        ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
+        ps.pose.position.y = pose_stamped.pose.pose.position.y + add_y
+        ps.pose.position.z = 0.0
+
+        return ps.pose.position
+
+    # @TODO: test this
+    def score(self, vol_type_index=0):
+        vol_loc = self.getVolPose()
+        rospy.logwarn("trying vol_loc:")
+        rospy.logwarn(vol_loc)
         try:
             result = self.qal1ScoreService(
-                pose=aprox_vol_location.pose.position,
+                pose=vol_loc,
                 vol_type=self.VOL_TYPES[vol_type_index])
-            rospy.loginfo("Scored!")
-        except ServiceException:
-            rospy.logwarn("/vol_detected_service is grumpy")
-            result = False
-        return result
-
+        except (ServiceException, AttributeError):
+            rospy.logwarn("Score attempt failed")
+            self.brake('on')
+            rospy.sleep(self.vol_delay[-1])
+            rospy.logwarn("Waited")
+            vol_loc = self.getVolPose()
+            rospy.logwarn("trying vol_loc:")
+            rospy.logwarn(vol_loc)
+            try:
+                result = self.qal1ScoreService(
+                    pose=vol_loc,
+                    vol_type=self.VOL_TYPES[vol_type_index])
+            except (ServiceException, AttributeError):
+                rospy.logwarn("Failed again")
+                return False
+            else:
+                rospy.logwarn("Scored second time!")
+                rospy.sleep(.5)
+                return True
+        else:
+            rospy.logwarn("Scored!")
+            rospy.sleep(.5)
+            return True
+      
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
@@ -394,7 +450,9 @@ class Scoot(object):
 
         move_result = self.control([request]).result
         value = move_result.result
+        obstacle = move_result.obstacle
         data = move_result.obstacle_data
+        dist = move_result.distance
 
         # Always raise AbortExceptions when the service response is USER_ABORT,
         # even if throw=False was passed as a keyword argument.
@@ -403,7 +461,8 @@ class Scoot(object):
 
         if 'throw' not in kwargs or kwargs['throw']:
             if value == MoveResult.OBSTACLE_LASER:
-                raise ObstacleException(value)
+                self.dist_data = dist
+                raise ObstacleException(value, obstacle, dist)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
                 raise VolatileException(value)
@@ -431,6 +490,18 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
+    def _brake_service_call(self, brake_value):
+        try:
+            self.brake_service.call(brake_value)
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
+            try:
+                self.brake_service.call(brake_value)
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except (rospy.ServiceException, AttributeError):
+                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
+                rospy.logerr("If you are seeing this message you can except strange behavior (flipping) from the rover")
+
     def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
         """
         Applies the brakes "gradually"
@@ -444,22 +515,22 @@ class Scoot(object):
         rate = rospy.Rate(hz)  # default 10hz
         for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
                                                endpoint=True, num=stages)):
-            self.brake_service.call(brake_value)
+            self._brake_service_call(brake_value)
             rate.sleep()
 
     def brake(self, state=None):
         if (state == "on") or (state is True) or (state is None):
             self._brake_ramp(self.MAX_BRAKES)
         elif (state == "off") or (state is False) or (state == 0.0):
-            self.brake_service.call(0)  # immediately disengage brakes
+            self._brake_service_call(0)  # immediately disengage brakes
         elif (type(state) != float) and (type(state) != int):
             rospy.logerr("Invalid brake value, got:" + str(state))
         elif state < 0:
             rospy.logerr("Brake value can't be negative, got:" + str(state))
             rospy.logwarn("Disengaging brakes")
-            self.brake_service.call(0)  # immediately disengage brakes
+            self._brake_service_call(0)  # immediately disengage brakes
         elif state >= (self.MAX_BRAKES + 1):
-            rospy.logerr("Brake value can't greater/equal to "+str(self.MAX_BRAKES)+", got:" + str(state))
+            rospy.logerr("Brake value can't greater/equal to " + str(self.MAX_BRAKES) + ", got:" + str(state))
             rospy.logwarn("Applying full brakes")
             self._brake_ramp(self.MAX_BRAKES)
         else:
@@ -468,12 +539,12 @@ class Scoot(object):
     def _light(self, state):
         try:
             self.light_service.call(data=state)
-        except rospy.ServiceException:
+        except (rospy.ServiceException, AttributeError):
             rospy.logerr("Light Service Exception: Light Service Failed to Respond")
             try:
                 self.light_service.call(data=state)
                 rospy.logwarn("Second attempt to use lights was successful")
-            except rospy.ServiceException:
+            except (rospy.ServiceException, AttributeError):
                 rospy.logerr("Light Service Exception: Second attempt failed to use lights")
 
     def light_on(self):
@@ -485,7 +556,7 @@ class Scoot(object):
     def light_off(self):
         self._light('stop')
 
-    #Intensity needs to be a float interpreted as a string from 0.0 to 1.0
+    # Intensity needs to be a float interpreted as a string from 0.0 to 1.0
     def light_intensity(self, intensity):
         intensity = float(intensity)
         if intensity > 1.0:
@@ -621,4 +692,31 @@ class Scoot(object):
             rospy.logerr("get_bin_angle:" + self.rover_type + " is not a hauler")
             return
         return self.get_joint_pos("bin_joint")
+
     # # # END HAULER SPECIFIC CODE # # #
+
+    def get_closest_vol_pose(self):
+        if self.ROUND_NUMBER == 2:
+            vol_list = list()
+            rover_pose = self.getOdomLocation().getPose()
+            try:
+                vol_list = self.vol_list_service.call()
+            except (ServiceException, AttributeError):
+                rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
+                try:
+                    vol_list = self.vol_list_service.call()
+                    rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
+                except (ServiceException, AttributeError):
+                    rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
+                    return None
+            closest_vol_pose = min(vol_list.poses,
+                                   key=lambda k: math.sqrt((k.x - rover_pose.x) ** 2 + (k.y - rover_pose.y) ** 2))
+            rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
+            rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose.x) + ", y:" + str(closest_vol_pose.y))
+            return closest_vol_pose
+            # If we wanted to return all the elements we would get the index from min or find the index
+            # where the min pose is at
+            # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
+            # vol_list.volatile_type[index])
+        else:
+            rospy.logerr("get_closest_vol_pose: it is illegal to call out of round 2")
