@@ -27,6 +27,19 @@
     <!-- The stereo_image_proc node is a part of a ROS package that does stereo image processing -->
     <!-- Detailed documentation is found here: http://wiki.ros.org/stereo_image_proc -->
     <node pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc" output="screen">
+
+	<param name="prefilter_size" value="9"/>
+	<param name="prefilter_cap" value="31"/>
+	<param name="correlation_window_size" value="15"/>
+	<param name="min_disparity" value="0"/>
+	<param name="disparity_range" value="64"/>
+	<param name="uniqueness_ratio" value="15.0"/>
+	<param name="texture_threshold" value="10"/>
+	<param name="speckle_size" value="100"/>
+	<param name="speckle_range" value="4"/>
+	<param name="approximate_sync" value="true"/>
+	<param name="queue_size" value="5"/>
+
         <!-- remap default image topics to the ones used by the scout rover -->
         <remap from="left/image_raw" to="camera/left/image_raw"/>
         <remap from="right/image_raw" to="camera/right/image_raw"/>
