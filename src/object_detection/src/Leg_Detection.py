@@ -186,9 +186,9 @@ class LegDetection(object):
 
 		xyz = [0, 0, 0]
 
-		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) + self.odom_pose[0]
-		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) + self.odom_pose[1]
-		xyz[2] = 1.0 + self.odom_pose[2] # assuming the leg is 1m off of the ground
+		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) # + self.odom_pose[0]
+		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) # + self.odom_pose[1]
+		xyz[2] = 1.0 # + self.odom_pose[2] # assuming the leg is 1m off of the ground
 
 		return xyz
 

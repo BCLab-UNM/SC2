@@ -186,9 +186,9 @@ class VolatileDetection(object):
 
 		xyz = [0, 0, 0]
 
-		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) + self.odom_pose[0]
-		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) + self.odom_pose[1]
-		xyz[2] = self.odom_pose[2] - 0.5 # assuming the volatile is 1m off of the ground
+		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) # + self.odom_pose[0]
+		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) # + self.odom_pose[1]
+		xyz[2] = -0.5 # self.odom_pose[2] - 0.5 # assuming the volatile is 1m off of the ground
 
 		return xyz
 

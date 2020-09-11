@@ -163,9 +163,9 @@ class CubesatDetection(object):
 			# V is the magnitude of a vector from the robot to the cubesat, we can use trigonometry to approximate a transform
 			# from the XY of the robot to the XY of the cubesat (Z is already calculated above)
 			self.detection_pose = [0, 0, 0]
-			self.detection_pose[2] = Z + self.odom_pose[2]
-			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction)) + self.odom_pose[1]
-			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction)) + self.odom_pose[0]
+			self.detection_pose[2] = Z # + self.odom_pose[2]
+			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction)) # + self.odom_pose[1]
+			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction)) # + self.odom_pose[0]
 
 
 	def detect(self, c):
