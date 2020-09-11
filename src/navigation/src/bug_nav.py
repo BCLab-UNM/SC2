@@ -733,6 +733,7 @@ def bug_algorithm(tx, ty, bug_type):
             print("Actual (x,y):",  (actual_current_location.current_location()[0] , actual_current_location.current_location()[1]))
             print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(est_distance_to_cover,2), "m."
             print "Actual Distance: ", round(act_distance_to_cover,2), "m."
+            global status_msg
             while estimated_current_location.distance(wtx, wty) > delta:
                 try:
                     # These two functions are the heart of the algorithm. "Go_until_obstacle" moves towards the target location when there are no
@@ -748,7 +749,6 @@ def bug_algorithm(tx, ty, bug_type):
                     elapsed_time = rospy.get_rostime().secs - start_time
                     print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "(sim) seconds. Distance: ", round(estimated_current_location.distance(wtx, wty),2)
                     status_msg = "Timeout:", (wtx, wty)
-                    global status_msg
                     bug_nav_status_publisher.publish(status_msg)
 
                     global timed_out
@@ -759,7 +759,6 @@ def bug_algorithm(tx, ty, bug_type):
             if estimated_current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
                 print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(actual_current_location.distance(wtx, wty),2)
-                global status_msg
                 status_msg = "Arrived!"
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
