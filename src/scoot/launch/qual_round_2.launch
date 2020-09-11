@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>	
     <group>
-        <include file="launch/scoot.launch">
+        <include file="$(find scoot)/launch/scoot.launch">
             <arg name="name" value="excavator_1"/>
             <arg name="round" value="2"/>
             <arg name="mode" value="auto"/>
@@ -9,7 +9,7 @@
     </group>
 
     <group>
-        <include file="launch/scoot.launch">
+        <include file="$(find scoot)/launch/scoot.launch">
         <arg name="name" value="hauler_1"/>
         <arg name="round" value="2"/>
         <arg name="mode" value="auto"/>
