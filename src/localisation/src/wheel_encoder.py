@@ -45,8 +45,14 @@ class WheelEncoder:
         ### Calculate angular velocity ###
         
         # Angular displacement in radians - could use all four wheels, start with just two
-        angle_displacement_left = front_left_wheel_angle - self.previous_front_left_wheel_angle 
-        angle_displacement_right = front_right_wheel_angle - self.previous_front_right_wheel_angle 
+        angle_displacement_left_front = front_left_wheel_angle - self.previous_front_left_wheel_angle 
+        angle_displacement_right_front = front_right_wheel_angle - self.previous_front_right_wheel_angle
+
+        angle_displacement_left_back = back_left_wheel_angle - self.previous_back_left_wheel_angle 
+        angle_displacement_right_back = back_right_wheel_angle - self.previous_back_right_wheel_angle 
+
+        angle_displacement_left = (angle_displacement_left_front + angle_displacement_left_back)/2.0
+        angle_displacement_right = (angle_displacement_right_front + angle_displacement_right_back)/2.0
         
         # Left angular velocities in rad/s
         try:

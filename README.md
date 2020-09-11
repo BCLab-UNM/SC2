@@ -136,3 +136,11 @@ scoot.drive(1)
 or
 
 ```roslaunch ./launch/scoot.launch "name:=scout_1" "search:=DDSA"```
+
+### Docker submission
+
+Reference: https://gitlab.com/scheducation/srcp2-competitors/-/wikis/Documentation/Rules/Completion-and-Submission
+
+To build a submission docker image run the `buildSubmission.sh` script in the docker directory.
+This script will build the swarmathon:submission docker image using this project and build the srcp2 submission using the supplied `build-submission-image.bash` script.
+To test the submission docker image, run the `testSubmission.sh` script with a running srcp2 gazebo simulation.

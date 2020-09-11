@@ -22,8 +22,8 @@
 
     <!-- Default drive speeds. These are also used for manual driving. -->
     <param name="DRIVE_SPEED" value="5"/>
-    <param name="REVERSE_SPEED" value="5"/>
-    <param name="TURN_SPEED" value="5"/>
+    <param name="REVERSE_SPEED" value="3"/>
+    <param name="TURN_SPEED" value="3"/>
 
     <!-- Additional slow and fast drive speeds available through the Swarmie API -->
     <param name="DRIVE_SPEED_SLOW" value="0.1"/>
@@ -32,9 +32,9 @@
     <param name="TURN_SPEED_FAST" value="1.1"/>
   </node>
 
-    <node name="odom" pkg="scoot" type="FakeLocalization.py"
-          args="$(arg name)" respawn="true" >
-      <param name="publish_debug_topic" value="false" />
-    </node>
+<!--    <node name="odom" pkg="scoot" type="FakeLocalization.py"-->
+<!--          args="$(arg name)" respawn="true" >-->
+<!--      <param name="publish_debug_topic" value="false" />-->
+<!--    </node>-->
     
 </launch>
