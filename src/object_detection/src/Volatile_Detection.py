@@ -37,11 +37,10 @@ class VolatileDetection(object):
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
 		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
-		self.on_off_switch_subscriber = rospy.Subscriber('/scout_1/volatile_detections/on_off_switch', Bool, self.on_off_callback)
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)		
 
 		self.volatile_detection_image_left_publisher = rospy.Publisher('/scout_1/volatile_detections/image/left', Image, queue_size=100)
-		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=10)
+		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=100)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)

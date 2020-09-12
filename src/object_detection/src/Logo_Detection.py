@@ -40,7 +40,7 @@ class LogoDetection(object):
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)		
 
 		self.logo_detection_image_left_publisher = rospy.Publisher('/scout_1/logo_detections/image/left', Image, queue_size=100)
-		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=10)
+		self.logo_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=100)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
