@@ -36,10 +36,10 @@ class LegDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odom/filtered', Odometry, self.odom_callback)
+		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)		
 
-		self.leg_detection_image_left_publisher = rospy.Publisher('/scout_1/leg_detections/image/left', Image, queue_size=10)
+		self.leg_detection_image_left_publisher = rospy.Publisher('/scout_1/leg_detections/image/left', Image, queue_size=100)
 		self.leg_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=10)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
