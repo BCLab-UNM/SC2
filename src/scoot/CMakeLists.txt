@@ -174,6 +174,9 @@ catkin_install_python(PROGRAMS
   src/behaviors/scout/fine_search.py
   src/behaviors/scout/search.py
   src/behaviors/scout/DDSA.py
+  src/behaviors/go_to.py
+  src/behaviors/scout/goto_waypoint.py
+  src/behaviors/scout/goto_processing_plant.py
   src/test_square.py
   
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
