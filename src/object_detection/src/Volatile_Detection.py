@@ -75,19 +75,7 @@ class VolatileDetection(object):
 		self.heading = None
 		self.heading_correction = None
 		self.odom_pose = None
-		self.use_detection = False
 		
-
-	def on_off_callback(self, msg):		
-		if msg.data == True:
-			#if self.debug == True:
-			#	print('volatile Detection: deactivated')
-			self.use_detection = True
-		else:
-			#if self.debug == True:
-			#	print('volatile Detection: activated')
-			self.use_detection = False
-
 
 	def odom_callback(self, odom_msg):
 		# extract the robot's XYZ position and heading (q) from the odometry message
@@ -194,9 +182,6 @@ class VolatileDetection(object):
 
 
 	def callback(self, left_camera_data):
-		if self.use_detection == False:
-			return
-
 		left_detection_msg = Detection()
 		left_detection_msg.detection_id = Obstacles.VOLATILE # this is an integer ID defined in the obstacle package
 		left_detection_msg.heading = None
