@@ -13,6 +13,8 @@
   <include file="$(find scoot)/launch/tf.xml">
       <arg name="name_tf" value="$(arg name)_tf"/>
   </include>
+
+  <node name="object_detection" pkg="object_detection" type="Object_Detection.py" respawn="true"/>
     
   <node name="Core" pkg="scoot" type="Core.py" respawn="true">
     <param name="HEADING_RESTORE_FACTOR" value="1.0"/>
