@@ -38,12 +38,11 @@ class CubesatDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odom/filtered', Odometry, self.odom_callback)
-		self.on_off_switch_subscriber = rospy.Subscriber('/scout_1/cubesat_detections/on_off_switch', Bool, self.on_off_callback)
+		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
 		self.left_camera_subscriber = rospy.Subscriber('/scout_1/camera/left/image_raw', Image, self.cam_callback)
 
-		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=10)
-		self.cubesat_detection_publisher = rospy.Publisher('/scout_1/detections/', Detection, queue_size=10)
+		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=100)
+		self.cubesat_detection_publisher = rospy.Publisher('/scout_1/detections/', Detection, queue_size=100)
 		
 		colors = OrderedDict({"yellow": (255, 195, 0),"blue": (0, 0, 255), "white": (255, 255, 255)})
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
@@ -66,20 +65,7 @@ class CubesatDetection(object):
 		self.odom_pose = None
 		self.detection_pose = None
 		self.heading_correction = 0.0
-		self.use_detection = False
 		self.debug = False
-
-
-	def on_off_callback(self, msg):
-		
-		if msg.data == True:
-			if self.debug == True:
-				print('Cubesat Detection: deactivated')
-			self.use_detection = True
-		else:
-			if self.debug == True:
-				print('Cubesat Detection: activated')
-			self.use_detection = False
 
 
 	def odom_callback(self, odom_msg):
@@ -163,9 +149,9 @@ class CubesatDetection(object):
 			# V is the magnitude of a vector from the robot to the cubesat, we can use trigonometry to approximate a transform
 			# from the XY of the robot to the XY of the cubesat (Z is already calculated above)
 			self.detection_pose = [0, 0, 0]
-			self.detection_pose[2] = Z + self.odom_pose[2]
-			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction)) + self.odom_pose[1]
-			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction)) + self.odom_pose[0]
+			self.detection_pose[2] = Z # + self.odom_pose[2]
+			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction)) # + self.odom_pose[1]
+			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction)) # + self.odom_pose[0]
 
 
 	def detect(self, c):
@@ -206,9 +192,6 @@ class CubesatDetection(object):
 
 
 	def cam_callback(self, left_camera_data):
-		if self.use_detection == False:
-			return
-
 		# convert image data from image message -> opencv image
 		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 

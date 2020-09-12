@@ -36,12 +36,11 @@ class LegDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odom/filtered', Odometry, self.odom_callback)
-		self.on_off_switch_subscriber = rospy.Subscriber('/scout_1/leg_detections/on_off_switch', Bool, self.on_off_callback)
+		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
 		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)		
 
-		self.leg_detection_image_left_publisher = rospy.Publisher('/scout_1/leg_detections/image/left', Image, queue_size=10)
-		self.leg_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=10)
+		self.leg_detection_image_left_publisher = rospy.Publisher('/scout_1/leg_detections/image/left', Image, queue_size=100)
+		self.leg_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=100)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -75,19 +74,7 @@ class LegDetection(object):
 		self.heading = None
 		self.heading_correction = None
 		self.odom_pose = None
-		self.use_detection = False
 		
-
-	def on_off_callback(self, msg):		
-		if msg.data == True:
-			#if self.debug == True:
-			#	print('leg Detection: deactivated')
-			self.use_detection = True
-		else:
-			#if self.debug == True:
-			#	print('leg Detection: activated')
-			self.use_detection = False
-
 
 	def odom_callback(self, odom_msg):
 		# extract the robot's XYZ position and heading (q) from the odometry message
@@ -186,17 +173,14 @@ class LegDetection(object):
 
 		xyz = [0, 0, 0]
 
-		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) + self.odom_pose[0]
-		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) + self.odom_pose[1]
-		xyz[2] = 1.0 + self.odom_pose[2] # assuming the leg is 1m off of the ground
+		xyz[0] = (d * math.cos(self.heading - self.heading_correction)) # + self.odom_pose[0]
+		xyz[1] = (d * math.sin(self.heading - self.heading_correction)) # + self.odom_pose[1]
+		xyz[2] = 1.0 # + self.odom_pose[2] # assuming the leg is 1m off of the ground
 
 		return xyz
 
 
 	def callback(self, left_camera_data):
-		if self.use_detection == False:
-			return
-
 		left_detection_msg = Detection()
 		left_detection_msg.detection_id = Obstacles.HOME_LEG # this is an integer ID defined in the obstacle package
 		left_detection_msg.heading = None
