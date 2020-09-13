@@ -43,26 +43,31 @@ class ObstacleException(DriveException):
         self.obstacle = obstacle
         self.distance = distance
 
+
 class CubesatException(VisionException):
     def __init__(self, heading, distance, point):
         self.heading = heading
         self.distance = distance
         self.point = point
 
+
 class VisionVolatileException(VisionException):
     def __init__(self, heading, distance):
         self.heading = heading
         self.distance = distance
+
 
 class HomeLegException(VisionException):
     def __init__(self, heading, distance):
         self.heading = heading
         self.distance = distance
 
+
 class HomeLogoException(VisionException):
     def __init__(self, heading, distance):
         self.heading = heading
         self.distance = distance
+
 
 class PathException(DriveException):
     pass
@@ -236,9 +241,9 @@ class Scoot(object):
                 rospy.wait_for_service('/vol_detected_service')
                 self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
             elif self.ROUND_NUMBER == 3:
-                self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)  
-                self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)  
-                self.qal3_home_align_serv = rospy.ServiceProxy('/aligned_service', srv.HomeAlignedSrv) 
+                self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)
+                self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)
+                self.qal3_home_align_serv = rospy.ServiceProxy('/aligned_service', srv.HomeAlignedSrv)
 
         elif self.rover_type == "excavator":
             self.mount_control = rospy.Publisher('/' + self.rover_name + '/mount_joint_controller/command', Float64,
@@ -523,7 +528,7 @@ class Scoot(object):
             elif value == MoveResult.VISION_VOLATILE:
                 raise VisionVolatileException(heading, distance)
             elif value == MoveResult.CUBESAT:
-                self.cubesat_point = rospy.get_param("/"+self.rover_name+"/cubesat_point_from_rover",
+                self.cubesat_point = rospy.get_param("/" + self.rover_name + "/cubesat_point_from_rover",
                                                      default={'x': 0, 'y': 0, 'z': 0})
                 self.cubesat_point = Point(*self.cubesat_point.values())
                 raise CubesatException(heading, distance, self.cubesat_point)
