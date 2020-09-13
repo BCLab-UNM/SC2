@@ -4,14 +4,14 @@
 import sys
 import rospy
 import math
-import random 
-
+import random
 
 from obstacle.msg import Obstacles
 from scoot.msg import MoveResult
 
 from Scoot import VolatileException, ObstacleException, PathException, AbortException, MoveResult, \
     VisionVolatileException, CubesatException, HomeLegException, HomeLogoException, DriveException, Scoot
+
 ignoring = 0
 
 
@@ -21,8 +21,9 @@ def turnaround(ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE):
     scoot.drive(-0.275 * 2, ignore=ignore | ignoring | Obstacles.CUBESAT)  # back up by wheel diameter
 
     scoot.lookUp()
-    scoot.turn(random.gauss(math.pi/2, math.pi/4), ignore=ignore | ignoring | Obstacles.CUBESAT)
+    scoot.turn(random.gauss(math.pi / 2, math.pi / 4), ignore=ignore | ignoring | Obstacles.CUBESAT)
     scoot.lookForward()
+
 
 def wander():
     global scoot
@@ -92,6 +93,7 @@ def random_walk(num_moves):
     except HomeLogoException as e:
         home_exception_behavior(e)
         sys.exit(0)
+
 
 def home_exception_behavior(e):
     global ignoring
