@@ -32,15 +32,15 @@ def wander():
         rospy.loginfo("Wandering...")
         # @NOTE: The cubesat has alot of false postives when not looking up
         scoot.drive(random.gauss(4, 1), ignore=ignoring | Obstacles.CUBESAT)
-        ''' #Look up and spin around looking for cubesat if not found
+        # Look up and spin around looking for cubesat if not found
         if scoot.ROUND_NUMBER == 3 and not scoot.cubesat_found:
             scoot.lookUp()
             # if this finds a cubesat it will go down to random_walk's except CubesatException handler
-            # @TODO: get heading
-            scoot.timed_drive(4, 0, scoot.TURN_SPEED) 
-            # @TODO: restore heading
+            heading = scoot.getOdomLocation().getPose()
+            scoot.timed_drive(4, 0, scoot.TURN_SPEED)
+            scoot.set_heading(heading)  # restore heading
             scoot.lookForward()
-        '''
+
     except ObstacleException:
         rospy.loginfo("I saw an obstacle!")
         turnaround()
@@ -99,9 +99,13 @@ def home_exception_behavior(e):
     global ignoring
     rospy.loginfo("Found Home's Logo turning to center and going to")
     # turn and drive to it, score
-    scoot.turn(-e.heading, ignore=ignoring | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG)
-    scoot.drive(e.distance, ignore=ignoring | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG)
-    scoot.brake()
+    try:
+        scoot.turn(-e.heading, ignore=ignoring | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG)
+        scoot.drive(e.distance, ignore=ignoring | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG)
+    except ObstacleException:
+        pass  # This is expected as we are driving until we run into the logo
+    finally:
+        scoot.brake()
     scoot.score_home_aligned()
 
 
