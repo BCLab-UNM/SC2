@@ -18,7 +18,7 @@ import tf
 # from sensor_msgs.msg import Joy
 from std_msgs.msg import UInt8, String, Float32
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist, Pose2D
+from geometry_msgs.msg import Twist, Pose2D, Point
 # from dynamic_reconfigure.server import Server
 # from dynamic_reconfigure.client import Client
 from srcp2_msgs import msg, srv
@@ -105,6 +105,7 @@ class State:
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
         rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
+        rospy.Subscriber('/' + self.rover_name + '/detections', Obstacles, self._vision)
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
 
         # Services 
@@ -217,9 +218,18 @@ class State:
             elif (detected & Obstacles.IS_VOLATILE) != 0:
                 self._stop_now(MoveResult.OBSTACLE_VOLATILE)
                 self.print_debug("__check_obstacles: MoveResult.OBSTACLE_VOLATILE")
-            elif (detected & Obstacles.IS_VISION_T) != 0:
-                self._stop_now(MoveResult.OBSTACLE_TAG) #TODO change this for readablity
-                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_TAG")
+            elif (detected & Obstacles.VISION_VOLATILE) != 0:
+                self._stop_now(MoveResult.VISION_VOLATILE)
+                self.print_debug("__check_obstacles: MoveResult.VISION_VOLATILE")
+            elif (detected & Obstacles.CUBESAT) != 0:
+                self._stop_now(MoveResult.CUBESAT)
+                self.print_debug("__check_obstacles: MoveResult.CUBESAT")
+            elif (detected & Obstacles.HOME_LEG) != 0:
+                self._stop_now(MoveResult.HOME_LEG)
+                self.print_debug("__check_obstacles: MoveResult.HOME_LEG")
+            elif (detected & Obstacles.HOME_FIDUCIAL) != 0:
+                self._stop_now(MoveResult.HOME_FIDUCIAL)
+                self.print_debug("__check_obstacles: MoveResult.HOME_FIDUCIAL")
 
     # @sync(package_lock)
     def _obstacle(self, msg):
@@ -236,10 +246,11 @@ class State:
     def _vision(self, msg):
         rospy.loginfo("Driver.py's _vision called with:")
         rospy.loginfo(msg)
-        if msg.detection_id & Obstacles.IS_VISION_T:
-            #  self.current_obstacles = msg.detection_id # if it changes to an int
-            self.current_distance = msg.distance
-            self.obstacle_heading = msg.heading
+        self.current_obstacles |= msg.detection_id
+        self.current_distance = msg.distance
+        self.obstacle_heading = msg.heading
+        if msg.detection_id == Obstacles.CUBESAT:
+            rospy.set_param("/"+self.rover_name+"/cubesat_point_from_rover", Point(msg.x, msg.y, msg.z))
         self.__check_obstacles()
     
     # @sync(package_lock)
