@@ -105,7 +105,7 @@ class State:
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
         rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
-        rospy.Subscriber('/' + self.rover_name + '/detections', Obstacles, self._vision)
+        rospy.Subscriber('/' + self.rover_name + '/detections', Detection, self._vision)
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
 
         # Services 
@@ -250,7 +250,7 @@ class State:
         self.current_distance = msg.distance
         self.obstacle_heading = msg.heading
         if msg.detection_id == Obstacles.CUBESAT:
-            rospy.set_param("/"+self.rover_name+"/cubesat_point_from_rover", Point(msg.x, msg.y, msg.z))
+            rospy.set_param("/"+self.rover_name+"/cubesat_point_from_rover", {'x': msg.x, 'y': msg.y, 'z': msg.z})
         self.__check_obstacles()
     
     # @sync(package_lock)
