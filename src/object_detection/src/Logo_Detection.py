@@ -2,6 +2,7 @@
 
 from __future__ import division
 import rospy
+import sys
 import message_filters
 import cv2
 import numpy as np
@@ -93,7 +94,7 @@ class LogoDetection(object):
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
-			print('Logo Detection: Exception in odometry position')
+			rospy.logerr('Logo Detection: Exception in odometry position')
 			return
 
 
@@ -104,7 +105,7 @@ class LogoDetection(object):
 			points_list.append([data[0], data[1], data[2]])
 
 		if len(points_list) == 0:
-			print('no point cloud')
+			rospy.loginfo('no point cloud')
 			return
 
 		# scout_1_tf/base_footprint
@@ -269,7 +270,7 @@ class LogoDetection(object):
 			self.logo_detection_image_left_publisher.publish(imgmsg_left)
 
 		except AttributeError as e:
-			print('Logo Attribute Error: ' + str(e))
+			rospy.logerr('Logo Attribute Error: ' + str(e))
 			return
 			
 

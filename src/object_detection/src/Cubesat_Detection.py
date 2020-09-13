@@ -2,6 +2,7 @@
 
 from __future__ import division
 import rospy
+import sys
 import cv2
 import numpy as np
 from sensor_msgs.msg import Image
@@ -79,7 +80,7 @@ class CubesatDetection(object):
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
-			print('Cubesat Detection: Exception in odometry position')
+			rospy.logerr('Cubesat Detection: Exception in odometry position')
 			return
 
 
@@ -110,7 +111,7 @@ class CubesatDetection(object):
 
 		if count < 1:
 			if self.debug == True:
-				print('Cubesat Detection: no point cloud detection')
+				rospy.loginfo('Cubesat Detection: no point cloud detection')
 			return
 		else:
 			x_avg = x_sum / count
@@ -135,7 +136,7 @@ class CubesatDetection(object):
 			pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
 		except Exception:
 			if self.debug == True:
-				print('Cubesat Detection: exception in transform (if this rarely happens its ok)')
+				rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
 			return
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
@@ -217,11 +218,11 @@ class CubesatDetection(object):
 					cX = int((M["m10"] / M["m00"])  * ratio_left)
 					cY = int((M["m01"] / M["m00"])  * ratio_left)
 					area = cv2.contourArea(c)
-					if area > 300 and area < 1200:
+					if area > 100 and area < 600:
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
-						# print(color)
-						# print(area)
+						rospy.loginfo(color)
+						rospy.loginfo(area)
 						if shape == 'rectangle' and color == 'yellow' and color != 'white':
 							c = c.astype("float")
 							c *= ratio_left
@@ -243,6 +244,6 @@ class CubesatDetection(object):
 			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 			self.cubesat_detection_image_left_publisher.publish(imgmsg_left)
 		except AttributeError as e:
-			print('Cubesat Attribute Error: ' + str(e))
+			rospy.logerr('Cubesat Attribute Error: ' + str(e))
 			return
 
