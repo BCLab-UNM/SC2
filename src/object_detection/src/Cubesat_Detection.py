@@ -79,6 +79,7 @@ class CubesatDetection(object):
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
+			print('Cubesat Detection: Exception in odometry position')
 			return
 
 
@@ -219,8 +220,8 @@ class CubesatDetection(object):
 					if area > 300 and area < 1200:
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
-						print(color)
-						print(area)
+						# print(color)
+						# print(area)
 						if shape == 'rectangle' and color == 'yellow' and color != 'white':
 							c = c.astype("float")
 							c *= ratio_left
@@ -241,6 +242,7 @@ class CubesatDetection(object):
 			# used for debugging and visualisation
 			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 			self.cubesat_detection_image_left_publisher.publish(imgmsg_left)
-		except Exception:
+		except AttributeError as e:
+			print('Cubesat Attribute Error: ' + str(e))
 			return
 

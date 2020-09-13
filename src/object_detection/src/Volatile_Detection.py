@@ -87,6 +87,7 @@ class VolatileDetection(object):
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
+			print('Volatile Detection: Exception in odometry position')
 			return
 
 
@@ -123,7 +124,6 @@ class VolatileDetection(object):
 			# self.pose_transformed = pre_pose_transformed
 
 		except Exception:
-			# self.pose_transformed = None
 			return
 
 	def camera_info_callback(self, left_camera_info, right_camera_info):
@@ -224,7 +224,7 @@ class VolatileDetection(object):
 					cX = int((M["m10"] / M["m00"]) * ratio_left)
 					cY = int((M["m01"] / M["m00"]) * ratio_left)
 					area = cv2.contourArea(c)
-					if area > 300 and area < 700 : 
+					if area > 100 and area < 600 : 
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
 						# print(area)
@@ -263,5 +263,6 @@ class VolatileDetection(object):
 
 			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 			self.volatile_detection_image_left_publisher.publish(imgmsg_left)
-		except Exception:
+		except AttributeError as e:
+			print('Volatile Attribute Error: ' + str(e))
 			return

@@ -93,6 +93,7 @@ class LogoDetection(object):
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
+			print('Logo Detection: Exception in odometry position')
 			return
 
 
@@ -129,7 +130,6 @@ class LogoDetection(object):
 			# self.pose_transformed = pre_pose_transformed
 
 		except Exception:
-			# self.pose_transformed = None
 			return
 
 	def camera_info_callback(self, left_camera_info, right_camera_info):
@@ -268,7 +268,8 @@ class LogoDetection(object):
 			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 			self.logo_detection_image_left_publisher.publish(imgmsg_left)
 
-		except Exception:
+		except AttributeError as e:
+			print('Logo Attribute Error: ' + str(e))
 			return
 			
 

@@ -87,6 +87,7 @@ class LegDetection(object):
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
+			print('Leg Detection: Exception in odometry position')
 			return
 
 
@@ -123,7 +124,6 @@ class LegDetection(object):
 			# self.pose_transformed = pre_pose_transformed
 
 		except Exception:
-			# self.pose_transformed = None
 			return
 
 	def camera_info_callback(self, left_camera_info, right_camera_info):
@@ -265,6 +265,7 @@ class LegDetection(object):
 			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
 			self.leg_detection_image_left_publisher.publish(imgmsg_left)
 			
-		except Exception:
+		except AttributeError as e:
+			print('Leg Attribute Error: ' + str(e))
 			return
 
