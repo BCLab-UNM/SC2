@@ -182,7 +182,7 @@ class Scoot(object):
 
         self.cubesat_point = Point(0, 0, 0)
         self.cubesat_found = False
-        self.home_found = False
+        self.home_arrived = False
         self.home_logo_found = False
 
     def start(self, **kwargs):
@@ -406,7 +406,26 @@ class Scoot(object):
             rospy.logwarn("Scored!")
             rospy.sleep(.5)
             return True
-      
+
+    def score_cubesat(self):
+        rospy.loginfo("score_cubesat called")
+        self.getTruePose()  # @TODO apply offset to cubesat point
+        self.qal3_apriori_loc_serv(self.cubesat_point)
+        # @TODO check response, log or score
+        self.cubesat_found = True
+
+    def score_home_arrive(self):
+        rospy.loginfo("score_cubesat called")
+        self.qal3_home_arrival_serv(True)
+        self.home_arrived = True
+
+    def score_home_aligned(self):
+        rospy.loginfo("score_home_aligned called")
+        if not self.home_arrived:
+            self.score_home_arrive()
+        self.qal3_home_align_serv(True)
+        self.home_logo_found = True
+
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
