@@ -205,8 +205,9 @@ class Scoot(object):
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
 
         if self.rover_type == "scout":
-            rospy.wait_for_service('/vol_detected_service')
-            self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
+            pass
+            # rospy.wait_for_service('/vol_detected_service')
+            # self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
 
         elif self.rover_type == "excavator":
             self.mount_control = rospy.Publisher('/' + self.rover_name + '/mount_joint_controller/command', Float64,
