@@ -1,14 +1,10 @@
 # Integer ID number for the object being detected
 #     ID's are defined in Obstacles.msg in the obstacle package:
 #         - VOLATILE
-#         - TAG_HOME
-#         - TAG_PRIORI
+#         - HOME_LEG
 #         - HOME_FIDUCIAL
 #         - CUBESAT
 int32 detection_id
-
-
-
 
 # Heading in radians needed to turn to face the detected object
 #     - the horizontal field of view from left to right is estimated as [-60 deg, 60 deg]
