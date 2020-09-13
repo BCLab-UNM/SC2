@@ -47,13 +47,13 @@ def main(task=None):
 
     
     start_pose = scoot.getOdomLocation().getPose()
-    
+    '''
     sides = 6
     for i in range(0,(sides+1)):
         if i == 0:
             side_align(distance / 2.0, i,sides, start_pose, home_pose)
         else: 
-    
+    '''
 
     start_pose = scoot.getOdomLocation().getPose()
 
