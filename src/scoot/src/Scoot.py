@@ -226,8 +226,13 @@ class Scoot(object):
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
 
         if self.rover_type == "scout":
-            rospy.wait_for_service('/vol_detected_service')
-            self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
+            if self.ROUND_NUMBER == 1:
+                rospy.wait_for_service('/vol_detected_service')
+                self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
+            elif self.ROUND_NUMBER == 3:
+                self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)  
+                self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)  
+                self.qal3_home_align_serv = rospy.ServiceProxy('/aligned_service', srv.HomeAlignedSrv) 
 
         elif self.rover_type == "excavator":
             self.mount_control = rospy.Publisher('/' + self.rover_name + '/mount_joint_controller/command', Float64,
