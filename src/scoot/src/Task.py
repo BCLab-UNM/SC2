@@ -40,6 +40,7 @@ class Task:
     PROG_SCOUT_SEARCH = getattr(scout, rospy.get_param('search', default='search')).main
     PROG_SCOUT_FINE_SEARCH = getattr(scout, rospy.get_param('fine_search', default='fine_search')).main
     PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
+    PROG_SCOUT_GOTO_PROCESSING_PLANT = getattr(scout, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
     
     PROG_EXCAVATOR_SEARCH = getattr(excavator, rospy.get_param('waypoint_search', default='waypoint_search')).main
 
@@ -113,9 +114,37 @@ class Task:
                     else:
                         rospy.logerr_throttle(20, "UNKNOWN Scout state: " + str(self.current_state))
                 elif self.ROUND_NUMBER == 3:
+                    if self.current_state == Task.STATE_SCOUT_SEARCH:
+                        if self.launch(self.PROG_SCOUT_SEARCH) == 0:
+                            rospy.loginfo('Search succeeded. Do Fine Search')
+                            self.current_state = Task.STATE_SCOUT_FINE_SEARCH
+                        else:
+                            rospy.loginfo('Search failed! Trying again')
+                            self.current_state = Task.STATE_SCOUT_SEARCH
+                    elif self.current_state == Task.STATE_SCOUT_FINE_SEARCH:
+                        if self.launch(self.PROG_SCOUT_FINE_SEARCH) == 0:
+                            rospy.loginfo('Fine Search succeeded. Starting search.')
+                            self.current_state = Task.STATE_SCOUT_GOTO_PROCESSING_PLANT
+                        else:
+                            rospy.logwarn('Fine Search failed!')
+                            self.current_state = Task.STATE_SCOUT_SEARCH
+                    elif self.current_state == Task.STATE_SCOUT_GOTO_PROCESSING_PLANT:
+                        if self.launch(self.PROG_GOTO_PROCESSING_PLANT) == 0:
+                            rospy.loginfo('Go to processing plant suceeded.')
+                            self.current_state = Task.STATE_SCOUT_HOME_ALIGNMENT
+                        else:
+                            rospy.loginfo('Go to processing failed!')
+                            self.current_state = Task.STATE_SCOUT_SEARCH
+                    elif self.current_state == Task.STATE_SCOUT_HOME_ALIGNMENT:
+                        if self.launch(self.PROG_HOME_ALIGNMENT) == 0:
+                            rospy.loginfo('Home alignment succeeded.')
+                            self.current_state = Task.STATE_SCOUT_SEARCH
+                        else:
+                            rospy.loginfo('Home alignment failed!')
+                            self.current_state = Task.STATE_SCOUT_SEARCH
                     # If all good then would go: search->...
                     # @TODO: state mech for scout's round 3
-                    pass  # PROG_GOTO_PROCESSING_PLANT
+                    #
                 else:
                     rospy.logerr_throttle(20, 'Scout instance should not be running this round')
 

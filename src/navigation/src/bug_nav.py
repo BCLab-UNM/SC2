@@ -36,6 +36,7 @@ from srcp2_msgs import msg, srv
 from sensor_msgs.msg import LaserScan, Imu
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
+from obstacle.msg import Obstacles
 import threading
 import sys
 import random
@@ -63,6 +64,7 @@ success_distance = 0.0
 success_time = 0.0
 stats_printed = False
 total_time_start = 0
+status_msg = None
 
 escape_waypoint = None
 STRAIGHT = 0
@@ -72,6 +74,9 @@ BACK = 3
 MSG_STOP = 4
 CLOCKWISE = 5
 ANTICLOCKWISE = 6
+
+current_location = None
+current_dists = None
 
 # Timout exception
 class TimedOutException(Exception):
@@ -95,6 +100,7 @@ def waypoint_handler( msg ):
     # print("Waypoint Queue Length:", waypoint_queue.qsize())
     
     waypoint_queue.put(msg)
+    bug_algorithm(msg.x, msg.y, bug_type=0)
     
     
 # Location is used to maintain a single current location of the robot in a
@@ -165,6 +171,7 @@ class Dist:
         self.left = 0
         self.front = 0
         self.raw = []
+        self.right = 0
 
     def update(self, data):
         def getmin(a, b):
@@ -225,26 +232,21 @@ class Dist:
 
         return min(self.raw.ranges)
     
-estimated_current_location = Location()
-actual_current_location = Location()
-current_dists = Dist()
 
 def init_listener():
-    rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
-    # Odometry filtered is the topic the EKF published on
     rospy.Subscriber('/scout_1/odometry/filtered', Odometry, estimated_location_handler)
-    rospy.Subscriber('/scout_1/odom/filtered', Odometry, actual_location_handler)
     rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
+    rospy.Subscriber('/scout_1/obstacle', Obstacles, obstacle_handler) 
     
-    # print("Waiting for brake service...")
+    rospy.logwarn("Waiting for brake service...")
     rospy.wait_for_service('/scout_1/brake_rover')
     brakeService = rospy.ServiceProxy('/scout_1/brake_rover', srv.BrakeRoverSrv)
-    # print("... active.")
+    rospy.logwarn("... active.")
 
     waypoint_topic = "/scout_1/waypoints"
-    # print("Subscribing to", waypoint_topic)
     rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    rospy.logwarn("Subscribing to"+ waypoint_topic)
 
 def estimated_location_handler(data):
     p = data.pose.pose.position
@@ -276,6 +278,9 @@ def imu_handler( data ):
             data.orientation.z,
             data.orientation.w)
     roll, pitch, yaw = transform.euler_from_quaternion(q) # in [-pi, pi]
+
+def obstacle_handler(data):
+    pass
     
 class Bug:
 
@@ -690,11 +695,11 @@ def bug_algorithm(tx, ty, bug_type):
     waypoint_queue.put(Point(tx, ty, 0))
 
     # Generate waypoints - use a thread so we don't continue until the waypoints are completed
-    thread = threading.Thread(target=random_waypoint_generator( max_num_waypoints ))
-    thread.start()
+    #thread = threading.Thread(target=random_waypoint_generator( max_num_waypoints ))
+    #thread.start()
 
     # wait here for waitpoint generation to complete
-    thread.join()
+    #thread.join()
     
 
     # Track total time spent
@@ -728,6 +733,7 @@ def bug_algorithm(tx, ty, bug_type):
             print("Actual (x,y):",  (actual_current_location.current_location()[0] , actual_current_location.current_location()[1]))
             print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(est_distance_to_cover,2), "m."
             print "Actual Distance: ", round(act_distance_to_cover,2), "m."
+            global status_msg
             while estimated_current_location.distance(wtx, wty) > delta:
                 try:
                     # These two functions are the heart of the algorithm. "Go_until_obstacle" moves towards the target location when there are no
@@ -752,15 +758,12 @@ def bug_algorithm(tx, ty, bug_type):
             # Confirm the target location was reached
             if estimated_current_location.distance(wtx, wty) < delta:
                 elapsed_time = rospy.get_rostime().secs - start_time
-                print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(estimated_current_location.distance(wtx, wty),2)
-
-                # Problem: acutal vs estimated will be in different frames (?)
-                print "Actual Distance: ", round(actual_current_location.distance(wtx, wty),2), "m."
-                status_msg = "Arrived:", (wtx, wty)
+                print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(actual_current_location.distance(wtx, wty),2)
+                status_msg = "Arrived!"
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
                     success_count += 1.0
-                    success_distance += distance_to_cover
+                    success_distance += act_distance_to_cover
                     success_time += elapsed_time 
                 
             bug.apply_brakes()
@@ -810,32 +813,29 @@ def sigint_handler(signal_received, frame):
     
     print('SIGINT or CTRL-C received. Exiting.')
     exit(0)
-        
-# Parse arguments
-algorithm = sys.argv[1]
-algorithms = ["bug0", "bug1", "bug2"]
-if algorithm not in algorithms:
-    print "First argument should be one of ", algorithms, ". Was ", algorithm
-    sys.exit(1)
 
-if len(sys.argv) < 4:
-    print "Usage: rosrun scoot bug_obstacle_nav.py bug<0|1|2> target_x target_y"
-    sys.exit(1)
-(command_tx, command_ty) = map(float, sys.argv[2:4])
+def main( task=None ):
+    global estimated_current_location
+    global actual_current_location
+    global current_dists
+    global status_msg
 
-signal(SIGINT, sigint_handler)
+    estimated_current_location = Location()
+    actual_current_location = Location()
+    current_dists = Dist()
 
-print('Running. Press CTRL-C to exit.')
+    init_listener()
+    signal(SIGINT, sigint_handler)
+    while not rospy.is_shutdown():
+        if status_msg is not None:
+            if status_msg == "Arrived!":
+                sys.exit(0)
+            else:
+                sys.exit(1)
+            
+if __name__ == '__main__':
+    rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
+    rospy.loginfo('Bug nav started.')
 
-init_listener()
- 
-print "Target given as argument:", (command_tx, command_ty)
-bug = None
-if algorithm == "bug0":
-    bug_type = 0
-elif algorithm == "bug1":
-    bug_type = 1
-elif algorithm == "bug2":
-    bug_type = 2
-bug_algorithm(command_tx, command_ty, bug_type)
+    sys.exit(main())
 
