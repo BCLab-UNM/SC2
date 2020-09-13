@@ -302,6 +302,8 @@ class Scoot(object):
     def getTruePose(self):
         if self.truePoseCalled:
             print("True pose already called once.")
+            # @TODO if the rover has moved 2m+ might be more useful to apply the offset to odom and return that
+            # as this assumes the rover has not moved since the prior call
             return self.true_pose_got
         else:
             try:
@@ -309,6 +311,15 @@ class Scoot(object):
                 self.true_pose_got = self.localization_service(call=True).pose
                 rospy.logwarn("true_pose_got:")
                 rospy.logwarn(self.true_pose_got.position)
+                odom_p = self.OdomLocation.Odometry.pose.pose.position
+                odom_o = self.OdomLocation.Odometry.pose.pose.orientation
+                true_pos = self.true_pose_got  # Pose
+                true_p = true_pos.position  # Point
+                true_o = true_pos.orientation  # Quaternion
+                self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z),
+                                         Quaternion(true_o.x - odom_o.x, true_o.y - odom_o.y, true_o.z - odom_o.z,
+                                                    odom_o.w - true_o.w))
+
                 return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
             except (rospy.ServiceException, AttributeError) as exc:
                 print("Service did not process request: " + str(exc))
@@ -348,14 +359,7 @@ class Scoot(object):
         pose_stamped.header.stamp = rospy.Time.now()
         odom_p = self.OdomLocation.Odometry.pose.pose.position
         odom_o = self.OdomLocation.Odometry.pose.pose.orientation
-        if self.world_offset is None:
-            true_pos = self.getTruePose()  # Pose
-            true_p = true_pos.position  # Point
-            true_o = true_pos.orientation  # Quaternion
-            self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y,  true_p.z - odom_p.z),
-                                     Quaternion(true_o.x-odom_o.x, true_o.y - odom_o.y , true_o.z - odom_o.z,
-                                                odom_o.w - true_o.w))
-            #self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
+        self.getTruePose()
         offset_pos = self.world_offset.position  # Point
         offset_ori = self.world_offset.orientation  # Quaternion
         pose_stamped.pose.pose.position = Point(odom_p.x + offset_pos.x, odom_p.y + offset_pos.y,
