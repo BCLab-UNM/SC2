@@ -178,8 +178,13 @@ class Scoot(object):
         self.dist_data = None
         self.joint_states = None
         self.xform = None
+        self.vol_delay = 0
 
         self.cubesat_point = Point(0, 0, 0)
+        self.cubesat_found = False
+        self.home_found = False
+        self.home_logo_found = False
+
     def start(self, **kwargs):
         if 'tf_rover_name' in kwargs:
             self.rover_name = kwargs['tf_rover_name']
