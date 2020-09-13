@@ -43,6 +43,26 @@ class ObstacleException(DriveException):
         self.obstacle = obstacle
         self.distance = distance
 
+class CubesatException(VisionException):
+    def __init__(self, heading, distance, point):
+        self.heading = heading
+        self.distance = distance
+        self.point = point
+
+class VisionVolatileException(VisionException):
+    def __init__(self, heading, distance):
+        self.heading = heading
+        self.distance = distance
+
+class HomeLegException(VisionException):
+    def __init__(self, heading, distance):
+        self.heading = heading
+        self.distance = distance
+
+class HomeLogoException(VisionException):
+    def __init__(self, heading, distance):
+        self.heading = heading
+        self.distance = distance
 
 class PathException(DriveException):
     pass
@@ -158,6 +178,7 @@ class Scoot(object):
         self.joint_states = None
         self.xform = None
 
+        self.cubesat_point = Point(0, 0, 0)
     def start(self, **kwargs):
         if 'tf_rover_name' in kwargs:
             self.rover_name = kwargs['tf_rover_name']
@@ -452,7 +473,8 @@ class Scoot(object):
         value = move_result.result
         obstacle = move_result.obstacle
         data = move_result.obstacle_data
-        dist = move_result.distance
+        distance = move_result.distance
+        heading = move_result.heading
 
         # Always raise AbortExceptions when the service response is USER_ABORT,
         # even if throw=False was passed as a keyword argument.
@@ -461,13 +483,23 @@ class Scoot(object):
 
         if 'throw' not in kwargs or kwargs['throw']:
             if value == MoveResult.OBSTACLE_LASER:
-                self.dist_data = dist
-                raise ObstacleException(value, obstacle, dist)
+                self.dist_data = distance
+                raise ObstacleException(value, obstacle, distance)
             elif value == MoveResult.OBSTACLE_VOLATILE:
                 self.control_data = data  # behaviors would fetch and call score
                 raise VolatileException(value)
             elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
+            elif value == MoveResult.VISION_VOLATILE:
+                raise VisionVolatileException(heading, distance)
+            elif value == MoveResult.CUBESAT:
+                self.cubesat_point = rospy.get_param("/"+self.rover_name+"/cubesat_point_from_rover",
+                                                     default=Point(0, 0, 0))
+                raise CubesatException(heading, distance, self.cubesat_point)
+            elif value == MoveResult.HOME_LEG:
+                raise HomeLegException(heading, distance)
+            elif value == MoveResult.HOME_FIDUCIAL:
+                raise HomeLogoException(heading, distance)
         return value
 
     def drive(self, distance, **kwargs):
