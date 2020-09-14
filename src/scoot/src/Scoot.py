@@ -534,7 +534,7 @@ class Scoot(object):
             elif value == MoveResult.CUBESAT:
                 self.cubesat_point = rospy.get_param("/" + self.rover_name + "/cubesat_point_from_rover",
                                                      default={'x': 0, 'y': 0, 'z': 0})
-                self.cubesat_point = Point(*self.cubesat_point.values())
+                self.cubesat_point = Point(self.cubesat_point['x'], self.cubesat_point['y'], self.cubesat_point['z'])
                 raise CubesatException(heading, distance, self.cubesat_point)
             elif value == MoveResult.HOME_LEG:
                 raise HomeLegException(heading, distance)
