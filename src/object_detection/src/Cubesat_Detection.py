@@ -45,7 +45,7 @@ class CubesatDetection(object):
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=100)
 		self.cubesat_detection_publisher = rospy.Publisher('/scout_1/detections/', Detection, queue_size=100)
 		
-		colors = OrderedDict({"yellow": (255, 195, 0),"blue": (0, 0, 255), "white": (255, 255, 255)})
+		colors = OrderedDict({"yellow": (255, 195, 0), "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255), "white": (255, 255, 255), "black": (0, 0, 0),})
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []
 		for (i, (name, rgb)) in enumerate(colors.items()):
@@ -223,7 +223,7 @@ class CubesatDetection(object):
 						color = self.label(lab_left,c)
 						rospy.loginfo(color)
 						rospy.loginfo(area)
-						if shape == 'rectangle' and color == 'yellow' and color != 'white':
+						if shape == 'rectangle' and color == 'yellow' and color != 'white' and color != 'red':
 							c = c.astype("float")
 							c *= ratio_left
 							c = c.astype("int")
