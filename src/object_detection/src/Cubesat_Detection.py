@@ -66,7 +66,7 @@ class CubesatDetection(object):
 		self.odom_pose = None
 		self.detection_pose = None
 		self.heading_correction = 0.0
-		self.debug = False
+		self.debug = True
 
 
 	def odom_callback(self, odom_msg):
