@@ -2,6 +2,7 @@
 
 from __future__ import division
 import rospy
+import sys
 import message_filters
 import cv2
 import numpy as np
@@ -78,13 +79,17 @@ class LegDetection(object):
 
 	def odom_callback(self, odom_msg):
 		# extract the robot's XYZ position and heading (q) from the odometry message
-		self.odom_pose = [0, 0, 0]
-		self.odom_pose[0] = odom_msg.pose.pose.position.x
-		self.odom_pose[1] = odom_msg.pose.pose.position.y
-		self.odom_pose[2] = odom_msg.pose.pose.position.z
-		q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
-		h = Rotation.from_quat(q)
-		self.heading = (h.as_rotvec())[2]
+		try:
+			self.odom_pose = [0, 0, 0]
+			self.odom_pose[0] = odom_msg.pose.pose.position.x
+			self.odom_pose[1] = odom_msg.pose.pose.position.y
+			self.odom_pose[2] = odom_msg.pose.pose.position.z
+			q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
+			h = Rotation.from_quat(q)
+			self.heading = (h.as_rotvec())[2]
+		except Exception:
+			rospy.logerr('Leg Detection: Exception in odometry position')
+			return
 
 
 	def pc_callback(self, point_cloud_msg):
@@ -94,7 +99,7 @@ class LegDetection(object):
 			points_list.append([data[0], data[1], data[2]])
 
 		if len(points_list) == 0:
-			print('no point cloud')
+			rospy.loginfo('no point cloud')
 			return
 
 		# scout_1_tf/base_footprint
@@ -120,7 +125,6 @@ class LegDetection(object):
 			# self.pose_transformed = pre_pose_transformed
 
 		except Exception:
-			# self.pose_transformed = None
 			return
 
 	def camera_info_callback(self, left_camera_info, right_camera_info):
@@ -181,83 +185,88 @@ class LegDetection(object):
 
 
 	def callback(self, left_camera_data):
-		left_detection_msg = Detection()
-		left_detection_msg.detection_id = Obstacles.HOME_LEG # this is an integer ID defined in the obstacle package
-		left_detection_msg.heading = None
-		left_detection_msg.distance = None
-		left_detection_msg.x = None
-		left_detection_msg.y = None
-		left_detection_msg.z = None
-
-		# left_camera_data and right_camera_data are sensor_msg/Image data types
-
-		# convert image data from image message -> opencv image
-		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 		
-		# for i in range(240,256):
-			# cv_image_left[np.all(cv_image_left == (i,i,i), axis=-1)] = (0,0,0)
-		#determine colors
+		try:
+			left_detection_msg = Detection()
+			left_detection_msg.detection_id = Obstacles.HOME_LEG # this is an integer ID defined in the obstacle package
+			left_detection_msg.heading = None
+			left_detection_msg.distance = None
+			left_detection_msg.x = None
+			left_detection_msg.y = None
+			left_detection_msg.z = None
 
-		#generate shapes			
-		# TODO: re-write for left and right camera
-		resized_left = imutils.resize(cv_image_left, width=640)
-		ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
-		gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
-		lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
-		# blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
-		thresh_left = cv2.threshold(gray_left, 110, 255, cv2.THRESH_BINARY)[1]
-		thresh_left= cv2.bitwise_not(thresh_left) 
+			# left_camera_data and right_camera_data are sensor_msg/Image data types
 
-		#thresh_left = thresh_left.astype(np.uint8)
-		cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-		cnts_left = imutils.grab_contours(cnts_left)
+			# convert image data from image message -> opencv image
+			cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
+			
+			# for i in range(240,256):
+				# cv_image_left[np.all(cv_image_left == (i,i,i), axis=-1)] = (0,0,0)
+			#determine colors
+
+			#generate shapes			
+			# TODO: re-write for left and right camera
+			resized_left = imutils.resize(cv_image_left, width=640)
+			ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
+			gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
+			lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
+			# blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
+			thresh_left = cv2.threshold(gray_left, 110, 255, cv2.THRESH_BINARY)[1]
+			thresh_left= cv2.bitwise_not(thresh_left) 
+
+			#thresh_left = thresh_left.astype(np.uint8)
+			cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+			cnts_left = imutils.grab_contours(cnts_left)
 
 
-		for c in cnts_left:
-			M = cv2.moments(c)
+			for c in cnts_left:
+				M = cv2.moments(c)
 
-			if M["m00"] != 0:
-				cX = int((M["m10"] / M["m00"]) * ratio_left)
-				cY = int((M["m01"] / M["m00"]) * ratio_left)
-				area = cv2.contourArea(c)
-				if area > 300 and area < 700 : 
-					shape = self.detect(c)
-					color = self.label(lab_left,c)
-					print(area)
-					# print(color)
-				
-					if color == 'black':
-					# if shape == 'triangle' and color == 'blue':
-						c = c.astype("float")
-						c *= ratio_left
-						c = c.astype("int")
-						cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
-						#print(M['m10'])
+				if M["m00"] != 0:
+					cX = int((M["m10"] / M["m00"]) * ratio_left)
+					cY = int((M["m01"] / M["m00"]) * ratio_left)
+					area = cv2.contourArea(c)
+					if area > 300 and area < 700 : 
+						shape = self.detect(c)
+						color = self.label(lab_left,c)
+						# print(area)
+						# print(color)
 					
-						marker = cv2.minAreaRect(c)
-						focalLength= self.left_camera_focal_length
-						KNOWN_WIDTH = 0.5 #leg width in meterswith
-						per_width= marker[1][0]
-						distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
-					
-						self.heading_correction = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
-						xyz = self.calculate_xyz(distance_meters)
-
-						if xyz == None: # we don't have enough data to continue
-							return
-
-						left_detection_msg.heading = self.heading_correction
-						left_detection_msg.distance = distance_meters
-						left_detection_msg.x = xyz[0]
-						left_detection_msg.y = xyz[1]
-						left_detection_msg.z = xyz[2]
+						if color == 'black':
+						# if shape == 'triangle' and color == 'blue':
+							c = c.astype("float")
+							c *= ratio_left
+							c = c.astype("int")
+							cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
+							#print(M['m10'])
 						
+							marker = cv2.minAreaRect(c)
+							focalLength= self.left_camera_focal_length
+							KNOWN_WIDTH = 0.5 #leg width in meterswith
+							per_width= marker[1][0]
+							distance_meters = self.distance_to_camera(KNOWN_WIDTH, focalLength, per_width)
 						
+							self.heading_correction = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
+							xyz = self.calculate_xyz(distance_meters)
 
-						self.leg_detection_left_publisher.publish(left_detection_msg)
-	
+							if xyz == None: # we don't have enough data to continue
+								return
 
-		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
-		self.leg_detection_image_left_publisher.publish(imgmsg_left)
+							left_detection_msg.heading = self.heading_correction
+							left_detection_msg.distance = distance_meters
+							left_detection_msg.x = xyz[0]
+							left_detection_msg.y = xyz[1]
+							left_detection_msg.z = xyz[2]
+							
+							
+
+							self.leg_detection_left_publisher.publish(left_detection_msg)
 		
+
+			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
+			self.leg_detection_image_left_publisher.publish(imgmsg_left)
+			
+		except AttributeError as e:
+			rospy.logerr('Leg Attribute Error: ' + str(e))
+			return
 

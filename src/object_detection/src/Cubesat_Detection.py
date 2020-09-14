@@ -2,6 +2,7 @@
 
 from __future__ import division
 import rospy
+import sys
 import cv2
 import numpy as np
 from sensor_msgs.msg import Image
@@ -44,7 +45,7 @@ class CubesatDetection(object):
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=100)
 		self.cubesat_detection_publisher = rospy.Publisher('/scout_1/detections/', Detection, queue_size=100)
 		
-		colors = OrderedDict({"yellow": (255, 195, 0),"blue": (0, 0, 255), "white": (255, 255, 255)})
+		colors = OrderedDict({"yellow": (255, 195, 0), "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255), "white": (255, 255, 255), "black": (0, 0, 0),})
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []
 		for (i, (name, rgb)) in enumerate(colors.items()):
@@ -65,18 +66,22 @@ class CubesatDetection(object):
 		self.odom_pose = None
 		self.detection_pose = None
 		self.heading_correction = 0.0
-		self.debug = False
+		self.debug = True
 
 
 	def odom_callback(self, odom_msg):
 		# extract the robot's XYZ position and heading (q) from the odometry message
-		self.odom_pose = [0, 0, 0]
-		self.odom_pose[0] = odom_msg.pose.pose.position.x
-		self.odom_pose[1] = odom_msg.pose.pose.position.y
-		self.odom_pose[2] = odom_msg.pose.pose.position.z
-		q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
-		h = Rotation.from_quat(q)
-		self.heading = (h.as_rotvec())[2]
+		try:
+			self.odom_pose = [0, 0, 0]
+			self.odom_pose[0] = odom_msg.pose.pose.position.x
+			self.odom_pose[1] = odom_msg.pose.pose.position.y
+			self.odom_pose[2] = odom_msg.pose.pose.position.z
+			q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
+			h = Rotation.from_quat(q)
+			self.heading = (h.as_rotvec())[2]
+		except Exception:
+			rospy.logerr('Cubesat Detection: Exception in odometry position')
+			return
 
 
 	def pc_callback(self, point_cloud_msg):
@@ -106,7 +111,7 @@ class CubesatDetection(object):
 
 		if count < 1:
 			if self.debug == True:
-				print('Cubesat Detection: no point cloud detection')
+				rospy.loginfo('Cubesat Detection: no point cloud detection')
 			return
 		else:
 			x_avg = x_sum / count
@@ -131,7 +136,7 @@ class CubesatDetection(object):
 			pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
 		except Exception:
 			if self.debug == True:
-				print('Cubesat Detection: exception in transform (if this rarely happens its ok)')
+				rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
 			return
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
@@ -193,45 +198,52 @@ class CubesatDetection(object):
 
 	def cam_callback(self, left_camera_data):
 		# convert image data from image message -> opencv image
-		cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
+		try:
+			cv_image_left = cv2.cvtColor(self.bridge.imgmsg_to_cv2(left_camera_data, desired_encoding="passthrough"), cv2.COLOR_BGR2RGB)
 
-		# determine colors and generate shapes			
-		resized_left = imutils.resize(cv_image_left, width=640)
-		ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
-		gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
-		lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
-		blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
-		thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
-		cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-		cnts_left = imutils.grab_contours(cnts_left)
+			# determine colors and generate shapes			
+			resized_left = imutils.resize(cv_image_left, width=640)
+			ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
+			gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
+			lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
+			blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
+			thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
+			cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+			cnts_left = imutils.grab_contours(cnts_left)
 
-		for c in cnts_left:
-			M = cv2.moments(c)
-			if M["m00"] != 0:
-				cX = int((M["m10"] / M["m00"])  * ratio_left)
-				cY = int((M["m01"] / M["m00"])  * ratio_left)
-				area = cv2.contourArea(c)
-				if area > 50 and area < 1500:
-					shape = self.detect(c)
-					color = self.label(lab_left,c)
-					if shape == 'rectangle' and color == 'yellow' and color != 'white':
-						c = c.astype("float")
-						c *= ratio_left
-						c = c.astype("int")
-						cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
-						if self.detection_pose != None:
-							detection_msg = Detection()
-							detection_msg.detection_id = Obstacles.CUBESAT
-							detection_msg.x = self.detection_pose[0]
-							detection_msg.y = self.detection_pose[1]
-							detection_msg.z = self.detection_pose[2]
-							detection_msg.distance = self.distance
-							detection_msg.heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
-							self.heading_correction = detection_msg.heading
-							self.cubesat_detection_publisher.publish(detection_msg)
+			
+			for c in cnts_left:
+				M = cv2.moments(c)
+				if M["m00"] != 0:
+					cX = int((M["m10"] / M["m00"])  * ratio_left)
+					cY = int((M["m01"] / M["m00"])  * ratio_left)
+					area = cv2.contourArea(c)
+					if area > 100 and area < 600:
+						shape = self.detect(c)
+						color = self.label(lab_left,c)
+						rospy.loginfo(color)
+						rospy.loginfo(area)
+						if shape == 'rectangle' and color == 'yellow' and color != 'white' and color != 'red':
+							c = c.astype("float")
+							c *= ratio_left
+							c = c.astype("int")
+							cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
+							if self.detection_pose != None:
+								detection_msg = Detection()
+								detection_msg.detection_id = Obstacles.CUBESAT
+								detection_msg.x = self.detection_pose[0]
+								detection_msg.y = self.detection_pose[1]
+								detection_msg.z = self.detection_pose[2]
+								detection_msg.distance = self.distance
+								detection_msg.heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
+								self.heading_correction = detection_msg.heading
+								self.cubesat_detection_publisher.publish(detection_msg)
 
-		# publish the detection image topic showing the detected object contour
-		# used for debugging and visualisation
-		imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
-		self.cubesat_detection_image_left_publisher.publish(imgmsg_left)
+			# publish the detection image topic showing the detected object contour
+			# used for debugging and visualisation
+			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")
+			self.cubesat_detection_image_left_publisher.publish(imgmsg_left)
+		except AttributeError as e:
+			rospy.logerr('Cubesat Attribute Error: ' + str(e))
+			return
 
