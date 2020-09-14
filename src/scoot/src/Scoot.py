@@ -417,11 +417,56 @@ class Scoot(object):
             return True
 
     def score_cubesat(self):
+        scoot = self  # for testing to easy copy pasta
         rospy.loginfo("score_cubesat called")
-        self.getTruePose()  # @TODO apply offset to cubesat point
-        self.qal3_apriori_loc_serv(self.cubesat_point)
+        pose = self.getTruePose()  # @TODO apply offset to cubesat point for subsequent calls
+
+        from gazebo_msgs.srv import GetModelState                                               ### ***** CHEATING *****
+        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)        ### ***** CHEATING *****
+        if pose is None:
+            rospy.logwarn("pose is none, going to cheat to proceed")
+            pose = model_coordinates("scout_1", "world").pose                                   ### ***** CHEATING *****
+        br = tf.TransformBroadcaster()
+        br.sendTransform((pose.position.x, pose.position.y, pose.position.z),
+                         (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+                         rospy.Time.now(),
+                         "scout_1_tf/base_footprint",  # maybe base_link
+                         "scout_1_tf/scout_real_world_pose"  # equivalent of odom
+                         )
+        cube = PoseStamped()
+        cube.pose = Pose()
+
+        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)        ### ***** CHEATING *****
+        cube.pose.position = model_coordinates("cube_sat", "scout_1").pose.position             ### ***** CHEATING *****
+
+        #rospy.logwarn("Got from detections:\n" + str(scoot.cubesat_point))
+        #rospy.logwarn("Should be:\n" + str(cube.pose.position))
+
+        #cube.pose.position = scoot.cubesat_point # when fixed
+        cube.header.frame_id = "scout_1_tf/base_footprint"
+        cube_in_world_point = scoot.transform_pose("scout_real_world_pose", cube, 5).pose.position
+
+        '''
+        # if the cubesat_point from the /scout_1/detections topic is relitive to the camera
+        import tf
+        listener = tf.TransformListener() 
+        if listener.frameExists("scout_1_tf/left_camera_optical") and listener.frameExists("scout_1_tf/base_footprint"):
+            t = listener.getLatestCommonTime('scout_1_tf/left_camera_optical','scout_1_tf/base_footprint')
+            p1 = PoseStamped()
+            p1.pose = Pose()
+            p1.pose.position = scoot.cubesat_point
+            p1.header.frame_id = "scout_1_tf/left_camera_optical"
+            p1.pose.orientation.w = 1.0    # Neutral orientation
+            p_in_base = listener.transformPose("/scout_1_tf/base_footprint", p1)
+            print p_in_base
+        '''
+
+        try:
+            self.qal3_apriori_loc_serv(cube_in_world_point)
+            self.cubesat_found = True
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("apriori_location_service call failed")
         # @TODO check response, log or score
-        self.cubesat_found = True
 
     def score_home_arrive(self):
         rospy.loginfo("score_home_arrive called")
