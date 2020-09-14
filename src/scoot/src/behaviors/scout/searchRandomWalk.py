@@ -21,7 +21,7 @@ def turnaround(ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE):
     scoot.drive(-0.275 * 2, ignore=ignore | ignoring | Obstacles.CUBESAT)  # back up by wheel diameter
 
     scoot.lookUp()
-    scoot.turn(random.gauss(math.pi / 2, math.pi / 4), ignore=ignore | ignoring | Obstacles.CUBESAT)
+    scoot.turn(random.gauss(math.pi / 2, math.pi / 4), ignore=ignore | ignoring)
     scoot.lookForward()
 
 
@@ -71,10 +71,10 @@ def random_walk(num_moves):
         pass  # @NOTE: not going to use until odom is good
     except CubesatException as e:
         rospy.loginfo("Found CubeSat turning to center")
-        scoot.turn(e.heading, ignore=Obstacles.CUBESAT)
+        scoot.turn(-e.heading, ignore=Obstacles.CUBESAT)
         rospy.sleep(1)
         try:
-            scoot.timed_drive(2, 0, 0)  # so we can update the cubesat point if its still in view
+            scoot.timed_drive(3, 0, 0.1)  # so we can update the cubesat point if its still in view
         except DriveException:
             pass
         scoot.brake()
