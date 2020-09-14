@@ -424,16 +424,23 @@ class Scoot(object):
         self.cubesat_found = True
 
     def score_home_arrive(self):
-        rospy.loginfo("score_cubesat called")
-        self.qal3_home_arrival_serv(True)
-        self.home_arrived = True
+        rospy.loginfo("score_home_arrive called")
+        try:
+            self.qal3_home_arrival_serv(True)
+            self.home_arrived = True
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("arrived_home_service call failed")
 
     def score_home_aligned(self):
         rospy.loginfo("score_home_aligned called")
         if not self.home_arrived:
             self.score_home_arrive()
-        self.qal3_home_align_serv(True)
-        self.home_logo_found = True
+        try:
+            self.qal3_home_align_serv(True)
+            self.home_logo_found = True
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("aligned_service call failed")
+
 
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
