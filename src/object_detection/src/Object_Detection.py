@@ -12,7 +12,7 @@ if __name__ == '__main__':
 	rospy.init_node('scoot_object_detection')
 	LogoDetection()
 	LegDetection()
-	VolatileDetection()
+	# VolatileDetection()
 	CubesatDetection()
 	rospy.spin()
 
