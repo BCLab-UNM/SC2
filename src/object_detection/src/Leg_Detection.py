@@ -210,9 +210,9 @@ class LegDetection(object):
 			ratio_left = resized_left.shape[0] / float(resized_left.shape[0])
 			gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
 			lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
-			# blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
+			blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
 			thresh_left = cv2.threshold(gray_left, 110, 255, cv2.THRESH_BINARY)[1]
-			thresh_left= cv2.bitwise_not(thresh_left) 
+			 
 
 			#thresh_left = thresh_left.astype(np.uint8)
 			cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -226,20 +226,22 @@ class LegDetection(object):
 					cX = int((M["m10"] / M["m00"]) * ratio_left)
 					cY = int((M["m01"] / M["m00"]) * ratio_left)
 					area = cv2.contourArea(c)
-					if area > 300 and area < 700 : 
+					if area > 300 and area < 600 : 
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
-						# print(area)
-						# print(color)
+						# rospy.loginfo(shape)
+						# rospy.loginfo(area)
+						# rospy.loginfo(color)
 					
-						if color == 'black':
-						# if shape == 'triangle' and color == 'blue':
+						# if color == 'black':
+						if shape == 'rectangle' and (color == 'green' or color == 'white'):
 							c = c.astype("float")
 							c *= ratio_left
 							c = c.astype("int")
 							cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
 							#print(M['m10'])
-						
+
+							
 							marker = cv2.minAreaRect(c)
 							focalLength= self.left_camera_focal_length
 							KNOWN_WIDTH = 0.5 #leg width in meterswith
