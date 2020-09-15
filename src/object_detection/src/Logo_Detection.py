@@ -55,7 +55,7 @@ class LogoDetection(object):
 		# for i in range(1, 256):
 			# temp = {"blue_" + str(i) : (0,0,i)}
 			# self.colors_blue.update(temp)
-		colors = OrderedDict({"blue": (0, 0, 255)})
+		colors = OrderedDict({"yellow": (255, 195, 0), "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255), "white": (255, 255, 255), "black": (0, 0, 0),})
 		
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []
@@ -217,7 +217,7 @@ class LogoDetection(object):
 			gray_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2GRAY)
 			lab_left = cv2.cvtColor(resized_left, cv2.COLOR_BGR2LAB)
 			blurred_left = cv2.GaussianBlur(gray_left, (5, 5), 0)
-			thresh_left = cv2.threshold(blurred_left, 90, 255, cv2.THRESH_BINARY)[1]
+			thresh_left = cv2.threshold(blurred_left, 110, 255, cv2.THRESH_BINARY)[1]
 			
 			#thresh_left = thresh_left.astype(np.uint8)
 			cnts_left = cv2.findContours(thresh_left.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -227,21 +227,23 @@ class LogoDetection(object):
 				M = cv2.moments(c)
 
 				if M["m00"] != 0:
-					cX = int((M["m10"] / M["m00"]) * ratio_left)
-					cY = int((M["m01"] / M["m00"]) * ratio_left)
+					cX = int((M["m10"] / M["m00"]) )
+					cY = int((M["m01"] / M["m00"]) )
 					area = cv2.contourArea(c)
-					if area > 600 and area < 700 : 
+					if area > 200 and area < 700 : 
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
-						# print(area)
-						# print(color)
+						
+						# rospy.loginfo(shape)
 					
 						# if color == 'red':
-						if shape == 'triangle' and color == 'blue':
+						if shape == 'triangle': 
 							c = c.astype("float")
 							c *= ratio_left
 							c = c.astype("int")
 							cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
+							# rospy.loginfo(color)
+							# rospy.loginfo(area)
 							#print(M['m10'])
 							marker = cv2.minAreaRect(c)
 							focalLength= self.left_camera_focal_length
@@ -263,7 +265,7 @@ class LogoDetection(object):
 							
 
 							self.logo_detection_left_publisher.publish(left_detection_msg)
-		
+	
 					#cv2.putText(cv_image_left, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 			imgmsg_left = self.bridge.cv2_to_imgmsg(cv_image_left, encoding="passthrough")

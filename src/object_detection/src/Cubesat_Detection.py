@@ -221,8 +221,8 @@ class CubesatDetection(object):
 					if area > 100 and area < 600:
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
-						rospy.loginfo(color)
-						rospy.loginfo(area)
+						# rospy.loginfo(color)
+						# rospy.loginfo(area)
 						if shape == 'rectangle' and color == 'yellow' and color != 'white' and color != 'red':
 							c = c.astype("float")
 							c *= ratio_left
