@@ -197,9 +197,9 @@ class Scoot(object):
             self.rover_name = rospy.get_namespace()
         self.rover_name = self.rover_name.strip('/')
         self.rover_type = self.rover_name.split("_")[0]  # cuts of the _# part of the rover name
-        self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
-        self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
-        self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
+        self.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
+        self.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
+        self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
         self.ROUND_NUMBER = rospy.get_param('round', default=1)
         self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
