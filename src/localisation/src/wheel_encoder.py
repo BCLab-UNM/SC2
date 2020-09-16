@@ -3,7 +3,8 @@
 # Generates odometry from wheel poses 
 
 import sys
-from sensor_msgs.msg import JointState
+import tf.transformations as transform
+from sensor_msgs.msg import JointState, Imu
 from math import sin, cos, pi
 import rospy
 import tf
@@ -13,11 +14,10 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
 # Converts wheel poses into wheel odometry
 class WheelEncoder:
 
-
-
     def __init__(self):
         self.name = rospy.get_param('rover_name', default='scout_1')
 
+        rospy.Subscriber("/{}/imu".format(self.name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)
         self.odom_pub = rospy.Publisher("/{}/odom".format(self.name), Odometry, queue_size=50)
         self.odom_broadcaster = tf.TransformBroadcaster()
@@ -31,9 +31,27 @@ class WheelEncoder:
         self.previous_back_right_wheel_angle = 0
         self.wheel_radius = 0.27 # meters
         self.track_width = 1.75 # meters
+        self.sample_rate = 1
+        self.message_count = 0
+
+    def imuCallback(self, data):
+        q = (
+            data.orientation.x,
+            data.orientation.y,
+            data.orientation.z,
+            data.orientation.w)
+        roll, pitch, yaw = transform.euler_from_quaternion(q) # in [-pi, pi]
+        self.theta = yaw
+
         
     def jointStatesCallback(self, data):
-                
+
+        # Only process the message at the desired sample rate
+        self.message_count += 1
+
+        if self.message_count % self.sample_rate != 0:
+            return
+        
         back_left_wheel_angle = data.position[ data.name.index('bl_wheel_joint') ]
         back_right_wheel_angle = data.position[ data.name.index('br_wheel_joint') ]
         front_left_wheel_angle = data.position[ data.name.index('fl_wheel_joint') ]
@@ -77,7 +95,7 @@ class WheelEncoder:
         v_rx = ( v_right + v_left ) /2
         v_ry = 0
         # We increase the track width by a factor of 4 to match empirical tests
-        v_rtheta = ( v_right - v_left ) / (4 * self.track_width)
+        v_rtheta = ( v_right - v_left ) / self.track_width
         
         # Velocities and pose in the odom frame
         # The velocities expressed in the robot base frame can be transformed into the odom frame. 
@@ -87,11 +105,16 @@ class WheelEncoder:
 
         v_wx = (v_rx * cos(self.theta) - v_ry * sin(self.theta)) * dt
         v_wy = (v_rx * sin(self.theta) + v_ry * cos(self.theta)) * dt
+        #v_wx = v_rx*cos(self.theta+v_rtheta/2)
+        #v_wy = v_rx*sin(self.theta+v_rtheta/2)
+
         v_wtheta = v_rtheta * dt 
                 
         self.x += v_wx
         self.y += v_wy
-        self.theta += v_wtheta
+
+        # Replaced with IMU theta
+        #self.theta += v_wtheta
         
         # Composing your odometry message
 
