@@ -24,6 +24,10 @@
       <arg name="name" value="$(arg name)"/>
     </include>
 
+    <include file="$(find navigation)/launch/bug_nav.xml">
+      <arg name="name" value="$(arg name)"/>
+    </include>
+
     <!-- The stereo_image_proc node is a part of a ROS package that does stereo image processing -->
     <!-- Detailed documentation is found here: http://wiki.ros.org/stereo_image_proc -->
     <node pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc" output="screen">

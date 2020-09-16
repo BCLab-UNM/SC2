@@ -2,7 +2,7 @@
 
 # Matthew Fricke, 2020, based on an implementation by Isabelle and Ethan Miller distibuted under the MIT license.
 
-#The three bug algorithms differ only in how they decide to leave the wall and return to the path through free space to the goal. To implement this, a single Bug class was created that contained all of the shared logic of the bug algorithms, with the main loop: while current_location.distance(tx, ty) > delta: hit_wall = bug.go_until_obstacle() if hit_wall: bug.follow_wall() print "Arrived at", (tx, ty)
+#The three bug algorithms differ only in how they decide to leave the wall and return to the path through free space to the goal. To implement this, a single Bug class was created that contained all of the shared logic of the bug algorithms, with the main loop: while current_location.distance(tx, ty) > delta: hit_wall = bug.go_until_obstacle() if hit_wall: bug.follow_wall() rospy.logwarn( "Arrived at", (tx, ty)
 
 #where follow_wall() loops until bug.should_leave_wall() is true.
 
@@ -45,13 +45,16 @@ from tqdm import tqdm # For progress bars
 
 import Queue
 
+# Robot name prefix for topics
+robot_name = None
+
 # Constants
-OBSTACLE_EDGE_TOL = 0.5 # meters
-max_num_waypoints = 100
+OBSTACLE_EDGE_TOL = 1 # meters
+max_num_waypoints = 0
 waypoint_bounds = 75 # meters. distance from center to edges
 waypoint_queue = Queue.Queue( max_num_waypoints )
 # Limit on reaching waypoint
-waypoint_timeout = 300
+waypoint_timeout = None
 timed_out = False
 start_time = 0
 
@@ -83,25 +86,26 @@ class TimedOutException(Exception):
     pass
 
 def random_waypoint_generator( n_waypoints ):
-    pub = rospy.Publisher('/scout_1/waypoints', Point, queue_size=1)
-    print("Generating Waypoints...")
+    pub = rospy.Publisher('/'+robot_name+'/waypoints', Point, queue_size=1)
+    rospy.logwarn("Generating Waypoints...")
     for i in tqdm(range(n_waypoints)):
         wp = Point(random.uniform(-waypoint_bounds, waypoint_bounds), random.uniform(-40, 40), 0)
         pub.publish(wp)
         rospy.sleep(0.1)
-    print("Finished")
+    rospy.logwarn("Finished")
 
 # Message Handlers
 
 # Processes move to waypoint requests. Waypoints are given as geometry points
 def waypoint_handler( msg ):
     
-    # print("New waypoint recieved: Coords <", msg.x, ",", msg.y, ",", msg.z,">")
-    # print("Waypoint Queue Length:", waypoint_queue.qsize())
+    rospy.logwarn( "[BugNav] New waypoint recieved: Coords <"+ str(msg.x) + ","+ str(msg.y) + ","+ str( msg.z ) +">" )
+    rospy.logwarn( "[BugNav] Waypoint Queue Length:" + str( waypoint_queue.qsize() ) )
+
+    global max_num_waypoints
+    max_num_waypoints += 1
     
     waypoint_queue.put(msg)
-    bug_algorithm(msg.x, msg.y, bug_type=0)
-    
     
 # Location is used to maintain a single current location of the robot in a
 # thread-safe manner such that the event handlers and readers can all use it without
@@ -234,20 +238,35 @@ class Dist:
     
 
 def init_listener():
-    rospy.Subscriber('/scout_1/odometry/filtered', Odometry, estimated_location_handler)
-    rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
+    rospy.Subscriber('/'+robot_name+'/odometry/filtered', Odometry, estimated_location_handler)
+    rospy.Subscriber('/'+robot_name+'/odom/filtered', Odometry, actual_location_handler)
+    rospy.Subscriber('/'+robot_name+'/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
-    rospy.Subscriber('/scout_1/obstacle', Obstacles, obstacle_handler) 
+    rospy.Subscriber('/'+robot_name+'/obstacle', Obstacles, obstacle_handler) 
     
-    rospy.logwarn("Waiting for brake service...")
-    rospy.wait_for_service('/scout_1/brake_rover')
-    brakeService = rospy.ServiceProxy('/scout_1/brake_rover', srv.BrakeRoverSrv)
+    rospy.logwarn("[BugNav] Waiting for brake service...")
+    rospy.wait_for_service('/'+robot_name+'/brake_rover')
+    brakeService = rospy.ServiceProxy('/'+robot_name+'/brake_rover', srv.BrakeRoverSrv)
+    rospy.logwarn("[BugNav] ... active.")
+
+    waypoint_topic = "/"+robot_name+"/waypoints"
+    rospy.Subscriber('/'+robot_name+'/waypoints', Point, waypoint_handler)
+    rospy.logwarn("[BugNav] Subscribing to "+ waypoint_topic)
+
+    rospy.logwarn( "[BugNav] Waiting for location data on /"+robot_name+"/odom/filtered...")
+    rospy.wait_for_message("/"+robot_name+"/odom/filtered", Odometry)
+    rospy.logwarn( "[BugNav] ... received.")
+
+    rospy.logwarn( "[BugNav] Waiting for location data on /"+robot_name+"/odometry/filtered...")
+    rospy.wait_for_message("/"+robot_name+"/odometry/filtered", Odometry,)
+    rospy.logwarn( "[BugNav] ... received.")
+
+    rospy.logwarn("[BugNav] Waiting for break service...")
+    rospy.wait_for_service("/"+robot_name+"/brake_rover")
+    global brake_service
+    brake_service = rospy.ServiceProxy('/'+robot_name+'/brake_rover', srv.BrakeRoverSrv)
     rospy.logwarn("... active.")
-
-    waypoint_topic = "/scout_1/waypoints"
-    rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
-    rospy.logwarn("Subscribing to"+ waypoint_topic)
-
+    
 def estimated_location_handler(data):
     p = data.pose.pose.position
     q = (
@@ -284,16 +303,16 @@ def obstacle_handler(data):
     
 class Bug:
 
-    def __init__(self, tx, ty):
+    def __init__(self):
         # Robot linear velocity in meters per second
-        self.linear_vel = 5
+        self.linear_vel = rospy.get_param("linear_velocity", default=5)
 
         # Robot angular velocity in radians per second
-        self.angular_vel = round(2*math.pi,2)
+        self.angular_vel = rospy.get_param("angular_velocity", default=5)
     
-        self.pub = rospy.Publisher('/scout_1/skid_cmd_vel', Twist, queue_size=1)
-        self.tx = tx
-        self.ty = ty
+        self.pub = rospy.Publisher('/'+robot_name+'/skid_cmd_vel', Twist, queue_size=1)
+        self.tx = None
+        self.ty = None
 
         self.stuck_linear_tol = 2
         self.stuck_angular_tol = math.pi/4
@@ -315,24 +334,25 @@ class Bug:
 
         
     def apply_brakes(self):
+        
         brake_service.call(100)
-        # print "Applied Brakes"
+        # rospy.logwarn( "Applied Brakes"
 
     def release_brakes(self):
         brake_service.call(0)
-        #print "Released Brakes"
+        #rospy.logwarn( "Released Brakes"
         
     def stuck_handler(self, event=None):
         
         # Check if we are stuck
-        #print "#########################"
-        #print "#  Stuck handler called #"
-        #print "#########################"
-        #self.print_error()
+        #rospy.logwarn( "#########################"
+        #rospy.logwarn( "#  Stuck handler called #"
+        #rospy.logwarn( "#########################"
+        #self.rospy.logwarn(_error()
 
         # Check for timeout
         elapsed_time = rospy.get_rostime().secs - start_time
-        #print waypoint_timeout - elapsed_time
+        #rospy.logwarn( waypoint_timeout - elapsed_time
         if  elapsed_time > waypoint_timeout:
             global timed_out
             timed_out = True
@@ -340,21 +360,21 @@ class Bug:
         
         x, y, h, pitch = estimated_current_location.current_location()
         
-        #print "delta_x: ", abs(x - self.last_x)
-        #print "delta_y: ", abs(y - self.last_y)
-        #print "delta_h: ", abs(h - self.last_h)
+        #rospy.logwarn( "delta_x: ", abs(x - self.last_x)
+        #rospy.logwarn( "delta_y: ", abs(y - self.last_y)
+        #rospy.logwarn( "delta_h: ", abs(h - self.last_h)
     
         if estimated_current_location.distance(self.last_x, self.last_y) < self.stuck_linear_tol and estimated_current_location.distance(self.tx, self.ty) > delta:
             self.drive_mutex.acquire()
-            #print "Escaping: Robot displaced by", current_location.distance(self.last_x, self.last_y), "meters over", self.stuck_check_period, " seconds."
+            #rospy.logwarn( "Escaping: Robot displaced by", current_location.distance(self.last_x, self.last_y), "meters over", self.stuck_check_period, " seconds."
             cmd = Twist()
             cmd.linear.x = self.linear_vel*random.randint(-1,1)
             if cmd.linear.x == 0:
                 cmd.angular.z = self.angular_vel
-                #print "Escape: turning at ", cmd.angular.z, "rad/s"
+                #rospy.logwarn( "Escape: turning at ", cmd.angular.z, "rad/s"
             else:
                 pass
-                #print "Escape: driving at ", cmd.linear.x, "m/s"
+                #rospy.logwarn( "Escape: driving at ", cmd.linear.x, "m/s"
             for i in range(10):
                 self.pub.publish(cmd)
             rospy.sleep(3)
@@ -366,15 +386,15 @@ class Bug:
             #wp = Point(random.uniform(-waypoint_bounds, waypoint_bounds), random.uniform( -waypoint_bounds,  waypoint_bounds), 0)
         #    wp = Point(0, 0, 0)
         #    escape_waypoint = wp
-        #    print "Setting escape waypoint:", (wp.x, wp.y)
+        #    rospy.logwarn( "Setting escape waypoint:", (wp.x, wp.y)
         #    waypoint_queue.put(wp)
         #else:
         #    if escape_waypoint != None:
         #        if escape_waypoint != waypoint_queue.queue[0]:
-        #            print "Escaped: WARNING! The escape waypoint was not at the head of the queue! Not removing."
+        #            rospy.logwarn( "Escaped: WARNING! The escape waypoint was not at the head of the queue! Not removing."
         #        else:
         #            waypoint_queue.get()
-        #            print "Escaped: removing escape waypoint from queue"
+        #            rospy.logwarn( "Escaped: removing escape waypoint from queue"
         #        escape_waypoint = None
         
             
@@ -392,10 +412,10 @@ class Bug:
         
         # Do nothing if someone else is driving (avoids blocking mutex lock)
         if self.drive_mutex.locked():
-            #print "go(): Someone else is driving"
+            #rospy.logwarn( "go(): Someone else is driving"
             pass
 
-        #self.print_LiDAR_ranges()
+        #self.rospy.logwarn(_LiDAR_ranges()
 
         # Add noise so we don't get into loops
         linear_vel = self.linear_vel + random.gauss(0, 1)
@@ -410,20 +430,20 @@ class Bug:
         cmd = Twist()
         if direction == STRAIGHT:
             cmd.linear.x = linear_vel
-            #print "Moving forward at ", self.linear_vel, "m/s"
+            #rospy.logwarn( "Moving forward at ", self.linear_vel, "m/s"
         elif direction == LEFT:
            # cmd.linear.x = self.linear_vel/10
             cmd.angular.z = angular_vel
-            #print "Turning left at ", self.angular_vel, "rad/s"
+            #rospy.logwarn( "Turning left at ", self.angular_vel, "rad/s"
         elif direction == RIGHT:
             #cmd.linear.x = -self.linear_vel/10
             cmd.angular.z = -angular_vel
-            #print "Turning right at ", self.angular_vel, "rad/s"
+            #rospy.logwarn( "Turning right at ", self.angular_vel, "rad/s"
         elif direction == BACK:
             cmd.linear.x = -linear_vel
-            #print "Backing up at ", self.linear_vel, "m/s"
+            #rospy.logwarn( "Backing up at ", self.linear_vel, "m/s"
         elif direction == MSG_STOP:
-            #print "Stopping"
+            #rospy.logwarn( "Stopping"
             cmd.angular.z = 0
             cmd.linear.x = 0
             self.apply_brakes()
@@ -436,15 +456,15 @@ class Bug:
         
     def print_error(self):
         cx, cy, t, pitch = estimated_current_location.current_location()
-        print "Estamated distance to target: ", round(estimated_current_location.distance(self.tx, self.ty)), "m"
-        print "Actual distance to target: ", round(actual_current_location.distance(self.tx, self.ty)), "m"
-        print "Angle Error: ", necessary_heading(cx, cy, self.tx, self.ty)-t, "rad"
+        rospy.logwarn( "[BugNav] Estamated distance to target: " + str(round(estimated_current_location.distance(self.tx, self.ty))) + "m" )
+        rospy.logwarn( "[BugNav] Actual distance to target: " + str(round(actual_current_location.distance(self.tx, self.ty))) + "m" )
+        rospy.logwarn( "[BugNav] Angle Error: " + str(necessary_heading(cx, cy, self.tx, self.ty)-t) + " "+ "rad" )
         
     # Return True if a wall was encountered otherwise false
     def go_until_obstacle(self):
-        #print "Going until destination or obstacle."
-        #self.print_error()
-        #print "Travelling to waypoint"
+        #rospy.logwarn( "[BugNav] Going until destination or obstacle."
+        #print_error()
+        #rospy.logwarn( "[BugNav] Travelling to waypoint"
         
         while estimated_current_location.distance(self.tx, self.ty) > delta:
             (frontdist, leftdist, rightdist) = current_dists.get()
@@ -453,12 +473,12 @@ class Bug:
             if frontdist <= WALL_PADDING and leftdist <= WALL_PADDING:
                 #self.go(MSG_STOP)
                 self.go(BACK)
-                #self.print_LiDAR_ranges()
+                #print_LiDAR_ranges()
                 return ANTICLOCKWISE
             elif frontdist <= WALL_PADDING and rightdist <= WALL_PADDING:
                 #self.go(MSG_STOP)
                 self.go(BACK)
-                #self.print_LiDAR_ranges()
+                #print_LiDAR_ranges()
                 return CLOCKWISE
             elif frontdist <= WALL_PADDING:
                 self.go(BACK)
@@ -486,13 +506,13 @@ class Bug:
         if right_range > 100:
             right_range = "max"
        
-        print "LiDAR range. Front:", front_range, "m. Left: ", left_range, "m. Right: ", right_range, "m"
+        rospy.logwarn( "[BugNav] LiDAR range. Front:" + " " + front_range+ " " + "m. Left: "+ " " + left_range+ " " + "m. Right: "+ " " + right_range+ " " + "m" )
     
     def follow_wall_anticlockwise(self):
-        #print "Navigating around obstacle anticlockwise"
+        #rospy.logwarn( "[BugNav] Navigating around obstacle anticlockwise"
         while current_dists.get()[0] <= WALL_PADDING:
-            #self.print_LiDAR_ranges()
-            #print "Aligning with obstacle"
+            #print_LiDAR_ranges()
+            #rospy.logwarn( "[BugNav] Aligning with obstacle"
             self.go(RIGHT)
             rospy.sleep(0.1)
         while not self.should_leave_wall() and estimated_current_location.distance(self.tx, self.ty) > delta:
@@ -502,32 +522,32 @@ class Bug:
             #    self.go(BACK)
             #elif front <= WALL_PADDING:
             if front <= WALL_PADDING:
-                #self.print_LiDAR_ranges()
-                #print "Still aligning with obstacle"
+                #print_LiDAR_ranges()
+                #rospy.logwarn( "[BugNav] Still aligning with obstacle"
                 self.go(RIGHT)
             elif WALL_PADDING - OBSTACLE_EDGE_TOL <= left <= WALL_PADDING + OBSTACLE_EDGE_TOL:
-                #print "Following obstacle edge"
-                #self.print_LiDAR_ranges()
+                #rospy.logwarn( "[BugNav] Following obstacle edge"
+                #print_LiDAR_ranges()
                 self.go(STRAIGHT)
             elif left > WALL_PADDING + 0.5:
-                #print "Getting too far away from obstacle"
+                #rospy.logwarn( "[BugNav] Getting too far away from obstacle"
                 self.go(LEFT)
             elif front > WALL_PADDING and left > WALL_PADDING and right > WALL_PADDING:
                 self.go(STRAIGHT)
-                #print "Free of obstacle"
+                #rospy.logwarn( "[BugNav] Free of obstacle"
                 return
             else:
-                #print "Aligning with obstacle again."
+                #rospy.logwarn( "[BugNav] Aligning with obstacle again."
                 self.go(RIGHT)
             
-        # self.print_error()
-        # print "Left Obstacle"
+        # print_error()
+        # rospy.logwarn( "[BugNav] Left Obstacle"
 
     def follow_wall_clockwise(self):
-        #print "Navigating around obstacle clockwise"
+        #rospy.logwarn( "[BugNav] Navigating around obstacle clockwise"
         while current_dists.get()[0] <= WALL_PADDING:
-            #self.print_LiDAR_ranges()
-            #print "Aligning with obstacle"
+            #print_LiDAR_ranges()
+            #rospy.logwarn( "[BugNav] Aligning with obstacle"
             self.go(LEFT)
             rospy.sleep(0.1)
         while not self.should_leave_wall() and estimated_current_location.distance(self.tx, self.ty) > delta:
@@ -537,29 +557,29 @@ class Bug:
             #    self.go(BACK)
             #elif front <= WALL_PADDING:
             if front <= WALL_PADDING:
-                #self.print_LiDAR_ranges()
-                #print "Still aligning with obstacle"
+                #print_LiDAR_ranges()
+                #rospy.logwarn( "[BugNav] Still aligning with obstacle"
                 self.go(LEFT)
             elif WALL_PADDING - OBSTACLE_EDGE_TOL <= right <= WALL_PADDING + OBSTACLE_EDGE_TOL:
-                #print "Following obstacle edge"
-                #self.print_LiDAR_ranges()
+                #rospy.logwarn( "[BugNav] Following obstacle edge"
+                #print_LiDAR_ranges()
                 self.go(STRAIGHT)
             elif left > WALL_PADDING + 0.5:
-                #print "Getting too far away from obstacle"
+                #rospy.logwarn( "[BugNav] Getting too far away from obstacle"
                 self.go(RIGHT)
             elif front > WALL_PADDING and left > WALL_PADDING and right > WALL_PADDING:
                 self.go(STRAIGHT)
-                #print "Free of obstacle"
+                #rospy.logwarn( "[BugNav] Free of obstacle"
                 return
             else:
-                #print "Aligning with obstacle again."
+                #rospy.logwarn( "[BugNav] Aligning with obstacle again."
                 self.go(LEFT)
             
-        # self.print_error()
-        # print "Left Obstacle"
+        # print_error()
+        # rospy.logwarn( "[BugNav] Left Obstacle"
 
     def should_leave_wall(self):
-        print "You dolt! You need to subclass bug to know how to leave the wall"
+        rospy.logwarn( "[BugNav] You dolt! You need to subclass bug to know how to leave the wall")
         sys.exit(0.1)
 
 class Bug0(Bug):
@@ -570,8 +590,8 @@ class Bug0(Bug):
         dir_to_go = estimated_current_location.global_to_local(necessary_heading(x, y, self.tx, self.ty))
 
         if abs(dir_to_go - t) < math.pi/4 and current_dists.get()[0] > 5:
-                #self.print_error()
-                # print "Leaving obstacle"
+                #print_error()
+                # rospy.logwarn( "[BugNav] Leaving obstacle"
                 return True
         return False
 
@@ -593,18 +613,18 @@ class Bug1(Bug):
             return False
         d = estimated_current_location.distance(self.tx, self.ty)
         if d < self.closest_distance:
-            print "New closest point at", (x, y)
+            rospy.logwarn( "[BugNav] New closest point at"+ " " + (x, y) )
             self.closest_distance = d
             self.closest_point = (x, y)
 
         (ox, oy) = self.origin
         if not self.left_origin_point and not near(x, y, ox, oy):
             # we have now left the point where we hit the wall
-            print "Left original touch point"
+            rospy.logwarn( "[BugNav] Left original touch point" )
             self.left_origin_point = True
         elif near(x, y, ox, oy) and self.left_origin_point:
             # circumnavigation achieved!
-            print "Circumnavigated obstacle"
+            rospy.logwarn( "[BugNav] Circumnavigated obstacle" )
             self.circumnavigated = True
 
         (cx, ct) = self.closest_point
@@ -613,7 +633,7 @@ class Bug1(Bug):
             self.origin = (None, None)
             self.circumnavigated = False
             self.left_origin_point = False
-            print "Leaving wall"
+            rospy.logwarn( "[BugNav] Leaving wall")
             return True
 
         else:
@@ -648,7 +668,7 @@ class Bug2(Bug):
 
         if self.lh - dt <= t_angle <= self.lh + dt and not near(x, y, ox, oy):
             if cd < od:
-                print "Leaving wall"
+                rospy.logwarn( "[BugNav] Leaving wall" )
                 return True
         return False
 
@@ -657,7 +677,7 @@ def near(cx, cy, x, y):
     neary = y - .3 <= cy <= y + .3
     return nearx and neary
 
-def bug_algorithm(tx, ty, bug_type):
+def bug_algorithm(bug_type=0):
 
     # Track success stats
     global success_count
@@ -665,34 +685,24 @@ def bug_algorithm(tx, ty, bug_type):
     global success_time
     global stats_printed
     global total_time_start
-    
-    print "Waiting for location data on '/scout_1/odom/filtered...'"
-    rospy.wait_for_message('/scout_1/odom/filtered', Odometry,)
-    print "... received."
-
-    print("Waiting for break service...")
-    rospy.wait_for_service('/scout_1/brake_rover')
-    global brake_service
-    brake_service = rospy.ServiceProxy('/scout_1/brake_rover', srv.BrakeRoverSrv)
-    print("... active.")
-
+   
     if bug_type == 0:
-        bug = Bug0(tx,ty)
+         bug = Bug0()
     elif bug_type == 1:
-        bug = Bug1(tx,ty)
+        bug = Bug1()
     elif bug_type == 2:
-        bug = Bug2(tx,ty)
+        bug = Bug2()
     else:
-        print "Unknown Bug algorithm", bug_type
+        rospy.logwarn( "[BugNav] Unknown Bug algorithm" + " " +  bug_type)
         sys.exit(3)
         
     # For status messages so other nodes know when we are done or if we failed
-    status_topic = '/scout_1/bug_nav_status'
+    status_topic = "/"+robot_name+"/bug_nav_status"
     bug_nav_status_publisher = rospy.Publisher(status_topic, String, queue_size=10)
-    print "Publishing status messages on", status_topic
+    rospy.logwarn( "[BugNav] Publishing status messages on" + status_topic )
 
     # Add the command line waypoint to the queue
-    waypoint_queue.put(Point(tx, ty, 0))
+    # waypoint_queue.put(Point(tx, ty, 0))
 
     # Generate waypoints - use a thread so we don't continue until the waypoints are completed
     #thread = threading.Thread(target=random_waypoint_generator( max_num_waypoints ))
@@ -707,11 +717,15 @@ def bug_algorithm(tx, ty, bug_type):
     
     
     # Check for new waypoints every 10 seconds
-    idle = rospy.Rate(10)
+    idle = rospy.Rate(2)
     
     ###### main waypoint consumer loop  - run till node shuts down  ######
     while not rospy.is_shutdown():
-        rospy.sleep(0.1)
+        idle.sleep()
+
+
+        rospy.logwarn( "[BugNav] Waiting for waypoints..." )
+        rospy.wait_for_message("/"+robot_name+"/waypoints", Point)
         
         # Process waypoint queue, or if there are none and we are not at the coords provided on the
         # command line go there.
@@ -729,10 +743,10 @@ def bug_algorithm(tx, ty, bug_type):
             start_time = rospy.get_rostime().secs
             est_distance_to_cover = estimated_current_location.distance(wtx, wty)
             act_distance_to_cover = actual_current_location.distance(wtx, wty)
-            print("Est (x,y):",  (estimated_current_location.current_location()[0] , estimated_current_location.current_location()[1]))
-            print("Actual (x,y):",  (actual_current_location.current_location()[0] , actual_current_location.current_location()[1]))
-            print "Moving to coordinates from waypoint:", (round(wtx,2), round(wty,2)), "Distance: ", round(est_distance_to_cover,2), "m."
-            print "Actual Distance: ", round(act_distance_to_cover,2), "m."
+            rospy.logwarn( "[BugNav] Est (x,y):" + " " + "(" + str(estimated_current_location.current_location()[0]) + "," + str(estimated_current_location.current_location()[1]) )
+            rospy.logwarn( "[BugNav] Actual (x,y):"+ " " +  "(" + str(actual_current_location.current_location()[0]) + ", " + str(actual_current_location.current_location()[1]) )
+            rospy.logwarn( "[BugNav] Moving to coordinates from waypoint:" + " " + "(" + str(round(wtx,2)) + ", " + str(round(wty,2)) + " " + "Distance: "+ " " + str(round(est_distance_to_cover,2)) + " " + "m." )
+            rospy.logwarn( "[BugNav] Actual Distance: "+ " " + str(round(act_distance_to_cover,2)) + " " + "m." )
             global status_msg
             while estimated_current_location.distance(wtx, wty) > delta:
                 try:
@@ -747,7 +761,7 @@ def bug_algorithm(tx, ty, bug_type):
                         bug.follow_wall_anticlockwise()
                 except TimedOutException:
                     elapsed_time = rospy.get_rostime().secs - start_time
-                    print "Failed to reach",  (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "(sim) seconds. Distance: ", round(estimated_current_location.distance(wtx, wty),2)
+                    rospy.logwarn( "[BugNav] Failed to reach"+ " (" +  str(round(wtx,2)) + ", " + str(round(wty,2)) + ") after"+ " " + str(round(elapsed_time)) + " " + "(sim) seconds. Distance: "+ " " + str(round(estimated_current_location.distance(wtx, wty),2)) )
                     status_msg = "Timeout:", (wtx, wty)
                     bug_nav_status_publisher.publish(status_msg)
 
@@ -757,8 +771,11 @@ def bug_algorithm(tx, ty, bug_type):
                     
             # Confirm the target location was reached
             if estimated_current_location.distance(wtx, wty) < delta:
+
+                bug.go(MSG_STOP)
+                bug.apply_brakes()
                 elapsed_time = rospy.get_rostime().secs - start_time
-                print "Arrived at", (round(wtx,2), round(wty,2)), " after", round(elapsed_time), "seconds. Distance: ", round(actual_current_location.distance(wtx, wty),2)
+                rospy.logwarn( "[BugNav] Arrived at" + " " + "(" + str(round(wtx,2)) + ", " + str(round(wty,2)) + " ) " + " after "+ str(round(elapsed_time)) + " seconds. Distance: " + " " + str(round(actual_current_location.distance(wtx, wty),2)))
                 status_msg = "Arrived!"
                 bug_nav_status_publisher.publish(status_msg)
                 if escape_waypoint == None:
@@ -766,25 +783,24 @@ def bug_algorithm(tx, ty, bug_type):
                     success_distance += act_distance_to_cover
                     success_time += elapsed_time 
                 
-            bug.apply_brakes()
-            print "There are", waypoint_queue.qsize(), "waypoints remaining."
+            rospy.logwarn(  "[BugNav] There are"+ " " + str(waypoint_queue.qsize())+ " " + "waypoints remaining." )
 
         if not stats_printed:
             try:
                 success_perc = round((success_count/max_num_waypoints)*100)
             except ZeroDivisionError:
                 success_perc = 0.0
-            print "Succeeded: ", success_perc, "% of the time."
-            print "Distance covered: ", round(success_distance,2), "m"
-            print "Time spent on successful runs: ", round(success_time,2), "s"
+            rospy.logwarn( "[BugNav] Succeeded: " + " " + str(success_perc) + " " + "% of the time." )
+            rospy.logwarn( "[BugNav] Distance covered: "+ " " + str(round(success_distance,2))+ " " + "m" )
+            rospy.logwarn( "[BugNav] Time spent on successful runs: "+ " " + str(round(success_time, 2)) + " " + "s" )
             try:
                 avg_speed = round(success_distance/success_time,2)
             except ZeroDivisionError:
                 avg_speed = 0.0
-            print "Avg Speed: ", avg_speed, "m/s"
+            rospy.logwarn( "[BugNav] Avg Speed: "+ " " + str(avg_speed) + " " + "m/s" )
             # Track total time spent
             total_time_elapsed = rospy.get_rostime().secs - total_time_start
-            print "Total Time: ", round(total_time_elapsed,2), "s" 
+            rospy.logwarn( "[BugNav] Total Time: "+ " " + str(round(total_time_elapsed,2)) + " " + "s" )
     
             
             stats_printed = True
@@ -794,24 +810,24 @@ def bug_algorithm(tx, ty, bug_type):
 
 def sigint_handler(signal_received, frame):
     waypoints_processed = max_num_waypoints-waypoint_queue.qsize()
-    print "Processed", waypoints_processed,"waypoints."
+    rospy.logwarn( "[BugNav] Processed"+ " " + str(waypoints_processed) + " " +"waypoints." )
     try:
         success_perc = round((success_count/waypoints_processed)*100)
     except ZeroDivisionError:
         success_perc = 0.0
-    print "Succeeded: ", success_perc, "% of the time."
-    print "Distance covered: ", round(success_distance,2), "m"
-    print "Time spent on successful runs: ", round(success_time,2), "s"
+    rospy.logwarn( "[BugNav] Succeeded: "+ " " + str(success_perc) + " " + "% of the time." )
+    rospy.logwarn( "[BugNav] Distance covered: "+ " " + str(round(success_distance,2)) + " " + "m" )
+    rospy.logwarn( "[BugNav] Time spent on successful runs: "+ " " + str(round(success_time,2)) + " " + "s" )
     try:
         avg_speed = round(success_distance/success_time,2)
     except ZeroDivisionError:
         avg_speed = 0.0
-    print "Avg Speed: ", avg_speed, "m/s"
+    rospy.logwarn( "[BugNav] Avg Speed: "+ " " + str(avg_speed) + " " + "m/s" )
     # Track total time spent
     total_time_elapsed = rospy.get_rostime().secs - total_time_start
-    print "Total Time: ", round(total_time_elapsed,2), "s" 
+    rospy.logwarn( "[BugNav] Total Time: "+ " " + str(round(total_time_elapsed,2)) + " " + "s" ) 
     
-    print('SIGINT or CTRL-C received. Exiting.')
+    rospy.logwarn( "[BugNav] SIGINT or CTRL-C received. Exiting." )
     exit(0)
 
 def main( task=None ):
@@ -819,23 +835,25 @@ def main( task=None ):
     global actual_current_location
     global current_dists
     global status_msg
+    global waypoint_timeout
+    waypoint_timeout = rospy.get_param("waypoint_timeout", default=300) # Seconds
 
+    
+    global robot_name
+    robot_name = rospy.get_param('rover_name', default='scout_1')
+    
     estimated_current_location = Location()
     actual_current_location = Location()
     current_dists = Dist()
 
     init_listener()
     signal(SIGINT, sigint_handler)
-    while not rospy.is_shutdown():
-        if status_msg is not None:
-            if status_msg == "Arrived!":
-                sys.exit(0)
-            else:
-                sys.exit(1)
-            
-if __name__ == '__main__':
-    rospy.init_node('Bug_Obstacle_Nav', anonymous=True)
-    rospy.loginfo('Bug nav started.')
 
+    bug_algorithm()
+                
+if __name__ == '__main__':
+    rospy.init_node('Bug_Obstacle_Nav', anonymous=True, log_level=rospy.DEBUG)
+    rospy.logwarn('Bug nav started.')
+    
     sys.exit(main())
 

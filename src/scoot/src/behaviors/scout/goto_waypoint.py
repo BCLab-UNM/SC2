@@ -18,7 +18,7 @@ def main(task=None):
     rospy.loginfo('Goto Waypoint Started')
     #vol_pose = scoot.get_closest_vol_pose()
     go_to.main()
-    result = go_to.goto(20, 20, 0, 0)
+    result = go_to.goto(20, 20)
 
     if result:
         sys.exit(0)  # "succeeded" 
