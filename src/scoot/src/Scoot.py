@@ -439,13 +439,14 @@ class Scoot(object):
         model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)        ### ***** CHEATING *****
         cube.pose.position = model_coordinates("cube_sat", "scout_1").pose.position             ### ***** CHEATING *****
 
-        #rospy.logwarn("Got from detections:\n" + str(scoot.cubesat_point))
-        #rospy.logwarn("Should be:\n" + str(cube.pose.position))
+        rospy.logwarn("Got from detections:\n" + str(scoot.cubesat_point))
+        rospy.logwarn("Should be:\n" + str(cube.pose.position))
 
         #cube.pose.position = scoot.cubesat_point # when fixed
         cube.header.frame_id = "scout_1_tf/base_footprint"
         cube_in_world_point = scoot.transform_pose("scout_real_world_pose", cube, 5).pose.position
 
+        #need a TransformException and such
         '''
         # if the cubesat_point from the /scout_1/detections topic is relitive to the camera
         import tf
