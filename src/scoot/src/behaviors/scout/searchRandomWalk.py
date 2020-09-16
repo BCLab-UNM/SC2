@@ -34,8 +34,8 @@ def wander():
             rospy.loginfo("Spinning...")
             scoot.lookUp()
             # if this finds a cubesat it will go down to random_walk's except CubesatException handler
-            heading = scoot.getOdomLocation().getPose()
-            scoot.timed_drive(4, 0, scoot.TURN_SPEED)
+            heading = scoot.getOdomLocation().getPose().theta
+            scoot.timed_drive(10, 0, scoot.TURN_SPEED, ignore=ignoring)
             scoot.set_heading(heading)  # restore heading
             scoot.lookForward()
         rospy.loginfo("Wandering...")
@@ -71,10 +71,10 @@ def random_walk(num_moves):
         pass  # @NOTE: not going to use until odom is good
     except CubesatException as e:
         rospy.loginfo("Found CubeSat turning to center")
-        scoot.turn(-e.heading, ignore=Obstacles.CUBESAT)
+        scoot.turn(-e.heading, ignore=ignoring|Obstacles.CUBESAT)
         rospy.sleep(1)
         try:
-            scoot.timed_drive(3, 0, 0.1)  # so we can update the cubesat point if its still in view
+            scoot.timed_drive(3, 0, 0.1,ignore=ignoring)  # so we can update the cubesat point if its still in view
         except DriveException:
             pass
         scoot.brake()
@@ -127,10 +127,10 @@ def main(task=None):
         ignoring |= Obstacles.CUBESAT | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG | Obstacles.VISION_VOLATILE
     elif scoot.ROUND_NUMBER == 3:
         ignoring |= Obstacles.VOLATILE | Obstacles.VISION_VOLATILE
-        if scoot.cubesat_found:
+        if not scoot.cubesat_found:
+            ignoring |= Obstacles.HOME_LEG | Obstacles.HOME_FIDUCIAL
+        elif not scoot.home_arrived:
             ignoring |= Obstacles.CUBESAT
-        if scoot.home_arrived:
-            ignoring |= Obstacles.HOME_LEG
 
     random_walk(num_moves=50)
     scoot.brake()
