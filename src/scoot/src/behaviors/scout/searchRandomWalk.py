@@ -82,7 +82,7 @@ def random_walk(num_moves):
         sys.exit(0)
     except HomeLegException as e:
         rospy.loginfo("Found Home's leg turning to center and going to")
-        scoot._light(0.2)
+        scoot._light("0.2")
         # turn and drive to it, score
         try:
             scoot.turn(-e.heading, ignore=Obstacles.HOME_LEG | ignoring)
@@ -131,7 +131,7 @@ def main(task=None):
         if not scoot.cubesat_found:
             ignoring |= Obstacles.HOME_LEG | Obstacles.HOME_FIDUCIAL
         elif not scoot.home_arrived:
-            scoot._light(0.2)
+            scoot._light("0.2")
             ignoring |= Obstacles.CUBESAT
 
     random_walk(num_moves=50)
