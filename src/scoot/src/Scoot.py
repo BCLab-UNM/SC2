@@ -385,6 +385,9 @@ class Scoot(object):
 
     # @TODO: test this
     def score(self, vol_type_index=0):
+        if self.ROUND_NUMBER != 1:
+            rospy.logwarn("Volatile score called outside of round 1")
+            return False
         vol_loc = self.getVolPose()
         rospy.logwarn("trying vol_loc:")
         rospy.logwarn(vol_loc)
@@ -417,6 +420,9 @@ class Scoot(object):
             return True
 
     def score_cubesat(self):
+        if self.ROUND_NUMBER != 3:
+            rospy.logwarn("Cubesat score called outside of round 3")
+            return False
         scoot = self  # for testing to easy copy pasta
         rospy.loginfo("score_cubesat called")
         pose = self.getTruePose()  # @TODO apply offset to cubesat point for subsequent calls
@@ -470,6 +476,9 @@ class Scoot(object):
         # @TODO check response, log or score
 
     def score_home_arrive(self):
+        if self.ROUND_NUMBER != 3:
+            rospy.logwarn("Home arrive score called outside of round 3")
+            return False
         rospy.loginfo("score_home_arrive called")
         try:
             self.qal3_home_arrival_serv(True)
@@ -478,6 +487,9 @@ class Scoot(object):
             rospy.logerr("arrived_home_service call failed")
 
     def score_home_aligned(self):
+        if self.ROUND_NUMBER != 3:
+            rospy.logwarn("Home Align score called outside of round 3")
+            return False
         rospy.loginfo("score_home_aligned called")
         if not self.home_arrived:
             self.score_home_arrive()
