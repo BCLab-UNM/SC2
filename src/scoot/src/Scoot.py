@@ -423,7 +423,6 @@ class Scoot(object):
         if self.ROUND_NUMBER != 3:
             rospy.logwarn("Cubesat score called outside of round 3")
             return False
-        scoot = self  # for testing to easy copy pasta
         rospy.loginfo("score_cubesat called")
         pose = self.getTruePose()  # @TODO apply offset to cubesat point for subsequent calls
 
@@ -432,6 +431,12 @@ class Scoot(object):
         if pose is None:
             rospy.logwarn("pose is none, going to cheat to proceed")
             pose = model_coordinates("scout_1", "world").pose                                   ### ***** CHEATING *****
+        cube = PoseStamped()
+        cube.pose = Pose()
+        cube.header.frame_id = "scout_1_tf/base_footprint"
+        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)  ### ***** CHEATING *****
+        #cube.pose.position = model_coordinates("cube_sat", "scout_1").pose.position  ### ***** CHEATING *****
+        cube.pose.position = self.cubesat_point # when fixed
         br = tf.TransformBroadcaster()
         br.sendTransform((pose.position.x, pose.position.y, pose.position.z),
                          (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
@@ -439,20 +444,12 @@ class Scoot(object):
                          "scout_1_tf/base_footprint",  # maybe base_link
                          "scout_1_tf/scout_real_world_pose"  # equivalent of odom
                          )
-        cube = PoseStamped()
-        cube.pose = Pose()
-
-        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)        ### ***** CHEATING *****
-        cube.pose.position = model_coordinates("cube_sat", "scout_1").pose.position             ### ***** CHEATING *****
-
-        rospy.logwarn("Got from detections:\n" + str(scoot.cubesat_point))
+        try:
+            cube_in_world_point = self.transform_pose("scout_real_world_pose", cube, 5).pose.position
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            rospy.logwarn("TF Exception")
+        rospy.logwarn("Got from detections:\n" + str(self.cubesat_point))
         rospy.logwarn("Should be:\n" + str(cube.pose.position))
-
-        #cube.pose.position = scoot.cubesat_point # when fixed
-        cube.header.frame_id = "scout_1_tf/base_footprint"
-        cube_in_world_point = scoot.transform_pose("scout_real_world_pose", cube, 5).pose.position
-
-        #need a TransformException and such
         '''
         # if the cubesat_point from the /scout_1/detections topic is relitive to the camera
         import tf
