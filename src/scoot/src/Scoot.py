@@ -202,7 +202,6 @@ class Scoot(object):
         self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
         self.ROUND_NUMBER = rospy.get_param('round', default=1)
-        self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -235,11 +234,12 @@ class Scoot(object):
 
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
-
+        rospy.loginfo("Done waiting for general services")
         if self.rover_type == "scout":
             if self.ROUND_NUMBER == 1:
                 rospy.wait_for_service('/vol_detected_service')
                 self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
+                self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
             elif self.ROUND_NUMBER == 3:
                 self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)
                 self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)
@@ -264,7 +264,7 @@ class Scoot(object):
 
         if self.ROUND_NUMBER == 2:
             self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
-
+        rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
