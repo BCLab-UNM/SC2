@@ -37,7 +37,7 @@ def wander():
             # if this finds a cubesat it will go down to random_walk's except CubesatException handler
             heading = scoot.getOdomLocation().getPose().theta
             scoot.timed_drive(10, 0, scoot.TURN_SPEED, ignore=ignoring)
-            scoot.set_heading(heading)  # restore heading
+            scoot.set_heading(heading, ignore=ignoring)  # restore heading
             scoot.lookForward()
         rospy.loginfo("Wandering...")
         # @NOTE: The cubesat has alot of false postives when not looking up
