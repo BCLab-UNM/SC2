@@ -10,9 +10,12 @@ from Leg_Detection import LegDetection
 
 if __name__ == '__main__':
 	rospy.init_node('scoot_object_detection')
-	LogoDetection()
-	LegDetection()
-	# VolatileDetection()
-	CubesatDetection()
+	if rospy.get_param('round', default=1) == 3:
+		LogoDetection()
+		LegDetection()
+		CubesatDetection()
+	else:
+		pass
+		# VolatileDetection()
 	rospy.spin()
 
