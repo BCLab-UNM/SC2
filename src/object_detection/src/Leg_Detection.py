@@ -49,7 +49,7 @@ class LegDetection(object):
 		self.z_value_list = []
 
 
-		colors = OrderedDict({"red": (255, 0, 0),"green": (0, 255, 0),"blue": (0, 0, 255), "black": (0, 0, 0)})
+		colors = OrderedDict({"yellow": (255, 195, 0), "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255), "white": (255, 255, 255), "black": (0, 0, 0),})
 		
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
 		self.colorNames = []

@@ -218,7 +218,7 @@ class CubesatDetection(object):
 					cX = int((M["m10"] / M["m00"])  * ratio_left)
 					cY = int((M["m01"] / M["m00"])  * ratio_left)
 					area = cv2.contourArea(c)
-					if area > 100 and area < 600:
+					if area < 600:
 						shape = self.detect(c)
 						color = self.label(lab_left,c)
 						# rospy.loginfo(color)
@@ -227,6 +227,7 @@ class CubesatDetection(object):
 							c = c.astype("float")
 							c *= ratio_left
 							c = c.astype("int")
+							# rospy.loginfo(area)
 							cv2.drawContours(cv_image_left, [c], -1, (0, 255, 0), 3)
 							if self.detection_pose != None:
 								detection_msg = Detection()
