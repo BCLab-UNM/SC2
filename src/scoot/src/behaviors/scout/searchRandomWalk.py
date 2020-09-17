@@ -71,7 +71,7 @@ def random_walk(num_moves):
         pass  # @NOTE: not going to use until odom is good
     except CubesatException as e:
         rospy.loginfo("Found CubeSat turning to center")
-        scoot.turn(-e.heading, ignore=ignoring | Obstacles.CUBESAT)
+        scoot.turn(-e.heading, ignore=ignoring | Obstacles.CUBESAT | Obstacles.IS_LIDAR)
         rospy.sleep(1)
         try:
             scoot.timed_drive(3, 0, 0.1, ignore=ignoring)  # so we can update the cubesat point if its still in view
@@ -86,10 +86,15 @@ def random_walk(num_moves):
         scoot._light("0.2")
         # turn and drive to it, score
         try:
-            scoot.turn(-e.heading, ignore=Obstacles.HOME_LEG | ignoring)
+            scoot.turn(-e.heading, ignore=Obstacles.HOME_LEG | ignoring | Obstacles.IS_LIDAR)
             scoot.drive(e.distance, ignore=Obstacles.HOME_LEG | ignoring)
         except HomeLogoException as e:
             home_exception_behavior(e)
+        except ObstacleException:
+            # back up by wheel diameter
+            scoot.drive(-0.275 * 2, ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE | ignoring | Obstacles.CUBESAT)
+        finally:
+            scoot.brake()
         scoot.score_home_arrive()
         sys.exit(0)
     except HomeLogoException as e:
