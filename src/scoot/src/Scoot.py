@@ -43,26 +43,31 @@ class ObstacleException(DriveException):
         self.obstacle = obstacle
         self.distance = distance
 
+
 class CubesatException(VisionException):
     def __init__(self, heading, distance, point):
         self.heading = heading
         self.distance = distance
         self.point = point
 
+
 class VisionVolatileException(VisionException):
     def __init__(self, heading, distance):
         self.heading = heading
         self.distance = distance
+
 
 class HomeLegException(VisionException):
     def __init__(self, heading, distance):
         self.heading = heading
         self.distance = distance
 
+
 class HomeLogoException(VisionException):
     def __init__(self, heading, distance):
         self.heading = heading
         self.distance = distance
+
 
 class PathException(DriveException):
     pass
@@ -178,8 +183,13 @@ class Scoot(object):
         self.dist_data = None
         self.joint_states = None
         self.xform = None
+        self.vol_delay = 0
 
         self.cubesat_point = Point(0, 0, 0)
+        self.cubesat_found = False
+        self.home_arrived = False
+        self.home_logo_found = False
+
     def start(self, **kwargs):
         if 'tf_rover_name' in kwargs:
             self.rover_name = kwargs['tf_rover_name']
@@ -187,12 +197,11 @@ class Scoot(object):
             self.rover_name = rospy.get_namespace()
         self.rover_name = self.rover_name.strip('/')
         self.rover_type = self.rover_name.split("_")[0]  # cuts of the _# part of the rover name
-        self.TURN_SPEED = rospy.get_param("TURN_SPEED", default=0.6)
-        self.DRIVE_SPEED = rospy.get_param("DRIVE_SPEED", default=0.3)
-        self.REVERSE_SPEED = rospy.get_param("REVERSE_SPEED", default=0.2)
+        self.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
+        self.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
+        self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
         self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
         self.ROUND_NUMBER = rospy.get_param('round', default=1)
-        self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -225,15 +234,16 @@ class Scoot(object):
 
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
-
+        rospy.loginfo("Done waiting for general services")
         if self.rover_type == "scout":
             if self.ROUND_NUMBER == 1:
                 rospy.wait_for_service('/vol_detected_service')
                 self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
+                self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
             elif self.ROUND_NUMBER == 3:
-                self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)  
-                self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)  
-                self.qal3_home_align_serv = rospy.ServiceProxy('/aligned_service', srv.HomeAlignedSrv) 
+                self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)
+                self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)
+                self.qal3_home_align_serv = rospy.ServiceProxy('/aligned_service', srv.HomeAlignedSrv)
 
         elif self.rover_type == "excavator":
             self.mount_control = rospy.Publisher('/' + self.rover_name + '/mount_joint_controller/command', Float64,
@@ -254,7 +264,7 @@ class Scoot(object):
 
         if self.ROUND_NUMBER == 2:
             self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
-
+        rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
@@ -292,6 +302,8 @@ class Scoot(object):
     def getTruePose(self):
         if self.truePoseCalled:
             print("True pose already called once.")
+            # @TODO if the rover has moved 2m+ might be more useful to apply the offset to odom and return that
+            # as this assumes the rover has not moved since the prior call
             return self.true_pose_got
         else:
             try:
@@ -299,6 +311,15 @@ class Scoot(object):
                 self.true_pose_got = self.localization_service(call=True).pose
                 rospy.logwarn("true_pose_got:")
                 rospy.logwarn(self.true_pose_got.position)
+                odom_p = self.OdomLocation.Odometry.pose.pose.position
+                odom_o = self.OdomLocation.Odometry.pose.pose.orientation
+                true_pos = self.true_pose_got  # Pose
+                true_p = true_pos.position  # Point
+                true_o = true_pos.orientation  # Quaternion
+                self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z),
+                                         Quaternion(true_o.x - odom_o.x, true_o.y - odom_o.y, true_o.z - odom_o.z,
+                                                    odom_o.w - true_o.w))
+
                 return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
             except (rospy.ServiceException, AttributeError) as exc:
                 print("Service did not process request: " + str(exc))
@@ -338,14 +359,7 @@ class Scoot(object):
         pose_stamped.header.stamp = rospy.Time.now()
         odom_p = self.OdomLocation.Odometry.pose.pose.position
         odom_o = self.OdomLocation.Odometry.pose.pose.orientation
-        if self.world_offset is None:
-            true_pos = self.getTruePose()  # Pose
-            true_p = true_pos.position  # Point
-            true_o = true_pos.orientation  # Quaternion
-            self.world_offset = Pose(Point(true_p.x - odom_p.x, true_p.y - odom_p.y,  true_p.z - odom_p.z),
-                                     Quaternion(true_o.x-odom_o.x, true_o.y - odom_o.y , true_o.z - odom_o.z,
-                                                odom_o.w - true_o.w))
-            #self.world_offset = Point(true_p.x - odom_p.x, true_p.y - odom_p.y, true_p.z - odom_p.z)
+        self.getTruePose()
         offset_pos = self.world_offset.position  # Point
         offset_ori = self.world_offset.orientation  # Quaternion
         pose_stamped.pose.pose.position = Point(odom_p.x + offset_pos.x, odom_p.y + offset_pos.y,
@@ -371,6 +385,9 @@ class Scoot(object):
 
     # @TODO: test this
     def score(self, vol_type_index=0):
+        if self.ROUND_NUMBER != 1:
+            rospy.logwarn("Volatile score called outside of round 1")
+            return False
         vol_loc = self.getVolPose()
         rospy.logwarn("trying vol_loc:")
         rospy.logwarn(vol_loc)
@@ -401,7 +418,85 @@ class Scoot(object):
             rospy.logwarn("Scored!")
             rospy.sleep(.5)
             return True
-      
+
+    def score_cubesat(self):
+        if self.ROUND_NUMBER != 3:
+            rospy.logwarn("Cubesat score called outside of round 3")
+            return False
+        rospy.loginfo("score_cubesat called")
+        pose = self.getTruePose()  # @TODO apply offset to cubesat point for subsequent calls
+
+        from gazebo_msgs.srv import GetModelState                                               ### ***** CHEATING *****
+        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)        ### ***** CHEATING *****
+        if pose is None:
+            rospy.logwarn("pose is none, going to cheat to proceed")
+            pose = model_coordinates("scout_1", "world").pose                                   ### ***** CHEATING *****
+        cube = PoseStamped()
+        cube.pose = Pose()
+        cube.header.frame_id = "scout_1_tf/base_footprint"
+        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)  ### ***** CHEATING *****
+        #cube.pose.position = model_coordinates("cube_sat", "scout_1").pose.position  ### ***** CHEATING *****
+        cube.pose.position = self.cubesat_point # when fixed
+        br = tf.TransformBroadcaster()
+        br.sendTransform((pose.position.x, pose.position.y, pose.position.z),
+                         (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+                         rospy.Time.now(),
+                         "scout_1_tf/base_footprint",  # maybe base_link
+                         "scout_1_tf/scout_real_world_pose"  # equivalent of odom
+                         )
+        try:
+            cube_in_world_point = self.transform_pose("scout_real_world_pose", cube, 5).pose.position
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            rospy.logwarn("TF Exception")
+        rospy.logwarn("Got from detections:\n" + str(self.cubesat_point))
+        rospy.logwarn("Should be:\n" + str(cube.pose.position))
+        '''
+        # if the cubesat_point from the /scout_1/detections topic is relitive to the camera
+        import tf
+        listener = tf.TransformListener() 
+        if listener.frameExists("scout_1_tf/left_camera_optical") and listener.frameExists("scout_1_tf/base_footprint"):
+            t = listener.getLatestCommonTime('scout_1_tf/left_camera_optical','scout_1_tf/base_footprint')
+            p1 = PoseStamped()
+            p1.pose = Pose()
+            p1.pose.position = scoot.cubesat_point
+            p1.header.frame_id = "scout_1_tf/left_camera_optical"
+            p1.pose.orientation.w = 1.0    # Neutral orientation
+            p_in_base = listener.transformPose("/scout_1_tf/base_footprint", p1)
+            print p_in_base
+        '''
+
+        try:
+            self.qal3_apriori_loc_serv(cube_in_world_point)
+            self.cubesat_found = True
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("apriori_location_service call failed")
+        # @TODO check response, log or score
+
+    def score_home_arrive(self):
+        if self.ROUND_NUMBER != 3:
+            rospy.logwarn("Home arrive score called outside of round 3")
+            return False
+        rospy.loginfo("score_home_arrive called")
+        try:
+            self.qal3_home_arrival_serv(True)
+            self.home_arrived = True
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("arrived_home_service call failed")
+
+    def score_home_aligned(self):
+        if self.ROUND_NUMBER != 3:
+            rospy.logwarn("Home Align score called outside of round 3")
+            return False
+        rospy.loginfo("score_home_aligned called")
+        if not self.home_arrived:
+            self.score_home_arrive()
+        try:
+            self.qal3_home_align_serv(True)
+            self.home_logo_found = True
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("aligned_service call failed")
+
+
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
     def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
@@ -499,9 +594,9 @@ class Scoot(object):
             elif value == MoveResult.VISION_VOLATILE:
                 raise VisionVolatileException(heading, distance)
             elif value == MoveResult.CUBESAT:
-                self.cubesat_point = rospy.get_param("/"+self.rover_name+"/cubesat_point_from_rover",
+                self.cubesat_point = rospy.get_param("/" + self.rover_name + "/cubesat_point_from_rover",
                                                      default={'x': 0, 'y': 0, 'z': 0})
-                self.cubesat_point = Point(*self.cubesat_point.values())
+                self.cubesat_point = Point(self.cubesat_point['x'], self.cubesat_point['y'], self.cubesat_point['z'])
                 raise CubesatException(heading, distance, self.cubesat_point)
             elif value == MoveResult.HOME_LEG:
                 raise HomeLegException(heading, distance)
