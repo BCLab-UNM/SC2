@@ -4,7 +4,7 @@ FROM ros:melodic
 RUN mkdir -p /SC2/src
 
 # Install dependencies
-RUN sudo apt-get update && sudo apt-get install -y
+RUN sudo apt-get update && apt-get upgrade -y && sudo apt-get install -y
 RUN sudo apt-get install -y \
 	ros-melodic-tf \
 	ros-melodic-angles \
