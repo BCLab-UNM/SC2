@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    <include file="$(find scoot)/launch/scoot.launch" />
-        <arg name="name" default="scout_1"/>
-        <arg name="search" default="searchRandomWalk"/>
-        <arg name="round" default="3"/>
+    <include file="$(find scoot)/launch/scoot.launch">
+        <arg name="name" value="scout_1"/>
+        <arg name="search" value="searchRandomWalk"/>
+        <arg name="round" value="3"/>
         <arg name="mode" value="auto"/>
+    </include>
 </launch>
