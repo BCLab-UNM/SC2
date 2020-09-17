@@ -20,7 +20,8 @@ def turnaround(ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE):
     global ignoring
     scoot.drive(-0.275 * 2, ignore=ignore | ignoring | Obstacles.CUBESAT)  # back up by wheel diameter
 
-    scoot.lookUp()
+    if scoot.ROUND_NUMBER == 3 and not scoot.cubesat_found:
+        scoot.lookUp()
     scoot.turn(random.gauss(math.pi / 2, math.pi / 4), ignore=ignore | ignoring)
     scoot.lookForward()
 
