@@ -376,7 +376,7 @@ class Scoot(object):
         add_x = math.cos(theta) * 1.143
         add_y = math.sin(theta) * 1.143
         ps.pose.position.x = pose_stamped.pose.pose.position.x + add_x
-        ps.pose.position.y = pose_stamped.pose.pose.position.y + add_y
+        ps.pose.position.y = pose_stamped.pose.pose.position.y - add_y
         ps.pose.position.z = 0.0
 
         return ps.pose.position
