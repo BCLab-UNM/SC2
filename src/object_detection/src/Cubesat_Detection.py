@@ -126,6 +126,7 @@ class CubesatDetection(object):
 		# 	y_avg = y_sum / count
 		# 	z_avg = z_sum / count
 
+
 		
 		data = pc2.read_points_list(point_cloud_msg, skip_nans=True)
 		# rospy.logwarn(data)
@@ -152,6 +153,7 @@ class CubesatDetection(object):
 			# if self.debug == True:
 				# rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
 			# return
+
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
 		

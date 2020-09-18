@@ -15,8 +15,6 @@ from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovariance, PoseWith
     Quaternion, Pose
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
-
-from gazebo_msgs.srv import GetModelState
 from scoot.srv import Core
 
 from functools import wraps
@@ -424,52 +422,13 @@ class Scoot(object):
             rospy.logwarn("Cubesat score called outside of round 3")
             return False
         rospy.loginfo("score_cubesat called")
-        pose = self.getTruePose()  # @TODO apply offset to cubesat point for subsequent calls
-
-        from gazebo_msgs.srv import GetModelState                                               ### ***** CHEATING *****
-        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)        ### ***** CHEATING *****
-        if pose is None:
-            rospy.logwarn("pose is none, going to cheat to proceed")
-            pose = model_coordinates("scout_1", "world").pose                                   ### ***** CHEATING *****
-        cube = PoseStamped()
-        cube.pose = Pose()
-        cube.header.frame_id = "scout_1_tf/base_footprint"
-        model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)  ### ***** CHEATING *****
-        #cube.pose.position = model_coordinates("cube_sat", "scout_1").pose.position  ### ***** CHEATING *****
-        cube.pose.position = self.cubesat_point # when fixed
-        br = tf.TransformBroadcaster()
-        br.sendTransform((pose.position.x, pose.position.y, pose.position.z),
-                         (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
-                         rospy.Time.now(),
-                         "scout_1_tf/base_footprint",  # maybe base_link
-                         "scout_1_tf/scout_real_world_pose"  # equivalent of odom
-                         )
         try:
-            cube_in_world_point = self.transform_pose("scout_real_world_pose", cube, 5).pose.position
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            rospy.logwarn("TF Exception")
-        rospy.logwarn("Got from detections:\n" + str(self.cubesat_point))
-        rospy.logwarn("Should be:\n" + str(cube.pose.position))
-        '''
-        # if the cubesat_point from the /scout_1/detections topic is relitive to the camera
-        import tf
-        listener = tf.TransformListener() 
-        if listener.frameExists("scout_1_tf/left_camera_optical") and listener.frameExists("scout_1_tf/base_footprint"):
-            t = listener.getLatestCommonTime('scout_1_tf/left_camera_optical','scout_1_tf/base_footprint')
-            p1 = PoseStamped()
-            p1.pose = Pose()
-            p1.pose.position = scoot.cubesat_point
-            p1.header.frame_id = "scout_1_tf/left_camera_optical"
-            p1.pose.orientation.w = 1.0    # Neutral orientation
-            p_in_base = listener.transformPose("/scout_1_tf/base_footprint", p1)
-            print p_in_base
-        '''
-
-        try:
-            self.qal3_apriori_loc_serv(cube_in_world_point)
-            self.cubesat_found = True
+            if self.qal3_apriori_loc_serv(self.cubesat_point):
+                self.cubesat_found = True
+                return True
         except (rospy.ServiceException, AttributeError):
             rospy.logerr("apriori_location_service call failed")
+        return False
         # @TODO check response, log or score
 
     def score_home_arrive(self):
@@ -478,10 +437,12 @@ class Scoot(object):
             return False
         rospy.loginfo("score_home_arrive called")
         try:
-            self.qal3_home_arrival_serv(True)
-            self.home_arrived = True
+            if self.qal3_home_arrival_serv(True):
+                self.home_arrived = True
+                return True
         except (rospy.ServiceException, AttributeError):
             rospy.logerr("arrived_home_service call failed")
+        return False
 
     def score_home_aligned(self):
         if self.ROUND_NUMBER != 3:
@@ -491,10 +452,12 @@ class Scoot(object):
         if not self.home_arrived:
             self.score_home_arrive()
         try:
-            self.qal3_home_align_serv(True)
-            self.home_logo_found = True
+            if self.qal3_home_align_serv(True):
+                self.home_logo_found = True
+                return True
         except (rospy.ServiceException, AttributeError):
             rospy.logerr("aligned_service call failed")
+        return False
 
 
     # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
