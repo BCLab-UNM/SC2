@@ -30,6 +30,8 @@ from rospy import ServiceException
 class CubesatDetection(object):
 
 	def __init__(self):
+		
+		rospy.logwarn('from cubesat')
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
@@ -66,8 +68,8 @@ class CubesatDetection(object):
 
 	def get_truepose(self):
 		# extract the robot's XYZ position and heading (q) from the odometry message
-		rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
-		localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
+		rospy.wait_for_service('/scout_1/get_true_pose')
+		localization_service = rospy.ServiceProxy('/scout_1/get_true_pose', srv.LocalizationSrv)
 		true_pose_got = None
 
 		try:
@@ -76,10 +78,10 @@ class CubesatDetection(object):
 			pass
 
 		try:
-			# self.odom_pose = [0, 0, 0]
-			# self.odom_pose[0] = odom_msg.pose.pose.position.x
-			# self.odom_pose[1] = odom_msg.pose.pose.position.y
-			# self.odom_pose[2] = odom_msg.pose.pose.position.z
+			self.odom_pose = [0, 0, 0]
+			self.odom_pose[0] = true_pose_got.position.x
+			self.odom_pose[1] = true_pose_got.position.y
+			self.odom_pose[2] = true_pose_got.position.z
 			# q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
 			q = [true_pose_got.orientation.x, true_pose_got.orientation.y, true_pose_got.orientation.z, true_pose_got.orientation.w]
 			h = Rotation.from_quat(q)
@@ -90,6 +92,7 @@ class CubesatDetection(object):
 
 
 	def pc_callback(self, point_cloud_msg):
+		rospy.logwarn('from pc callback')
 		'''
 		This callback function takes point cloud data and along with a TF transform
 		to the robot base link calculates an approximate xyz coordinate for the cubesat
@@ -123,32 +126,34 @@ class CubesatDetection(object):
 		# 	y_avg = y_sum / count
 		# 	z_avg = z_sum / count
 
-		try:
-			data = pc2.read_points(point_cloud_msg, skip_nans=True)
 
-			x_avg = data[0]
-			y_avg = data[1]
-			z_avg = data[2]
+		
+		data = pc2.read_points_list(point_cloud_msg, skip_nans=True)
+		# rospy.logwarn(data)
+		# x_avg = data[0].x
+		# y_avg = data[1].y
+		# z_avg = data[2].z
 
-			H = z_avg # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
-			self.distance = H
+		H = z_avg # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
+		self.distance = H
 
-			# ----------------------------------------------------------------------------------------------------------
-			# calculate a transform from the point cloud to our camera frame of reference
-			# ONLY THE Z VALUE IS ACCURATE IN THIS TRANSFORM, further processing is needed to get the X and Y using odom
-			# ----------------------------------------------------------------------------------------------------------
-			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
-			pose_stamped = PoseStamped()
-			pose_stamped.header = point_cloud_msg.header
-			pose_stamped.pose.position.x = x_avg
-			pose_stamped.pose.position.y = y_avg
-			pose_stamped.pose.position.z = z_avg
-			pose_stamped.pose.orientation = transform.transform.rotation
-			pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
-		except Exception:
+		# ----------------------------------------------------------------------------------------------------------
+		# calculate a transform from the point cloud to our camera frame of reference
+		# ONLY THE Z VALUE IS ACCURATE IN THIS TRANSFORM, further processing is needed to get the X and Y using odom
+		# ----------------------------------------------------------------------------------------------------------
+		transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
+		pose_stamped = PoseStamped()
+		pose_stamped.header = point_cloud_msg.header
+		pose_stamped.pose.position = data[5]
+		# pose_stamped.pose.position.y = y_avg
+		# pose_stamped.pose.position.z = z_avg
+		pose_stamped.pose.orientation = transform.transform.rotation
+		pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
+		# except Exception:
 			# if self.debug == True:
-			# rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
-			return
+				# rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
+			# return
+
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
 		
@@ -160,7 +165,7 @@ class CubesatDetection(object):
 
 		V = math.sqrt(V)
 
-		if V < 21.0 and self.used_truepose == False:
+		if H < 25.0 and self.used_truepose == False:
 			self.get_truepose()
 			self.used_truepose = True
 		

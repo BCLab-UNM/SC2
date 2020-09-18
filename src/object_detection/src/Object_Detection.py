@@ -14,6 +14,7 @@ if __name__ == '__main__':
 		LogoDetection()
 		LegDetection()
 		CubesatDetection()
+		rospy.logwarn('from object detect')
 	else:
 		pass
 		# VolatileDetection()
