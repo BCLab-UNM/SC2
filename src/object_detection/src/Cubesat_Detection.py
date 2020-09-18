@@ -75,7 +75,7 @@ class CubesatDetection(object):
 		try:
 			true_pose_got = localization_service(call=True).pose
 		except ServiceException:
-			pass
+			rospy.logerr('**********get_true_pose call failed. PLEASE RESTART**************')
 
 		try:
 			self.odom_pose = [0, 0, 0]
@@ -129,30 +129,35 @@ class CubesatDetection(object):
 
 		
 		data = pc2.read_points_list(point_cloud_msg, skip_nans=True)
+		if len(data) < 5:
+			return
 		# rospy.logwarn(data)
 		# x_avg = data[0].x
 		# y_avg = data[1].y
 		# z_avg = data[2].z
 
-		H = z_avg # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
+		H = data[5].z # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
 		self.distance = H
 
 		# ----------------------------------------------------------------------------------------------------------
 		# calculate a transform from the point cloud to our camera frame of reference
 		# ONLY THE Z VALUE IS ACCURATE IN THIS TRANSFORM, further processing is needed to get the X and Y using odom
 		# ----------------------------------------------------------------------------------------------------------
-		transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
+		try:
+			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
+		except Exception:
+			return
+
 		pose_stamped = PoseStamped()
 		pose_stamped.header = point_cloud_msg.header
 		pose_stamped.pose.position = data[5]
 		# pose_stamped.pose.position.y = y_avg
 		# pose_stamped.pose.position.z = z_avg
 		pose_stamped.pose.orientation = transform.transform.rotation
-		pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
-		# except Exception:
-			# if self.debug == True:
-				# rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
-			# return
+		try:
+			pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
+		except Exception:
+			return
 
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
