@@ -123,20 +123,20 @@ class CubesatDetection(object):
 		# 	y_avg = y_sum / count
 		# 	z_avg = z_sum / count
 
-		data = pc2.read_points(point_cloud_msg, skip_nans=True)
-
-		x_avg = data[0]
-		y_avg = data[1]
-		z_avg = data[2]
-
-		H = z_avg # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
-		self.distance = H
-
-		# ----------------------------------------------------------------------------------------------------------
-		# calculate a transform from the point cloud to our camera frame of reference
-		# ONLY THE Z VALUE IS ACCURATE IN THIS TRANSFORM, further processing is needed to get the X and Y using odom
-		# ----------------------------------------------------------------------------------------------------------
 		try:
+			data = pc2.read_points(point_cloud_msg, skip_nans=True)
+
+			x_avg = data[0]
+			y_avg = data[1]
+			z_avg = data[2]
+
+			H = z_avg # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
+			self.distance = H
+
+			# ----------------------------------------------------------------------------------------------------------
+			# calculate a transform from the point cloud to our camera frame of reference
+			# ONLY THE Z VALUE IS ACCURATE IN THIS TRANSFORM, further processing is needed to get the X and Y using odom
+			# ----------------------------------------------------------------------------------------------------------
 			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
 			pose_stamped = PoseStamped()
 			pose_stamped.header = point_cloud_msg.header
@@ -152,12 +152,11 @@ class CubesatDetection(object):
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
 		
+		# pythagorean thereom: V^2 = H^2 - Z^2; V = sqrt(H^2 - Z^2)
 		V = (H * H) - (Z * Z) # side V of a right triangle from scout to cubesat (triangle HZV)
-                                      # pythagorean thereom: V^2 = H^2 - Z^2; V = sqrt(H^2 - Z^2)
-		
 		# consider some edge cases for the calculation of V and make an estimate adjustment
 		if (V < 0.0):
-			V *= -1.0;
+			V *= -1.0
 
 		V = math.sqrt(V)
 
