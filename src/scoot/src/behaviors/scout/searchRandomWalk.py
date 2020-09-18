@@ -70,11 +70,12 @@ def random_walk(num_moves):
     except VisionVolatileException as e:
         pass  # @NOTE: not going to use until odom is good
     except CubesatException as e:
-        rospy.loginfo("Found CubeSat turning to center")
-        scoot.turn(-e.heading, ignore=ignoring | Obstacles.CUBESAT | Obstacles.IS_LIDAR)
-        rospy.sleep(1)
+        rospy.loginfo("Found CubeSat waiting")
+        scoot.brake()
+        # scoot.turn(-e.heading, ignore=ignoring | Obstacles.CUBESAT | Obstacles.IS_LIDAR)
+        rospy.sleep(3)
         try:
-            scoot.timed_drive(3, 0, 0.1, ignore=ignoring)  # so we can update the cubesat point if its still in view
+            scoot.timed_drive(5, 0, 0.1, ignore=ignoring)  # so we can update the cubesat point if its still in view
         except DriveException:
             pass
         scoot.brake()
