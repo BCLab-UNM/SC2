@@ -4,17 +4,19 @@ FROM ros:melodic
 RUN mkdir -p /SC2/src
 
 # Install dependencies
-RUN sudo apt-get update && sudo apt-get install -y
+RUN sudo apt-get update && apt-get upgrade -y && sudo apt-get install -y
 RUN sudo apt-get install -y \
 	ros-melodic-tf \
 	ros-melodic-angles \
 	ros-melodic-gazebo-msgs \
 	ros-melodic-robot-localization \
 	ros-melodic-stereo-image-proc \
-	ros-melodic-gazebo-ros
+	ros-melodic-gazebo-ros \
+	ros-melodic-geometry2 \
+	python-pip
 
-# python-cv-bridge
-# python-scipy
+RUN pip install imutils
+RUN pip install scipy==1.2.0
 
 # Clear apt cache to save on space
 RUN rm -rf /var/lib/apt/lists/*

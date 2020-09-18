@@ -9,6 +9,7 @@
   <param name="rover_name_tf" value="$(arg name)_tf"/>
   <param name="search" value="$(arg search)"/>
   <param name="mode" value="$(arg mode)"/>
+  <param name="round" value="$(arg round)"/>
 
   <include file="$(find scoot)/launch/tf.xml">
       <arg name="name_tf" value="$(arg name)_tf"/>

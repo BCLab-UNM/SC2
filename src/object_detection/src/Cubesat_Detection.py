@@ -2,21 +2,14 @@
 
 from __future__ import division
 import rospy
-import sys
 import cv2
 import numpy as np
 from sensor_msgs.msg import Image
-from sensor_msgs.msg import CameraInfo
 from sensor_msgs.point_cloud2 import PointCloud2
 from nav_msgs.msg import Odometry
 import sensor_msgs.point_cloud2 as pc2
-from std_msgs.msg import String
-from std_msgs.msg import Float64
-from std_msgs.msg import Bool
 from obstacle.msg import Obstacles
 from cv_bridge import CvBridge
-from matplotlib import pyplot as plt
-import time
 import imutils
 import math
 from scipy.spatial import distance as dist
@@ -26,7 +19,6 @@ from object_detection.msg import Detection
 import tf2_ros
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import PoseWithCovariance
 # required libraries:
 #     - sudo apt-get install ros-melodic-geometry2
 #     - pip install imutils

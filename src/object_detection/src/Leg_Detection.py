@@ -11,11 +11,8 @@ from sensor_msgs.msg import CameraInfo
 from sensor_msgs.point_cloud2 import PointCloud2
 from nav_msgs.msg import Odometry
 import sensor_msgs.point_cloud2 as pc2
-from std_msgs.msg import String
-from std_msgs.msg import Bool
 from obstacle.msg import Obstacles
 from cv_bridge import CvBridge
-from matplotlib import pyplot as plt
 import time
 import imutils
 import math
