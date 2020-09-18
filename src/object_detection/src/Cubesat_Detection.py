@@ -90,25 +90,31 @@ class CubesatDetection(object):
 		# -------------------------------------------------------------
 		# take the average XYZ point of all point cloud points detected
 		# -------------------------------------------------------------
-		x_sum = 0.0
-		y_sum = 0.0
-		z_sum = 0.0
-		count = 0.0		
+		# x_sum = 0.0
+		# y_sum = 0.0
+		# z_sum = 0.0
+		# count = 0.0		
 
-		for data in pc2.read_points(point_cloud_msg, skip_nans=True):
-			x_sum += data[0]
-			y_sum += data[1]
-			z_sum += data[2]
-			count += 1
+		# for data in pc2.read_points(point_cloud_msg, skip_nans=True):
+		# 	x_sum += data[0]
+		# 	y_sum += data[1]
+		# 	z_sum += data[2]
+		# 	count += 1
 
-		if count < 1:
-			if self.debug == True:
-				rospy.loginfo('Cubesat Detection: no point cloud detection')
-			return
-		else:
-			x_avg = x_sum / count
-			y_avg = y_sum / count
-			z_avg = z_sum / count
+		# if count < 1:
+		# 	if self.debug == True:
+		# 		rospy.loginfo('Cubesat Detection: no point cloud detection')
+		# 	return
+		# else:
+		# 	x_avg = x_sum / count
+		# 	y_avg = y_sum / count
+		# 	z_avg = z_sum / count
+
+		data = pc2.read_points(point_cloud_msg, skip_nans=True)
+
+		x_avg = data[0]
+		y_avg = data[1]
+		z_avg = data[2]
 
 		H = z_avg # hypotenuse of a right triangle from scout to cubesat (triangle HZV)
 		self.distance = H
@@ -145,10 +151,12 @@ class CubesatDetection(object):
 		if self.heading != None:
 			# V is the magnitude of a vector from the robot to the cubesat, we can use trigonometry to approximate a transform
 			# from the XY of the robot to the XY of the cubesat (Z is already calculated above)
+			# rospy.loginfo('Heading= ' + str(self.heading))
+
 			self.detection_pose = [0, 0, 0]
-			self.detection_pose[2] = Z # + self.odom_pose[2]
-			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction)) # + self.odom_pose[1]
-			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction)) # + self.odom_pose[0]
+			self.detection_pose[2] = Z  #+ self.odom_pose[2]
+			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction))  #+ self.odom_pose[1]
+			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction))  #+ self.odom_pose[0]
 
 
 	def detect(self, c):
@@ -231,6 +239,8 @@ class CubesatDetection(object):
 								detection_msg.heading = ((cX - 320) / 640) * 2.0944 # radians (approx 120 degrees)
 								self.heading_correction = detection_msg.heading
 								self.cubesat_detection_publisher.publish(detection_msg)
+
+
 
 			# publish the detection image topic showing the detected object contour
 			# used for debugging and visualisation
