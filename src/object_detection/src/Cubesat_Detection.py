@@ -146,8 +146,8 @@ class CubesatDetection(object):
 			pose_stamped.pose.orientation = transform.transform.rotation
 			pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
 		except Exception:
-			if self.debug == True:
-				rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
+			# if self.debug == True:
+			# rospy.logerr('Cubesat Detection: exception in transform (if this rarely happens its ok)')
 			return
 		
 		Z = pose_transformed.pose.position.z # side Z of a right triangle from scout to cubesat (triangle HZV)
