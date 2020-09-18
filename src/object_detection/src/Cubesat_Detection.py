@@ -92,7 +92,6 @@ class CubesatDetection(object):
 
 
 	def pc_callback(self, point_cloud_msg):
-		rospy.logwarn('from pc callback')
 		'''
 		This callback function takes point cloud data and along with a TF transform
 		to the robot base link calculates an approximate xyz coordinate for the cubesat
