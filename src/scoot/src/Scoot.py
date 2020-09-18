@@ -422,26 +422,8 @@ class Scoot(object):
             rospy.logwarn("Cubesat score called outside of round 3")
             return False
         rospy.loginfo("score_cubesat called")
-        pose = self.getTruePose()  # @TODO apply offset to cubesat point for subsequent calls
-        if pose is None:
-            rospy.logerr("pose is none, make sure to relaunch sim")
-        cube = PoseStamped()
-        cube.pose = Pose()
-        cube.header.frame_id = "scout_1_tf/base_footprint"
-        cube.pose.position = self.cubesat_point
-        br = tf.TransformBroadcaster()
-        br.sendTransform((pose.position.x, pose.position.y, pose.position.z),
-                         (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
-                         rospy.Time.now(),
-                         "scout_1_tf/base_footprint",  # maybe base_link
-                         "scout_1_tf/scout_real_world_pose"  # equivalent of odom
-                         )
         try:
-            cube_in_world_point = self.transform_pose("scout_real_world_pose", cube, 5).pose.position
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            rospy.logwarn("TF Exception")
-        try:
-            if self.qal3_apriori_loc_serv(cube_in_world_point):
+            if self.qal3_apriori_loc_serv(self.cubesat_point):
                 self.cubesat_found = True
                 return True
         except (rospy.ServiceException, AttributeError):
