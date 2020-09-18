@@ -19,6 +19,8 @@ from object_detection.msg import Detection
 import tf2_ros
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseStamped
+from srcp2_msgs import msg, srv
+from rospy import ServiceException
 # required libraries:
 #     - sudo apt-get install ros-melodic-geometry2
 #     - pip install imutils
@@ -31,7 +33,7 @@ class CubesatDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
+		# self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
 		self.left_camera_subscriber = rospy.Subscriber('/scout_1/camera/left/image_raw', Image, self.cam_callback)
 
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=100)
@@ -59,16 +61,27 @@ class CubesatDetection(object):
 		self.detection_pose = None
 		self.heading_correction = 0.0
 		self.debug = True
+		self.used_truepose = False
 
 
-	def odom_callback(self, odom_msg):
+	def get_truepose(self):
 		# extract the robot's XYZ position and heading (q) from the odometry message
+		rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
+		localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
+		true_pose_got = None
+
 		try:
-			self.odom_pose = [0, 0, 0]
-			self.odom_pose[0] = odom_msg.pose.pose.position.x
-			self.odom_pose[1] = odom_msg.pose.pose.position.y
-			self.odom_pose[2] = odom_msg.pose.pose.position.z
-			q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
+			true_pose_got = localization_service(call=True).pose
+		except ServiceException:
+			pass
+
+		try:
+			# self.odom_pose = [0, 0, 0]
+			# self.odom_pose[0] = odom_msg.pose.pose.position.x
+			# self.odom_pose[1] = odom_msg.pose.pose.position.y
+			# self.odom_pose[2] = odom_msg.pose.pose.position.z
+			# q = [odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
+			q = [true_pose_got.orientation.x, true_pose_got.orientation.y, true_pose_got.orientation.z, true_pose_got.orientation.w]
 			h = Rotation.from_quat(q)
 			self.heading = (h.as_rotvec())[2]
 		except Exception:
@@ -148,15 +161,19 @@ class CubesatDetection(object):
 
 		V = math.sqrt(V)
 
+		if V < 21.0 and self.used_truepose == False:
+			self.get_truepose()
+			self.used_truepose = True
+		
 		if self.heading != None:
 			# V is the magnitude of a vector from the robot to the cubesat, we can use trigonometry to approximate a transform
 			# from the XY of the robot to the XY of the cubesat (Z is already calculated above)
 			# rospy.loginfo('Heading= ' + str(self.heading))
 
 			self.detection_pose = [0, 0, 0]
-			self.detection_pose[2] = Z  #+ self.odom_pose[2]
-			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction))  #+ self.odom_pose[1]
-			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction))  #+ self.odom_pose[0]
+			self.detection_pose[2] = Z  + self.odom_pose[2]
+			self.detection_pose[1] = (V * math.sin(self.heading - self.heading_correction))  + self.odom_pose[1]
+			self.detection_pose[0] = (V * math.cos(self.heading - self.heading_correction))  + self.odom_pose[0]
 
 
 	def detect(self, c):
