@@ -12,7 +12,9 @@ RUN sudo apt install -y \
 	ros-noetic-robot-localization \
 	ros-noetic-stereo-image-proc \
 	ros-noetic-gazebo-ros \
-	ros-noetic-geometry2 
+	ros-noetic-geometry2 \
+	python3-catkin-tools \
+	python3-osrf-pycommon
 
 RUN pip install imutils
 RUN pip install scipy==1.2.0
