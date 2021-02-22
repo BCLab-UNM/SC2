@@ -1,19 +1,20 @@
-FROM ros:melodic
+FROM ros:noetic
 
 # set up the ros-ws
 RUN mkdir -p /SC2/src
 
 # Install dependencies
-RUN sudo apt-get update && apt-get upgrade -y && sudo apt-get install -y
-RUN sudo apt-get install -y \
-	ros-melodic-tf \
-	ros-melodic-angles \
-	ros-melodic-gazebo-msgs \
-	ros-melodic-robot-localization \
-	ros-melodic-stereo-image-proc \
-	ros-melodic-gazebo-ros \
-	ros-melodic-geometry2 \
-	python-pip
+RUN sudo apt update && apt upgrade -y && sudo apt install -y
+RUN sudo apt install -y \
+	ros-noetic-tf \
+	ros-noetic-angles \
+	ros-noetic-gazebo-msgs \
+	ros-noetic-robot-localization \
+	ros-noetic-stereo-image-proc \
+	ros-noetic-gazebo-ros \
+	ros-noetic-geometry2 \
+	python3-catkin-tools \
+	python3-osrf-pycommon
 
 RUN pip install imutils
 RUN pip install scipy==1.2.0
@@ -28,4 +29,4 @@ RUN rm -rf /SC2/devel
 RUN rm -rf /SC2/build
 
 # Build project
-RUN /bin/bash -c "source /opt/ros/melodic/setup.bash; source /SC2/srcp2-competitors/ros_workspace/install/setup.bash; cd /SC2; catkin_make"
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash; source /SC2/srcp2-competitors/ros_workspace/install/setup.bash; cd /SC2; catkin_make"

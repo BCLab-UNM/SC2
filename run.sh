@@ -1,23 +1,17 @@
 #!/bin/bash
 
 SLEEP_INTERVAL=5
-round=1
 arg=""
 while [ $# -gt 0 ]
 do
     case $1 in
         -b)     rm "$(dirname $0)/devel/setup.bash" 2>/dev/null
                 ;;
-        -n)     arg="-n"
-                ;;
-        -r)     shift
-                round="$1"
-                ;;
-        -h | --help) echo "usage: ./run.sh [-r round] [-n no Gazebo GUI] [-b clean/build code] [--help]"
+        -h | --help) echo "usage: ./run.sh [-b clean/build code] [--help]"
                 exit 1
                 ;;
         *)      echo "invalid argument"
-                echo "usage: ./run.sh [-r round] [-n no Gazebo GUI] [-b clean/build code] [--help]"
+                echo "usage: ./run.sh [-b clean/build code] [--help]"
                 exit 2
                 ;;
     esac
@@ -26,7 +20,7 @@ done # end of while
 
 # Trap signals then stop all docker containers
 trap "{ docker kill $(docker ps -q) ; echo q >> /tmp/srcp2RunSocket; exit 0 ; }" SIGINT SIGTERM EXIT
-source /opt/ros/melodic/setup.bash || { echo "Is ROS melodic installed?" && exit 10 ; }
+source /opt/ros/noetic/setup.bash || { echo "Is ROS noetic installed?" && exit 10 ; }
 
 _CATKIN_SETUP_DIR="$(dirname $0)/srcp2-competitors/ros_workspace/install/"
 source "$(dirname $0)/srcp2-competitors/ros_workspace/install/setup.bash" 
@@ -43,8 +37,6 @@ else
     #exit -1
 fi
 
-lspci -v | grep nvidia >/dev/null && echo "Found Nvidia Card" || { arg="${arg} -c" ; echo "No Nvidia Card Using CPU" ; } 
-#[ -z "$arg" ] && echo "No Nvidia Card Using CPU"
 
 # run the round in the background
 # -n is for no Gazebo GUI
@@ -52,7 +44,8 @@ lspci -v | grep nvidia >/dev/null && echo "Found Nvidia Card" || { arg="${arg} -
 rm /tmp/srcp2RunSocket 2>/dev/null # kill the old one if it is there
 mkfifo /tmp/srcp2RunSocket # Create FIFO Pipe
 cat >/tmp/srcp2RunSocket & # this will leave it open
-$(dirname $0)/srcp2-competitors/docker/scripts/launch/roslaunch_docker $arg --run-round $round </tmp/srcp2RunSocket >/dev/null &
+$(dirname $0)/srcp2-competitors/docker/scripts/run_srcp2_final $arg </tmp/srcp2RunSocket >/dev/null &
+
 echo "Waiting for master to startup"
 watch --chgexit rostopic list 2>&1 >/dev/null
 echo "Sleeping for 10 secs"
@@ -60,11 +53,11 @@ sleep 10 # wait abit more, might look for a particluar topic to show up insted
 echo "Unpausing Gazebo Physics"
 rosservice call /gazebo/unpause_physics
 echo "Launching our launch file"
-roslaunch "$(dirname $0)"/launch/qual_round_"$round".launch &
+roslaunch "$(dirname $0)"/launch/final_round.launch &
 echo "Launched"
 sleep $SLEEP_INTERVAL
 
-# display round score
+# display score
 while rostopic list /rosout; do
     clear
     score=`rostopic echo -n 1 /qual_"$round"_score/score | head -n1 | tr -d '"'`  # update the score
