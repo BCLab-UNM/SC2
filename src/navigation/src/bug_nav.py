@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # Matthew Fricke, 2020, based on an implementation by Isabelle and Ethan Miller distibuted under the MIT license.
 

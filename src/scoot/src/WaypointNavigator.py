@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 import angles, math, tf, rospy
 
 def toRadians(degree):

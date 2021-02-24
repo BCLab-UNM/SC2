@@ -1,11 +1,11 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 from __future__ import print_function
 
 import sys
 import math
 import rospy
-import StringIO
+from io import StringIO
 import traceback
 import threading
 from std_msgs.msg import UInt8, String

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Fine Search node."""
 
 from __future__ import print_function

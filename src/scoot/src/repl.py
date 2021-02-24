@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from Scoot import *
 from behaviors import *
 from obstacle.msg import Obstacles

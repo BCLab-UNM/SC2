@@ -1,4 +1,4 @@
-#! /usr/bin/env python 
+#! /usr/bin/env python3 
 
 from __future__ import print_function
 
@@ -9,11 +9,10 @@ import rospy
 import angles
 import math
 import copy
-import thread
+import _thread
 import threading
 
-from Queue import Queue
-
+from multiprocessing import Queue  # or import queue
 import tf
 # from sensor_msgs.msg import Joy
 from std_msgs.msg import UInt8, String, Float32
@@ -121,7 +120,7 @@ class State:
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
         # Start a thread to do initial configuration.
-        thread.start_new_thread(self.do_initial_config, ())
+        _thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
         self.drive(0, 0, State.DRIVE_MODE_STOP)

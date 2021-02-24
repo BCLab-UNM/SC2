@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 import math
 import angles
@@ -224,9 +224,6 @@ class Scoot(object):
         self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
 
-        rospy.wait_for_service('/' + self.rover_name + '/toggle_light')
-        self.light_service = rospy.ServiceProxy('/' + self.rover_name + '/toggle_light', srv.ToggleLightSrv)
-
         rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
         self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
 
@@ -236,7 +233,6 @@ class Scoot(object):
         if self.rover_type == "scout":
             if self.ROUND_NUMBER == 1:
                 rospy.wait_for_service('/vol_detected_service')
-                self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
                 self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
             elif self.ROUND_NUMBER == 3:
                 self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)
@@ -633,27 +629,7 @@ class Scoot(object):
         else:
             self._brake_ramp(state)
 
-    def _light(self, state):
-        try:
-            self.light_service.call(data=state)
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("Light Service Exception: Light Service Failed to Respond")
-            try:
-                self.light_service.call(data=state)
-                rospy.logwarn("Second attempt to use lights was successful")
-            except (rospy.ServiceException, AttributeError):
-                rospy.logerr("Light Service Exception: Second attempt failed to use lights")
-
-    def light_on(self):
-        self._light('high')
-
-    def light_low(self):
-        self._light('low')
-
-    def light_off(self):
-        self._light('stop')
-
-    # Intensity needs to be a float interpreted as a string from 0.0 to 1.0
+        # Intensity needs to be a float interpreted as a string from 0.0 to 1.0
     def light_intensity(self, intensity):
         intensity = float(intensity)
         if intensity > 1.0:

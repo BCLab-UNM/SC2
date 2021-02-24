@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy, sys, tf
 from Scoot import *
 from geometry_msgs.msg import Point
@@ -16,7 +16,7 @@ def calculateRange(type, start, end, length):
     # Build the range with either a walk (steps between point 1 and 2) or range (go directly to point 2)
     if type == Span.WALK:
         waypoints = []
-        print "Calculating walk"
+        print("Calculating walk")
         deltax = end.x - start.x
         deltay = end.y - start.y
         deltaz = end.z - start.z
@@ -78,7 +78,7 @@ def main( task=None ):
     navigator = WaypointNavigator(scoot)
 
     while scoot.OdomLocation.Odometry == None:
-        print "Waiting for inital odom..."
+        print("Waiting for inital odom...")
         rospy.sleep(1)
 
     ddsaWaypoints = buildDDSAWaypoints(Span.RANGE, loops=5)
