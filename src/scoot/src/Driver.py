@@ -1,7 +1,5 @@
 #! /usr/bin/env python3 
 
-from __future__ import print_function
-
 import sys
 
 import numpy
@@ -112,10 +110,8 @@ class State:
 
         # Publishers
         # self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
-        self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        #self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
 
-        rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
-        self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
@@ -134,24 +130,6 @@ class State:
         if self.Doing is not None:
             self.Doing.result = result
 
-    def _brakes_off(self):
-        try:
-            self.brake_service.call(0)  # immediately disengage brakes
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
-            try:
-                self.brake_service.call(0)  # immediately disengage brakes
-                rospy.logwarn("Second attempt to disengage brakes was successful")
-            except (rospy.ServiceException, AttributeError):
-                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
-                rospy.logerr("If you are seeing this message you can expect strange behavior[flipping] from the rover")
-        except AttributeError:
-            rospy.logerr("Attribute Error raised")
-            try:
-                self.brake_service.call(0)
-                rospy.logwarn("Second attempt to disengage brakes was successful")
-            except AttributeError:
-                pass
 
     def _control(self, req):
         self.current_distance = float('inf')
@@ -257,12 +235,11 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        self._brakes_off()
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
         t.angular.z = angular
-        self.driveControl.publish(t)
+        #self.driveControl.publish(t)
 
     def print_debug(self, msg):
         rospy.loginfo(msg)
@@ -294,7 +271,6 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                self._brakes_off()
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:
