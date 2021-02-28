@@ -205,7 +205,7 @@ class Task:
 
 def main():
     rospy.init_node('task')
-    scoot = Scoot(rospy.get_param('rover_name', default='scout_1'))
+    scoot = Scoot(rospy.get_param('rover_name', default='small_scout_1'))
     scoot.start(node_name='scoots_task')
     taskman = Task()
     taskman.scoot = scoot

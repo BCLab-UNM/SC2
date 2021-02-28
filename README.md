@@ -118,12 +118,12 @@ source ./srcp2-competitors/ros_workspace/install/setup.bash #build will fail if 
 catkin clean -y 
 catkin build
 source ./devel/setup.bash
-roslaunch ./launch/scoot.launch "name:=scout_1"
+roslaunch ./launch/scoot.launch "name:=small_scout_1"
 ```
 ## other term, will create a scoot instance and opens an ipython frame to run code from
 ```bash
 source ./devel/setup.bash
-rosrun scoot Scoot.py __ns:=scout_1
+rosrun scoot Scoot.py __ns:=small_scout_1
 ```
 ### Try out 
 ```python 
@@ -131,11 +131,11 @@ scoot.turn(math.pi/4)
 scoot.drive(1)
 ```
 ### Scout Search Behaviors
-```roslaunch ./launch/scoot.launch "name:=scout_1" "search:=searchRandomWalk"```
+```roslaunch ./launch/scoot.launch "name:=small_scout_1" "search:=searchRandomWalk"```
 
 or
 
-```roslaunch ./launch/scoot.launch "name:=scout_1" "search:=DDSA"```
+```roslaunch ./launch/scoot.launch "name:=small_scout_1" "search:=DDSA"```
 
 ### Docker submission
 

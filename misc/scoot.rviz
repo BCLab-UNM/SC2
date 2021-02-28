@@ -53,7 +53,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /scout_1/camera/left/image_raw
+      Image Topic: /small_scout_1/camera/left/image_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -65,7 +65,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /scout_1/camera/right/image_raw
+      Image Topic: /small_scout_1/camera/right/image_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -81,7 +81,7 @@ Visualization Manager:
       Enabled: true
       History Length: 1
       Name: Imu
-      Topic: /scout_1/imu
+      Topic: /small_scout_1/imu
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -94,7 +94,7 @@ Visualization Manager:
       Robot Description: robot_description
       Scale: 1
       TF Prefix: ""
-      Topic: /scout_1/joint_states
+      Topic: /small_scout_1/joint_states
       Unreliable: false
       Value: true
       Width: 0.019999999552965164
@@ -110,83 +110,83 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        scout_1_tf/base_footprint:
+        small_scout_1_tf/base_footprint:
           Value: true
-        scout_1_tf/bl_arm:
+        small_scout_1_tf/bl_arm:
           Value: true
-        scout_1_tf/bl_arm_static:
+        small_scout_1_tf/bl_arm_static:
           Value: true
-        scout_1_tf/bl_steering_arm:
+        small_scout_1_tf/bl_steering_arm:
           Value: true
-        scout_1_tf/bl_steering_arm_static:
+        small_scout_1_tf/bl_steering_arm_static:
           Value: true
-        scout_1_tf/bl_wheel:
+        small_scout_1_tf/bl_wheel:
           Value: true
-        scout_1_tf/bl_wheel_static:
+        small_scout_1_tf/bl_wheel_static:
           Value: true
-        scout_1_tf/br_arm:
+        small_scout_1_tf/br_arm:
           Value: true
-        scout_1_tf/br_arm_static:
+        small_scout_1_tf/br_arm_static:
           Value: true
-        scout_1_tf/br_steering_arm:
+        small_scout_1_tf/br_steering_arm:
           Value: true
-        scout_1_tf/br_steering_arm_static:
+        small_scout_1_tf/br_steering_arm_static:
           Value: true
-        scout_1_tf/br_wheel:
+        small_scout_1_tf/br_wheel:
           Value: true
-        scout_1_tf/br_wheel_static:
+        small_scout_1_tf/br_wheel_static:
           Value: true
-        scout_1_tf/camera_link:
+        small_scout_1_tf/camera_link:
           Value: true
-        scout_1_tf/chassis:
+        small_scout_1_tf/chassis:
           Value: true
-        scout_1_tf/contact_sensor:
+        small_scout_1_tf/contact_sensor:
           Value: true
-        scout_1_tf/fl_arm:
+        small_scout_1_tf/fl_arm:
           Value: true
-        scout_1_tf/fl_arm_static:
+        small_scout_1_tf/fl_arm_static:
           Value: true
-        scout_1_tf/fl_steering_arm:
+        small_scout_1_tf/fl_steering_arm:
           Value: true
-        scout_1_tf/fl_steering_arm_static:
+        small_scout_1_tf/fl_steering_arm_static:
           Value: true
-        scout_1_tf/fl_wheel:
+        small_scout_1_tf/fl_wheel:
           Value: true
-        scout_1_tf/fl_wheel_static:
+        small_scout_1_tf/fl_wheel_static:
           Value: true
-        scout_1_tf/fr_arm:
+        small_scout_1_tf/fr_arm:
           Value: true
-        scout_1_tf/fr_arm_static:
+        small_scout_1_tf/fr_arm_static:
           Value: true
-        scout_1_tf/fr_steering_arm:
+        small_scout_1_tf/fr_steering_arm:
           Value: true
-        scout_1_tf/fr_steering_arm_static:
+        small_scout_1_tf/fr_steering_arm_static:
           Value: true
-        scout_1_tf/fr_wheel:
+        small_scout_1_tf/fr_wheel:
           Value: true
-        scout_1_tf/fr_wheel_static:
+        small_scout_1_tf/fr_wheel_static:
           Value: true
-        scout_1_tf/hokuyo_collision_link:
+        small_scout_1_tf/hokuyo_collision_link:
           Value: true
-        scout_1_tf/hokuyo_link:
+        small_scout_1_tf/hokuyo_link:
           Value: true
-        scout_1_tf/imu_link:
+        small_scout_1_tf/imu_link:
           Value: true
-        scout_1_tf/left_camera_link:
+        small_scout_1_tf/left_camera_link:
           Value: true
-        scout_1_tf/left_camera_optical:
+        small_scout_1_tf/left_camera_optical:
           Value: true
-        scout_1_tf/left_camera_optical_static:
+        small_scout_1_tf/left_camera_optical_static:
           Value: true
-        scout_1_tf/right_camera_link:
+        small_scout_1_tf/right_camera_link:
           Value: true
-        scout_1_tf/right_camera_optical:
+        small_scout_1_tf/right_camera_optical:
           Value: true
-        scout_1_tf/right_camera_optical_static:
+        small_scout_1_tf/right_camera_optical_static:
           Value: true
-        scout_1_tf/sensor_mount_link:
+        small_scout_1_tf/sensor_mount_link:
           Value: true
-        scout_1_tf/top:
+        small_scout_1_tf/top:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -194,68 +194,68 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        scout_1_tf/base_footprint:
-          scout_1_tf/chassis:
-            scout_1_tf/bl_arm:
-              scout_1_tf/bl_steering_arm:
-                scout_1_tf/bl_wheel:
+        small_scout_1_tf/base_footprint:
+          small_scout_1_tf/chassis:
+            small_scout_1_tf/bl_arm:
+              small_scout_1_tf/bl_steering_arm:
+                small_scout_1_tf/bl_wheel:
                   {}
-            scout_1_tf/bl_arm_static:
+            small_scout_1_tf/bl_arm_static:
               {}
-            scout_1_tf/bl_steering_arm_static:
+            small_scout_1_tf/bl_steering_arm_static:
               {}
-            scout_1_tf/bl_wheel_static:
+            small_scout_1_tf/bl_wheel_static:
               {}
-            scout_1_tf/br_arm:
-              scout_1_tf/br_steering_arm:
-                scout_1_tf/br_wheel:
+            small_scout_1_tf/br_arm:
+              small_scout_1_tf/br_steering_arm:
+                small_scout_1_tf/br_wheel:
                   {}
-            scout_1_tf/br_arm_static:
+            small_scout_1_tf/br_arm_static:
               {}
-            scout_1_tf/br_steering_arm_static:
+            small_scout_1_tf/br_steering_arm_static:
               {}
-            scout_1_tf/br_wheel_static:
+            small_scout_1_tf/br_wheel_static:
               {}
-            scout_1_tf/contact_sensor:
-              scout_1_tf/hokuyo_collision_link:
+            small_scout_1_tf/contact_sensor:
+              small_scout_1_tf/hokuyo_collision_link:
                 {}
-            scout_1_tf/fl_arm:
-              scout_1_tf/fl_steering_arm:
-                scout_1_tf/fl_wheel:
+            small_scout_1_tf/fl_arm:
+              small_scout_1_tf/fl_steering_arm:
+                small_scout_1_tf/fl_wheel:
                   {}
-            scout_1_tf/fl_arm_static:
+            small_scout_1_tf/fl_arm_static:
               {}
-            scout_1_tf/fl_steering_arm_static:
+            small_scout_1_tf/fl_steering_arm_static:
               {}
-            scout_1_tf/fl_wheel_static:
+            small_scout_1_tf/fl_wheel_static:
               {}
-            scout_1_tf/fr_arm:
-              scout_1_tf/fr_steering_arm:
-                scout_1_tf/fr_wheel:
+            small_scout_1_tf/fr_arm:
+              small_scout_1_tf/fr_steering_arm:
+                small_scout_1_tf/fr_wheel:
                   {}
-            scout_1_tf/fr_arm_static:
+            small_scout_1_tf/fr_arm_static:
               {}
-            scout_1_tf/fr_steering_arm_static:
+            small_scout_1_tf/fr_steering_arm_static:
               {}
-            scout_1_tf/fr_wheel_static:
+            small_scout_1_tf/fr_wheel_static:
               {}
-            scout_1_tf/imu_link:
+            small_scout_1_tf/imu_link:
               {}
-            scout_1_tf/sensor_mount_link:
-              scout_1_tf/camera_link:
-                scout_1_tf/hokuyo_link:
+            small_scout_1_tf/sensor_mount_link:
+              small_scout_1_tf/camera_link:
+                small_scout_1_tf/hokuyo_link:
                   {}
-                scout_1_tf/left_camera_link:
-                  scout_1_tf/left_camera_optical:
+                small_scout_1_tf/left_camera_link:
+                  small_scout_1_tf/left_camera_optical:
                     {}
-                scout_1_tf/left_camera_optical_static:
+                small_scout_1_tf/left_camera_optical_static:
                   {}
-                scout_1_tf/right_camera_link:
-                  scout_1_tf/right_camera_optical:
+                small_scout_1_tf/right_camera_link:
+                  small_scout_1_tf/right_camera_optical:
                     {}
-                scout_1_tf/right_camera_optical_static:
+                small_scout_1_tf/right_camera_optical_static:
                   {}
-            scout_1_tf/top:
+            small_scout_1_tf/top:
               {}
       Update Interval: 0
       Value: true
@@ -314,7 +314,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.07000000029802322
       Style: Flat Squares
-      Topic: /scout_1/laser/scan
+      Topic: /small_scout_1/laser/scan
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -323,7 +323,7 @@ Visualization Manager:
   Global Options:
     Background Color: 0; 0; 0
     Default Light: true
-    Fixed Frame: scout_1_tf/chassis
+    Fixed Frame: small_scout_1_tf/chassis
     Frame Rate: 30
   Name: root
   Tools:

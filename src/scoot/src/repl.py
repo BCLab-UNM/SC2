@@ -6,7 +6,7 @@ from scoot.msg import MoveResult
 
 if __name__ == "__main__":
     rospy.init_node('ScootNode')
-    scoot = Scoot("scout_1")
+    scoot = Scoot("small_scout_1")
     scoot.start()
     # Systems will have an unmet dependency run "sudo pip install ipython"
     try:

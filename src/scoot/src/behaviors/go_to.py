@@ -13,7 +13,7 @@ from nav_msgs.msg import Odometry
 
 scoot = None
 pub = None
-status_topic = '/scout_1/bug_nav_status'
+status_topic = '/small_scout_1/bug_nav_status'
 last_status_msg = None
 
 def goto(x, y, timeout, tolerance):
@@ -39,7 +39,7 @@ def status_handler(msg):
 def main(task=None):
     global pub
     global scoot
-    pub = rospy.Publisher('/scout_1/waypoints', Point, queue_size=1)
+    pub = rospy.Publisher('/small_scout_1/waypoints', Point, queue_size=1)
     sub = rospy.Subscriber(status_topic, String, status_handler)
 
     rospy.logwarn("Publishing status messages on" + status_topic)

@@ -34,12 +34,12 @@ class CubesatDetection(object):
 		rospy.logwarn('from cubesat')
 		self.bridge = CvBridge()
 
-		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		# self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
-		self.left_camera_subscriber = rospy.Subscriber('/scout_1/camera/left/image_raw', Image, self.cam_callback)
+		self.point_cloud_subscriber = rospy.Subscriber('/small_scout_1/points2', PointCloud2, self.pc_callback)
+		# self.scoot_odom_subscriber = rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, self.odom_callback)
+		self.left_camera_subscriber = rospy.Subscriber('/small_scout_1/camera/left/image_raw', Image, self.cam_callback)
 
-		self.cubesat_detection_image_left_publisher = rospy.Publisher('/scout_1/cubesat_detections/image/left', Image, queue_size=100)
-		self.cubesat_detection_publisher = rospy.Publisher('/scout_1/detections/', Detection, queue_size=100)
+		self.cubesat_detection_image_left_publisher = rospy.Publisher('/small_scout_1/cubesat_detections/image/left', Image, queue_size=100)
+		self.cubesat_detection_publisher = rospy.Publisher('/small_scout_1/detections/', Detection, queue_size=100)
 		
 		colors = OrderedDict({"yellow": (255, 195, 0), "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255), "white": (255, 255, 255), "black": (0, 0, 0),})
 		self.lab = np.zeros((len(colors), 1, 3), dtype="uint8")
@@ -68,8 +68,8 @@ class CubesatDetection(object):
 
 	def get_truepose(self):
 		# extract the robot's XYZ position and heading (q) from the odometry message
-		rospy.wait_for_service('/scout_1/get_true_pose')
-		localization_service = rospy.ServiceProxy('/scout_1/get_true_pose', srv.LocalizationSrv)
+		rospy.wait_for_service('/small_scout_1/get_true_pose')
+		localization_service = rospy.ServiceProxy('/small_scout_1/get_true_pose', srv.LocalizationSrv)
 		true_pose_got = None
 
 		try:
@@ -143,7 +143,7 @@ class CubesatDetection(object):
 		# ONLY THE Z VALUE IS ACCURATE IN THIS TRANSFORM, further processing is needed to get the X and Y using odom
 		# ----------------------------------------------------------------------------------------------------------
 		try:
-			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
+			transform = self.tf_buffer.lookup_transform('small_scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, point_cloud_msg.header.stamp, rospy.Duration(2.0))
 		except Exception:
 			return
 

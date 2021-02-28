@@ -98,6 +98,6 @@ def main():
 if __name__ == '__main__' :
     global scoot
     rospy.init_node('TestSquareNode')
-    scoot = Scoot("scout_1")
+    scoot = Scoot("small_scout_1")
     scoot.start()
     main()

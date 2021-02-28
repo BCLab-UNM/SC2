@@ -19,7 +19,7 @@ def callback(data):
 
 def play():
     rospy.init_node('warmerColder')
-    rospy.Subscriber("/scout_1/volatile_sensor", msg.VolSensorMsg, callback)
+    rospy.Subscriber("/small_scout_1/volatile_sensor", msg.VolSensorMsg, callback)
     rospy.spin()
 
 

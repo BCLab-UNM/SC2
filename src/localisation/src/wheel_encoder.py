@@ -15,7 +15,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
 class WheelEncoder:
 
     def __init__(self):
-        self.name = rospy.get_param('rover_name', default='scout_1')
+        self.name = rospy.get_param('rover_name', default='small_scout_1')
 
         rospy.Subscriber("/{}/imu".format(self.name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)

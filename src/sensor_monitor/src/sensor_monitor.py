@@ -39,7 +39,7 @@ if __name__ == '__main__':
     rospy.on_shutdown( shutdownHandler )
 
     # Initialise the node
-    monitor = SensorMonitor('scout_1')
+    monitor = SensorMonitor('small_scout_1')
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()

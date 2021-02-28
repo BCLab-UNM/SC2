@@ -70,7 +70,7 @@ def main( task=None ):
         scoot = task.scoot
     else: # Called from shell      
         # Give the node a name
-        name = 'scout_1'
+        name = 'small_scout_1'
     
         scoot = Scoot(name)
         scoot.start(node_name='test')

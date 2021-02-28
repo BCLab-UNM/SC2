@@ -7,7 +7,7 @@
         <param name="map_frame" value="map" />
         <param name="odom_frame" value="odom" />
 
-        <param name="odom0" value="/scout_1/odom" />
+        <param name="odom0" value="/small_scout_1/odom" />
 
         <rosparam param="odom0_config">[false, false, false,
                                         false, false, true,
@@ -15,7 +15,7 @@
                                         false, false, true,
                                         false, false, false]</rosparam>
 
-        <param name="imu0" value="/scout_1/imu" />
+        <param name="imu0" value="/small_scout_1/imu" />
 
         <rosparam param="imu0_config">[false, false, false,
                                        false, false, true,

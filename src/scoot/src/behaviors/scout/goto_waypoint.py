@@ -13,7 +13,7 @@ def main(task=None):
         else:
             scoot = task.scoot
     else:  # Called without task instance
-        scoot = Scoot("scout_1")
+        scoot = Scoot("small_scout_1")
         scoot.start(node_name='goto_waypoint')
     rospy.loginfo('Goto Waypoint Started')
     #vol_pose = scoot.get_closest_vol_pose()

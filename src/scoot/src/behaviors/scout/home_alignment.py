@@ -25,7 +25,7 @@ def main(task=None):
         else:
             scoot = task.scoot
     else:  # Called without task instance
-        scoot = Scoot("scout_1")
+        scoot = Scoot("small_scout_1")
         scoot.start(node_name='home_alignment')
     rospy.loginfo('Home Alignment Started')
 

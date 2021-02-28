@@ -26,9 +26,9 @@ def run():
     global wheel
     global fake
     global ekf
-    rospy.Subscriber('/scout_1/odom/', Odometry, _wheel)
-    rospy.Subscriber('/scout_1/odom/filtered', Odometry, _fake)
-    rospy.Subscriber('/scout_1/odometry/filtered', Odometry, _ekf)
+    rospy.Subscriber('/small_scout_1/odom/', Odometry, _wheel)
+    rospy.Subscriber('/small_scout_1/odom/filtered', Odometry, _fake)
+    rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, _ekf)
     rospy.init_node("odom_dif_test")
     rospy.sleep(0.5)
     delta_f_e = dist(fake, ekf)

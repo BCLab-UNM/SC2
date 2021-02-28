@@ -90,7 +90,7 @@ class State:
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
-        self.rover_name = rospy.get_param('rover_name', default='scout_1')
+        self.rover_name = rospy.get_param('rover_name', default='small_scout_1')
         
         # Configuration 
         State.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)

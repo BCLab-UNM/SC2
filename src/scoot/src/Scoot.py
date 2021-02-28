@@ -349,7 +349,7 @@ class Scoot(object):
 
     def getVolPose(self):
         pose_stamped = PoseWithCovarianceStamped()
-        pose_stamped.header.frame_id = '/scout_1_tf/chassis'
+        pose_stamped.header.frame_id = '/small_scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
         odom_p = self.OdomLocation.Odometry.pose.pose.position
         odom_o = self.OdomLocation.Odometry.pose.pose.orientation
