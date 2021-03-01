@@ -1,7 +1,7 @@
 <launch>
-  <arg name="scan_topic"  default="/scout_1/laser/scan" />
-  <arg name="base_frame"  default="scout_1_tf/base_footprint"/>
-  <arg name="odom_frame"  default="/scout_1/odometry/filtered"/>
+  <arg name="scan_topic"  default="/small_scout_1/laser/scan" />
+  <arg name="base_frame"  default="small_scout_1_tf/base_footprint"/>
+  <arg name="odom_frame"  default="/small_scout_1/odometry/filtered"/>
 
 <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
     <param name="base_frame" value="$(arg base_frame)"/>

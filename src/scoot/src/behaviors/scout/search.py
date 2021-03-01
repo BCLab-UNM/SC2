@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Search node."""
 
 from __future__ import print_function
@@ -11,7 +11,7 @@ def main(task=None):
     if task:
         scoot = task.scoot
     else:  # Called without task instance
-        scoot = Scoot("scout_1")
+        scoot = Scoot("small_scout_1")
         scoot.start(node_name='Search')
     rospy.loginfo('Search Started')
     sys.exit(0)  # "succeeded"

@@ -1,11 +1,11 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 from __future__ import print_function
 
 import sys
 import math
 import rospy
-import StringIO
+from io import StringIO
 import traceback
 import threading
 from std_msgs.msg import UInt8, String
@@ -205,7 +205,7 @@ class Task:
 
 def main():
     rospy.init_node('task')
-    scoot = Scoot(rospy.get_param('rover_name', default='scout_1'))
+    scoot = Scoot(rospy.get_param('rover_name', default='small_scout_1'))
     scoot.start(node_name='scoots_task')
     taskman = Task()
     taskman.scoot = scoot

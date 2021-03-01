@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Search node."""
 
 import sys
@@ -84,7 +84,6 @@ def random_walk(num_moves):
         sys.exit(0)
     except HomeLegException as e:
         rospy.loginfo("Found Home's leg turning to center and going to")
-        scoot._light("0.2")
         # turn and drive to it, score
         try:
             scoot.turn(-e.heading, ignore=Obstacles.HOME_LEG | ignoring | Obstacles.IS_LIDAR)
@@ -126,7 +125,7 @@ def main(task=None):
         else:
             scoot = task.scoot
     else:  # Called without task instance
-        scoot = Scoot("scout_1")
+        scoot = Scoot("small_scout_1")
         scoot.start(node_name='search')
     rospy.loginfo("Search Node Started")
     ignoring = 0
@@ -134,11 +133,9 @@ def main(task=None):
         ignoring |= Obstacles.CUBESAT | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG | Obstacles.VISION_VOLATILE
     elif scoot.ROUND_NUMBER == 3:
         ignoring |= Obstacles.VOLATILE | Obstacles.VISION_VOLATILE
-        scoot.light_off()
         if not scoot.cubesat_found:
             ignoring |= Obstacles.HOME_LEG | Obstacles.HOME_FIDUCIAL
         elif not scoot.home_arrived:
-            scoot._light("0.2")
             ignoring |= Obstacles.CUBESAT
 
     random_walk(num_moves=50)

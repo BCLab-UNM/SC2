@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import division
 import rospy
@@ -31,12 +31,12 @@ class VolatileDetection(object):
 
 		self.bridge = CvBridge()
 
-		self.point_cloud_subscriber = rospy.Subscriber('/scout_1/points2', PointCloud2, self.pc_callback)
-		self.scoot_odom_subscriber = rospy.Subscriber('/scout_1/odometry/filtered', Odometry, self.odom_callback)
-		self.left_camera_subscriber = message_filters.Subscriber('/scout_1/camera/left/image_raw', Image)		
+		self.point_cloud_subscriber = rospy.Subscriber('/small_scout_1/points2', PointCloud2, self.pc_callback)
+		self.scoot_odom_subscriber = rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, self.odom_callback)
+		self.left_camera_subscriber = message_filters.Subscriber('/small_scout_1/camera/left/image_raw', Image)
 
-		self.volatile_detection_image_left_publisher = rospy.Publisher('/scout_1/volatile_detections/image/left', Image, queue_size=100)
-		self.volatile_detection_left_publisher = rospy.Publisher('/scout_1/detections', Detection, queue_size=100)
+		self.volatile_detection_image_left_publisher = rospy.Publisher('/small_scout_1/volatile_detections/image/left', Image, queue_size=100)
+		self.volatile_detection_left_publisher = rospy.Publisher('/small_scout_1/detections', Detection, queue_size=100)
 
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.callback)
@@ -58,8 +58,8 @@ class VolatileDetection(object):
 		self.lab = cv2.cvtColor(self.lab, cv2.COLOR_RGB2LAB)
 
 		# subscribe to camera_info topics to get focal lengths and other camera settings/data as needed
-		self.left_camera_info_subscriber = message_filters.Subscriber('/scout_1/camera/left/camera_info', CameraInfo)
-		self.right_camera_info_subscriber = message_filters.Subscriber('/scout_1/camera/right/camera_info', CameraInfo)
+		self.left_camera_info_subscriber = message_filters.Subscriber('/small_scout_1/camera/left/camera_info', CameraInfo)
+		self.right_camera_info_subscriber = message_filters.Subscriber('/small_scout_1/camera/right/camera_info', CameraInfo)
 		self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.left_camera_info_subscriber, self.right_camera_info_subscriber], 10, 0.1, allow_headerless=True)
 		self.synchronizer.registerCallback(self.camera_info_callback)
 		self.left_camera_focal_length = 380.0
@@ -97,9 +97,9 @@ class VolatileDetection(object):
 			rospy.loginfo('no point cloud')
 			return
 
-		# scout_1_tf/base_footprint
+		# small_scout_1_tf/base_footprint
 		try:
-			transform = self.tf_buffer.lookup_transform('scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+			transform = self.tf_buffer.lookup_transform('small_scout_1_tf/base_footprint', point_cloud_msg.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
 
 			index = int(len(points_list)/2)
 			point = points_list[index]

@@ -1,6 +1,4 @@
-#! /usr/bin/env python 
-
-from __future__ import print_function
+#! /usr/bin/env python3 
 
 import sys
 
@@ -9,11 +7,10 @@ import rospy
 import angles
 import math
 import copy
-import thread
+import _thread
 import threading
 
-from Queue import Queue
-
+from multiprocessing import Queue  # or import queue
 import tf
 # from sensor_msgs.msg import Joy
 from std_msgs.msg import UInt8, String, Float32
@@ -91,7 +88,7 @@ class State:
         # self.JoystickCommand = Joy()
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
-        self.rover_name = rospy.get_param('rover_name', default='scout_1')
+        self.rover_name = rospy.get_param('rover_name', default='small_scout_1')
         
         # Configuration 
         State.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
@@ -113,15 +110,13 @@ class State:
 
         # Publishers
         # self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
-        self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        #self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
 
-        rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
-        self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
 
         # Start a thread to do initial configuration.
-        thread.start_new_thread(self.do_initial_config, ())
+        _thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
         self.drive(0, 0, State.DRIVE_MODE_STOP)
@@ -135,24 +130,6 @@ class State:
         if self.Doing is not None:
             self.Doing.result = result
 
-    def _brakes_off(self):
-        try:
-            self.brake_service.call(0)  # immediately disengage brakes
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
-            try:
-                self.brake_service.call(0)  # immediately disengage brakes
-                rospy.logwarn("Second attempt to disengage brakes was successful")
-            except (rospy.ServiceException, AttributeError):
-                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
-                rospy.logerr("If you are seeing this message you can expect strange behavior[flipping] from the rover")
-        except AttributeError:
-            rospy.logerr("Attribute Error raised")
-            try:
-                self.brake_service.call(0)
-                rospy.logwarn("Second attempt to disengage brakes was successful")
-            except AttributeError:
-                pass
 
     def _control(self, req):
         self.current_distance = float('inf')
@@ -258,12 +235,11 @@ class State:
         self.OdomLocation.Odometry = msg
 
     def drive(self, linear, angular, mode):
-        self._brakes_off()
         t = Twist()
         t.linear.x = linear
         t.angular.y = mode
         t.angular.z = angular
-        self.driveControl.publish(t)
+        #self.driveControl.publish(t)
 
     def print_debug(self, msg):
         rospy.loginfo(msg)
@@ -295,7 +271,6 @@ class State:
                     self.drive(lin, ang, State.DRIVE_MODE_PID)
                  '''
             else:
-                self._brakes_off()
                 self.Doing = self.Work.get(False)
 
                 if self.Doing.request.timer > 0:

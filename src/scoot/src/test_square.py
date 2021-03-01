@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 from __future__ import print_function
 
@@ -98,6 +98,6 @@ def main():
 if __name__ == '__main__' :
     global scoot
     rospy.init_node('TestSquareNode')
-    scoot = Scoot("scout_1")
+    scoot = Scoot("small_scout_1")
     scoot.start()
     main()

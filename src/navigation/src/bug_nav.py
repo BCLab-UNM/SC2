@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # Matthew Fricke, 2020, based on an implementation by Isabelle and Ethan Miller distibuted under the MIT license.
 
@@ -83,7 +83,7 @@ class TimedOutException(Exception):
     pass
 
 def random_waypoint_generator( n_waypoints ):
-    pub = rospy.Publisher('/scout_1/waypoints', Point, queue_size=1)
+    pub = rospy.Publisher('/small_scout_1/waypoints', Point, queue_size=1)
     print("Generating Waypoints...")
     for i in tqdm(range(n_waypoints)):
         wp = Point(random.uniform(-waypoint_bounds, waypoint_bounds), random.uniform(-40, 40), 0)
@@ -234,18 +234,18 @@ class Dist:
     
 
 def init_listener():
-    rospy.Subscriber('/scout_1/odometry/filtered', Odometry, estimated_location_handler)
-    rospy.Subscriber('/scout_1/laser/scan', LaserScan, lidar_handler)
-    rospy.Subscriber("/scout_1/imu", Imu, imu_handler)
-    rospy.Subscriber('/scout_1/obstacle', Obstacles, obstacle_handler) 
+    rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, estimated_location_handler)
+    rospy.Subscriber('/small_scout_1/laser/scan', LaserScan, lidar_handler)
+    rospy.Subscriber("/small_scout_1/imu", Imu, imu_handler)
+    rospy.Subscriber('/small_scout_1/obstacle', Obstacles, obstacle_handler)
     
     rospy.logwarn("Waiting for brake service...")
-    rospy.wait_for_service('/scout_1/brake_rover')
-    brakeService = rospy.ServiceProxy('/scout_1/brake_rover', srv.BrakeRoverSrv)
+    rospy.wait_for_service('/small_scout_1/brake_rover')
+    brakeService = rospy.ServiceProxy('/small_scout_1/brake_rover', srv.BrakeRoverSrv)
     rospy.logwarn("... active.")
 
-    waypoint_topic = "/scout_1/waypoints"
-    rospy.Subscriber('/scout_1/waypoints', Point, waypoint_handler)
+    waypoint_topic = "/small_scout_1/waypoints"
+    rospy.Subscriber('/small_scout_1/waypoints', Point, waypoint_handler)
     rospy.logwarn("Subscribing to"+ waypoint_topic)
 
 def estimated_location_handler(data):
@@ -291,7 +291,7 @@ class Bug:
         # Robot angular velocity in radians per second
         self.angular_vel = round(2*math.pi,2)
     
-        self.pub = rospy.Publisher('/scout_1/skid_cmd_vel', Twist, queue_size=1)
+        self.pub = rospy.Publisher('/small_scout_1/skid_cmd_vel', Twist, queue_size=1)
         self.tx = tx
         self.ty = ty
 
@@ -666,14 +666,14 @@ def bug_algorithm(tx, ty, bug_type):
     global stats_printed
     global total_time_start
     
-    print "Waiting for location data on '/scout_1/odom/filtered...'"
-    rospy.wait_for_message('/scout_1/odom/filtered', Odometry,)
+    print "Waiting for location data on '/small_scout_1/odom/filtered...'"
+    rospy.wait_for_message('/small_scout_1/odom/filtered', Odometry,)
     print "... received."
 
     print("Waiting for break service...")
-    rospy.wait_for_service('/scout_1/brake_rover')
+    rospy.wait_for_service('/small_scout_1/brake_rover')
     global brake_service
-    brake_service = rospy.ServiceProxy('/scout_1/brake_rover', srv.BrakeRoverSrv)
+    brake_service = rospy.ServiceProxy('/small_scout_1/brake_rover', srv.BrakeRoverSrv)
     print("... active.")
 
     if bug_type == 0:
@@ -687,7 +687,7 @@ def bug_algorithm(tx, ty, bug_type):
         sys.exit(3)
         
     # For status messages so other nodes know when we are done or if we failed
-    status_topic = '/scout_1/bug_nav_status'
+    status_topic = '/small_scout_1/bug_nav_status'
     bug_nav_status_publisher = rospy.Publisher(status_topic, String, queue_size=10)
     print "Publishing status messages on", status_topic
 

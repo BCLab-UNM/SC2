@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 import math
 import angles
@@ -149,7 +149,6 @@ class Scoot(object):
         self.TURN_SPEED = 0
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
-        self.MAX_BRAKES = 0
         self.VOL_TYPES = None
         self.ROUND_NUMBER = 0
 
@@ -166,8 +165,6 @@ class Scoot(object):
 
         self.localization_service = None
         self.model_state_service = None
-        self.light_service = None
-        self.brake_service = None
         self.vol_list_service = None
 
         self.truePoseCalled = False
@@ -198,7 +195,6 @@ class Scoot(object):
         self.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
         self.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
         self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
-        self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=499)
         self.ROUND_NUMBER = rospy.get_param('round', default=1)
 
         '''Tracking SRCP2's Wiki 
@@ -214,9 +210,9 @@ class Scoot(object):
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
-        self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
-        self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64,
-                                                    queue_size=10)
+        #self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        #self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64,
+        #                                            queue_size=10)
 
         # Connect to services.
         rospy.loginfo("Waiting for control service")
@@ -224,25 +220,12 @@ class Scoot(object):
         self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
 
-        rospy.wait_for_service('/' + self.rover_name + '/toggle_light')
-        self.light_service = rospy.ServiceProxy('/' + self.rover_name + '/toggle_light', srv.ToggleLightSrv)
-
-        rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
-        self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
-
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
         rospy.loginfo("Done waiting for general services")
         if self.rover_type == "scout":
             if self.ROUND_NUMBER == 1:
                 rospy.wait_for_service('/vol_detected_service')
-                self.qal1ScoreService = rospy.ServiceProxy('/vol_detected_service', srv.Qual1ScoreSrv)
-                self.vol_delay = rospy.get_param('/volatile_detection_service_delay_range', default=30.0)
-            elif self.ROUND_NUMBER == 3:
-                self.qal3_apriori_loc_serv = rospy.ServiceProxy('/apriori_location_service', srv.AprioriLocationSrv)
-                self.qal3_home_arrival_serv = rospy.ServiceProxy('/arrived_home_service', srv.HomeLocationSrv)
-                self.qal3_home_align_serv = rospy.ServiceProxy('/aligned_service', srv.HomeAlignedSrv)
-
         elif self.rover_type == "excavator":
             self.mount_control = rospy.Publisher('/' + self.rover_name + '/mount_joint_controller/command', Float64,
                                                  queue_size=10)
@@ -260,8 +243,6 @@ class Scoot(object):
                                                queue_size=10)
             rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
 
-        if self.ROUND_NUMBER == 2:
-            self.vol_list_service = rospy.ServiceProxy('/qual_2_services/volatile_locations', srv.Qual2VolatilesSrv)
         rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
@@ -343,7 +324,7 @@ class Scoot(object):
             pose.header.frame_id,
             target_frame,
             pose.header.stamp,
-            rospy.Duration(timeout)
+            rospy.Duration(int(timeout))
         )
 
         return self.xform.transformPose(target_frame, pose)
@@ -353,7 +334,7 @@ class Scoot(object):
 
     def getVolPose(self):
         pose_stamped = PoseWithCovarianceStamped()
-        pose_stamped.header.frame_id = '/scout_1_tf/chassis'
+        pose_stamped.header.frame_id = '/small_scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
         odom_p = self.OdomLocation.Odometry.pose.pose.position
         odom_o = self.OdomLocation.Odometry.pose.pose.orientation
@@ -381,86 +362,8 @@ class Scoot(object):
 
         return ps.pose.position
 
-    # @TODO: test this
-    def score(self, vol_type_index=0):
-        if self.ROUND_NUMBER != 1:
-            rospy.logwarn("Volatile score called outside of round 1")
-            return False
-        vol_loc = self.getVolPose()
-        rospy.logwarn("trying vol_loc:")
-        rospy.logwarn(vol_loc)
-        try:
-            result = self.qal1ScoreService(
-                pose=vol_loc,
-                vol_type=self.VOL_TYPES[vol_type_index])
-        except (ServiceException, AttributeError):
-            rospy.logwarn("Score attempt failed")
-            self.brake('on')
-            rospy.sleep(self.vol_delay[-1])
-            rospy.logwarn("Waited")
-            vol_loc = self.getVolPose()
-            rospy.logwarn("trying vol_loc:")
-            rospy.logwarn(vol_loc)
-            try:
-                result = self.qal1ScoreService(
-                    pose=vol_loc,
-                    vol_type=self.VOL_TYPES[vol_type_index])
-            except (ServiceException, AttributeError):
-                rospy.logwarn("Failed again")
-                return False
-            else:
-                rospy.logwarn("Scored second time!")
-                rospy.sleep(.5)
-                return True
-        else:
-            rospy.logwarn("Scored!")
-            rospy.sleep(.5)
-            return True
-
-    def score_cubesat(self):
-        if self.ROUND_NUMBER != 3:
-            rospy.logwarn("Cubesat score called outside of round 3")
-            return False
-        rospy.loginfo("score_cubesat called")
-        try:
-            if self.qal3_apriori_loc_serv(self.cubesat_point):
-                self.cubesat_found = True
-                return True
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("apriori_location_service call failed")
-        return False
-        # @TODO check response, log or score
-
-    def score_home_arrive(self):
-        if self.ROUND_NUMBER != 3:
-            rospy.logwarn("Home arrive score called outside of round 3")
-            return False
-        rospy.loginfo("score_home_arrive called")
-        try:
-            if self.qal3_home_arrival_serv(True):
-                self.home_arrived = True
-                return True
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("arrived_home_service call failed")
-        return False
-
-    def score_home_aligned(self):
-        if self.ROUND_NUMBER != 3:
-            rospy.logwarn("Home Align score called outside of round 3")
-            return False
-        rospy.loginfo("score_home_aligned called")
-        if not self.home_arrived:
-            self.score_home_arrive()
-        try:
-            if self.qal3_home_align_serv(True):
-                self.home_logo_found = True
-                return True
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("aligned_service call failed")
-        return False
-
-
-    # forward offset allows us to have a fixed addional distance to drive. Can be negative to underdrive to a location. Motivated by the claw extention. 
+    # forward offset allows us to have a fixed additional distance to drive. Can be negative to underdrive to a
+    # location. Motivated by the claw extension.
     def drive_to(self, place, forward_offset=0, **kwargs):
         '''Drive directly to a particular point in space. The point must be in 
         the odometry reference frame. 
@@ -559,7 +462,7 @@ class Scoot(object):
             elif value == MoveResult.CUBESAT:
                 self.cubesat_point = rospy.get_param("/" + self.rover_name + "/cubesat_point_from_rover",
                                                      default={'x': 0, 'y': 0, 'z': 0})
-                self.cubesat_point = Point(self.cubesat_point['x'], self.cubesat_point['y'], self.cubesat_point['z'])
+                self.cubesat_point = Point(self.cubesat_point.x, self.cubesat_point.y, self.cubesat_point.z)
                 raise CubesatException(heading, distance, self.cubesat_point)
             elif value == MoveResult.HOME_LEG:
                 raise HomeLegException(heading, distance)
@@ -586,81 +489,6 @@ class Scoot(object):
             angular=angular,
         )
         return self.__drive(req, **kwargs)
-
-    def _brake_service_call(self, brake_value):
-        try:
-            self.brake_service.call(brake_value)
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
-            try:
-                self.brake_service.call(brake_value)
-                rospy.logwarn("Second attempt to disengage brakes was successful")
-            except (rospy.ServiceException, AttributeError):
-                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
-                rospy.logerr("If you are seeing this message you can except strange behavior (flipping) from the rover")
-
-    def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
-        """
-        Applies the brakes "gradually"
-        Given the defaults it will apply the below values to the brakes over the course of 1 second
-        [1, 1, 3, 7, 15, 31, 62, 125, 250, 499]
-        end_brake_value: is just that it it the final value that will be sent to the brake service
-        stages: is the number of distinct values that will be sent to the brake service
-        hz: is number of states that happen per a second
-        exponent: is a magic number that will control the brake value ramping
-        """
-        rate = rospy.Rate(hz)  # default 10hz
-        for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
-                                               endpoint=True, num=stages)):
-            self._brake_service_call(brake_value)
-            rate.sleep()
-
-    def brake(self, state=None):
-        if (state == "on") or (state is True) or (state is None):
-            self._brake_ramp(self.MAX_BRAKES)
-        elif (state == "off") or (state is False) or (state == 0.0):
-            self._brake_service_call(0)  # immediately disengage brakes
-        elif (type(state) != float) and (type(state) != int):
-            rospy.logerr("Invalid brake value, got:" + str(state))
-        elif state < 0:
-            rospy.logerr("Brake value can't be negative, got:" + str(state))
-            rospy.logwarn("Disengaging brakes")
-            self._brake_service_call(0)  # immediately disengage brakes
-        elif state >= (self.MAX_BRAKES + 1):
-            rospy.logerr("Brake value can't greater/equal to " + str(self.MAX_BRAKES) + ", got:" + str(state))
-            rospy.logwarn("Applying full brakes")
-            self._brake_ramp(self.MAX_BRAKES)
-        else:
-            self._brake_ramp(state)
-
-    def _light(self, state):
-        try:
-            self.light_service.call(data=state)
-        except (rospy.ServiceException, AttributeError):
-            rospy.logerr("Light Service Exception: Light Service Failed to Respond")
-            try:
-                self.light_service.call(data=state)
-                rospy.logwarn("Second attempt to use lights was successful")
-            except (rospy.ServiceException, AttributeError):
-                rospy.logerr("Light Service Exception: Second attempt failed to use lights")
-
-    def light_on(self):
-        self._light('high')
-
-    def light_low(self):
-        self._light('low')
-
-    def light_off(self):
-        self._light('stop')
-
-    # Intensity needs to be a float interpreted as a string from 0.0 to 1.0
-    def light_intensity(self, intensity):
-        intensity = float(intensity)
-        if intensity > 1.0:
-            intensity = 1.0
-        if intensity < 0.0:
-            intensity = 0.0
-        self._light(str(intensity))
 
     def _look(self, angle):
         self.sensor_control_topic.publish(angle)
@@ -729,18 +557,18 @@ class Scoot(object):
             self.distal_arm_control.publish(angle)
 
     def move_bucket(self, angle):
-        if self.rover_type != "excavator":
-            rospy.logerr("move_bucket:" + self.rover_type + " is not an excavator")
-            return
         # checking bounds
-        if angle > ((5 * math.pi) / 4.0):
-            rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to max position")
-            self.bucket_control.publish((5 * math.pi) / 4.0)  # max
-        elif angle < 0:
-            rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to minimum position")
-            self.bucket_control.publish(0)  # min
-        else:
-            self.bucket_control.publish(angle)
+        if self.rover_type == "excavator":
+            if angle > ((5 * math.pi) / 4.0):
+                rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to max position")
+                self.bucket_control.publish((5 * math.pi) / 4.0)  # max
+            elif angle < 0:
+                rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to minimum position")
+                self.bucket_control.publish(0)  # min
+            else:
+                self.bucket_control.publish(angle)
+            return
+        rospy.logerr("move_bucket:" + self.rover_type + " is not an excavator")
 
     def get_mount_angle(self):
         if self.rover_type != "excavator":
@@ -775,16 +603,16 @@ class Scoot(object):
             return
         self.bin_info_msg = msg  # message from bin_info topic type srcp2_msgs/HaulerMsg
 
-    def move_bin(self, angle):  # Not needed for Qualification Rounds
+    def move_bin(self, angle):
         if self.rover_type != "hauler":
             rospy.logerr("move_bin:" + self.rover_type + " is not a hauler")
             return
         # @TODO check bounds # -math.pi \ 3 to 0
         self.bin_control.publish(angle)
 
-    # @TODO wrappers to home and dump of bin, dont need to Qualification Rounds
+    # @TODO wrappers to home and dump of bin
 
-    def get_bin_angle(self):  # Not needed for Qualification Rounds
+    def get_bin_angle(self):
         if self.rover_type != "hauler":
             rospy.logerr("get_bin_angle:" + self.rover_type + " is not a hauler")
             return
@@ -793,27 +621,23 @@ class Scoot(object):
     # # # END HAULER SPECIFIC CODE # # #
 
     def get_closest_vol_pose(self):
-        if self.ROUND_NUMBER == 2:
-            vol_list = list()
-            rover_pose = self.getOdomLocation().getPose()
+        rover_pose = self.getOdomLocation().getPose()
+        try:
+            vol_list = self.vol_list_service.call()
+        except (ServiceException, AttributeError):
+            rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
             try:
                 vol_list = self.vol_list_service.call()
+                rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
             except (ServiceException, AttributeError):
-                rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
-                try:
-                    vol_list = self.vol_list_service.call()
-                    rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
-                except (ServiceException, AttributeError):
-                    rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
-                    return None
-            closest_vol_pose = min(vol_list.poses,
-                                   key=lambda k: math.sqrt((k.x - rover_pose.x) ** 2 + (k.y - rover_pose.y) ** 2))
-            rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
-            rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose.x) + ", y:" + str(closest_vol_pose.y))
-            return closest_vol_pose
-            # If we wanted to return all the elements we would get the index from min or find the index
-            # where the min pose is at
-            # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
-            # vol_list.volatile_type[index])
-        else:
-            rospy.logerr("get_closest_vol_pose: it is illegal to call out of round 2")
+                rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
+                return None
+        closest_vol_pose = min(vol_list.poses,
+                               key=lambda k: math.sqrt((k.x - rover_pose.x) ** 2 + (k.y - rover_pose.y) ** 2))
+        rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
+        rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose.x) + ", y:" + str(closest_vol_pose.y))
+        return closest_vol_pose
+        # If we wanted to return all the elements we would get the index from min or find the index
+        # where the min pose is at
+        # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
+        # vol_list.volatile_type[index])

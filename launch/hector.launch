@@ -2,7 +2,7 @@
 
 <launch>
 
-  <arg name="name" default="scout_1"/>
+  <arg name="name" default="small_scout_1"/>
   <arg name="geotiff_map_file_path" default="$(find hector_geotiff)/maps"/>
 
   <param name="/use_sim_time" value="true"/>

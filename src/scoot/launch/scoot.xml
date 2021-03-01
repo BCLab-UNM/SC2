@@ -2,14 +2,12 @@
 
   <arg name="name"/>
   <arg name="search"/>
-  <arg name="round"/>
   <arg name="mode"/>
 
   <param name="rover_name" value="$(arg name)"/>
   <param name="rover_name_tf" value="$(arg name)_tf"/>
   <param name="search" value="$(arg search)"/>
   <param name="mode" value="$(arg mode)"/>
-  <param name="round" value="$(arg round)"/>
 
   <include file="$(find scoot)/launch/tf.xml">
       <arg name="name_tf" value="$(arg name)_tf"/>
@@ -35,9 +33,8 @@
     <param name="TURN_SPEED_FAST" value="1.1"/>
   </node>
 
-<!--    <node name="odom" pkg="scoot" type="FakeLocalization.py"-->
-<!--          args="$(arg name)" respawn="true" >-->
-<!--      <param name="publish_debug_topic" value="false" />-->
-<!--    </node>-->
-    
+  <node name="odom" pkg="scoot" type="FakeLocalization.py" args="$(arg name)" respawn="true" >
+        <param name="publish_debug_topic" value="false" />
+  </node>
+  
 </launch>
