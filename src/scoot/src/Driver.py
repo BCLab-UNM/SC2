@@ -27,8 +27,6 @@ from obstacle.msg import Obstacles
 from object_detection.msg import Detection
 from angles import shortest_angular_distance
 
-import threading
-
 package_lock = threading.Lock()
 
 # from Scoot import sync
@@ -41,10 +39,13 @@ class Task:
     def __init__(self, msg, blocking=True):
         self.request = msg
         self.result = MoveResult.SUCCESS
+        self.sema = None
+        """
         if blocking:
             self.sema = threading.Semaphore(0)
         else:
             self.sema = None
+        """
 
 
 class State:
@@ -110,7 +111,7 @@ class State:
 
         # Publishers
         # self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
-        #self.driveControl = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        self.driveControl = rospy.Publisher('/' + self.rover_name + '/cmd_vel', Twist, queue_size=10)
 
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
@@ -239,7 +240,7 @@ class State:
         t.linear.x = linear
         t.angular.y = mode
         t.angular.z = angular
-        #self.driveControl.publish(t)
+        self.driveControl.publish(t)
 
     def print_debug(self, msg):
         rospy.loginfo(msg)
