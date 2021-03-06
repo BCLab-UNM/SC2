@@ -145,13 +145,13 @@ class State:
 
         sleep_wait = 0.2
         sleep_turns = r.timeout / sleep_wait
-        while not t.sema.acquire(blocking=False):
-            rospy.sleep(sleep_wait)
-            sleep_turns -= 1
-            if sleep_turns == 0:
-                # Ugh. Is this safe?
-                with package_lock:
-                    self._stop_now(MoveResult.TIMEOUT)
+        #while not t.sema.acquire(blocking=False):
+        #    rospy.sleep(sleep_wait)
+        #    sleep_turns -= 1
+        #    if sleep_turns == 0:
+        #        # Ugh. Is this safe?
+        #        with package_lock:
+        #            self._stop_now(MoveResult.TIMEOUT)
 
         rval = MoveResult()
         rval.result = t.result
