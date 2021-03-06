@@ -36,18 +36,21 @@ class DriveController:
         lin_x = msg.linear.x
         lin_y = msg.linear.y
         ang_z = msg.angular.z
-        
-        sign = math.copysign(1.0, lin_x)
-        
-        vel_left_front = math.hypot((lin_x - ang_z*self.steering_track/2), (lin_y + ang_z*self.wheel_base/2.0)) / self.wheel_radius
-        vel_right_front = math.hypot((lin_x + ang_z*self.steering_track/2), (lin_y + ang_z*self.wheel_base/2.0)) / self.wheel_radius
-        vel_left_back = math.hypot((lin_x - ang_z*self.steering_track/2), (lin_y - ang_z*self.wheel_base/2.0)) / self.wheel_radius
-        vel_right_back = math.hypot((lin_x + ang_z*self.steering_track/2), (lin_y - ang_z*self.wheel_base/2.0)) / self.wheel_radius
 
-        front_left_steering = math.atan2((lin_y + ang_z*self.wheel_base/2.0), (lin_x - ang_z*self.wheel_base/2.0))
-        front_right_steering = math.atan2((lin_y + ang_z*self.wheel_base/2.0), (lin_x + ang_z*self.wheel_base/2.0))
-        back_left_steering = math.atan2((lin_y - ang_z*self.wheel_base/2.0), (lin_x - ang_z*self.wheel_base/2.0))
-        back_right_steering = math.atan2((lin_y - ang_z*self.wheel_base/2.0), (lin_x + ang_z*self.wheel_base/2.0))
+        y_comp_minus_ang = lin_y - ang_z * self.wheel_base / 2.0
+        y_comp_plus_ang  = lin_y + ang_z * self.wheel_base / 2.0
+        x_comp_minus_ang = lin_x - ang_z * self.steering_track / 2.0
+        x_comp_plus_ang  = lin_x + ang_z * self.steering_track / 2.0
+
+        vel_left_front  = math.hypot(y_comp_plus_ang, x_comp_minus_ang) / self.wheel_radius
+        vel_right_front = math.hypot(y_comp_plus_ang, x_comp_plus_ang) / self.wheel_radius
+        vel_left_back   = math.hypot(y_comp_minus_ang, x_comp_minus_ang) / self.wheel_radius
+        vel_right_back  = math.hypot(y_comp_minus_ang, x_comp_plus_ang) / self.wheel_radius
+
+        front_left_steering = math.atan2(y_comp_plus_ang, x_comp_minus_ang)
+        front_right_steering = math.atan2(y_comp_plus_ang, x_comp_plus_ang)
+        back_left_steering = math.atan2(y_comp_minus_ang, x_comp_minus_ang)
+        back_right_steering = math.atan2(y_comp_minus_ang, x_comp_plus_ang)
                 
         self.__drive_front_left_wheel(vel_left_front)
         self.__drive_front_right_wheel(vel_right_front)
