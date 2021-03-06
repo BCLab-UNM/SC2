@@ -4,7 +4,7 @@
   <arg name="name" default="small_scout_1"/>
   <arg name="search" default="search"/>
   <arg name="mode" default="auto"/>
-  <rosparam param="vol_types">["ice", "ethene", "methane", "carbon_mono", "carbon_dio", "ammonia", "hydrogen_sul", "sulfur_dio"]</rosparam>
+  <rosparam param="vol_types">["ice", "ethene", "methane", "methanol", "carbon_dioxide", "ammonia", "hydrogen_sulfite", "sulfur_dioxide", "regolith"]</rosparam>
 
   <group ns="$(arg name)">
 
