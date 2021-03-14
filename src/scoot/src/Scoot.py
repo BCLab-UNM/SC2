@@ -150,7 +150,6 @@ class Scoot(object):
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
         self.VOL_TYPES = None
-        self.ROUND_NUMBER = 0
 
         self.skid_topic = None
         self.sensor_pitch_control_topic = None
@@ -185,6 +184,7 @@ class Scoot(object):
         self.cubesat_found = False
         self.home_arrived = False
         self.home_logo_found = False
+        self.score = None
 
     def start(self, **kwargs):
         if 'tf_rover_name' in kwargs:
@@ -192,11 +192,10 @@ class Scoot(object):
         else:
             self.rover_name = rospy.get_namespace()
         self.rover_name = self.rover_name.strip('/')
-        self.rover_type = self.rover_name.split("_")[0]  # cuts of the _# part of the rover name
+        self.rover_type = self.rover_name.split("_")[1]  # cuts of the _# part of the rover name
         self.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
         self.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
         self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
-        self.ROUND_NUMBER = rospy.get_param('round', default=1)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -223,8 +222,7 @@ class Scoot(object):
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
         rospy.loginfo("Done waiting for general services")
         if self.rover_type == "scout":
-            if self.ROUND_NUMBER == 1:
-                rospy.wait_for_service('/vol_detected_service')
+            pass  # rospy.wait_for_service('/vol_detected_service')
         elif self.rover_type == "excavator":
             self.mount_control = rospy.Publisher('/' + self.rover_name + '/mount_joint_controller/command', Float64,
                                                  queue_size=10)
@@ -238,14 +236,15 @@ class Scoot(object):
                              self._bucket_info)
 
         elif self.rover_type == "hauler":
-            self.bin_control = rospy.Publisher('/' + self.rover_name + '/bin_joint_controller/command', Float64,
+            self.bin_control = rospy.Publisher('/' + self.rover_name + '/bin/command/position', Float64,
                                                queue_size=10)
-            rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
+            #rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
 
         rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
+        rospy.Subscriber('/srcp2/score', msg.ScoreMsg , self._score)
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
         self.xform = tf.TransformListener()
@@ -263,6 +262,9 @@ class Scoot(object):
 
     def _joint_states(self, msg):
         self.joint_states = msg
+
+    def _score(self, msg):
+        self.score = msg
 
     def get_joint_states(self):
         return self.joint_states
@@ -452,7 +454,7 @@ class Scoot(object):
                 self.dist_data = distance
                 raise ObstacleException(value, obstacle, distance)
             elif value == MoveResult.OBSTACLE_VOLATILE:
-                self.control_data = data  # behaviors would fetch and call score
+                self.control_data = data  # behaviors would fetch
                 raise VolatileException(value)
             elif value == MoveResult.TIMEOUT:
                 raise TimeoutException(value)
@@ -631,27 +633,27 @@ class Scoot(object):
     # # # END EXCAVATOR SPECIFIC CODE # # #
 
     # # # HAULER SPECIFIC CODE # # #
-    """
-    @TODO: update bin command
-        /bin/command/position
-    @TODO: bin info is now in score so extract the hauler_volatile_mass from callback also create a callback
-        @NOTE this topic might change says so in the wiki
-        /srcp2/score
-    """
     def bin_info(self):
         if self.rover_type != "hauler":
             rospy.logerr("bin_info:" + self.rover_type + " is not a hauler")
             return
-        self.bin_info_msg = msg  # message from bin_info topic type srcp2_msgs/HaulerMsg
+        return self.score.hauler_volatile_score
 
     def move_bin(self, angle):
         if self.rover_type != "hauler":
             rospy.logerr("move_bin:" + self.rover_type + " is not a hauler")
             return
-        # @TODO check bounds # -math.pi \ 3 to 0
+        if angle < 0:
+            angle = 0
+        elif angle > (3 * math.pi / 4):
+            angle = (3 * math.pi / 4)
         self.bin_control.publish(angle)
 
-    # @TODO wrappers to home and dump of bin
+    def bin_home(self):
+        self.move_bin(0)
+
+    def bin_dump(self):
+        self.move_bin(3 * math.pi / 4)
 
     def get_bin_angle(self):
         if self.rover_type != "hauler":
