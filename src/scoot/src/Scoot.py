@@ -489,6 +489,11 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
+    """ @TODO sensors(cameras/lidar) are now on a mast in finals
+    so now we haveof course
+    sensor_tilt
+    sensor_yaw
+    """
     def _look(self, angle):
         self.sensor_control_topic.publish(angle)
 
@@ -502,6 +507,23 @@ class Scoot(object):
         self._look(-math.pi / 8.0)
 
     # # # EXCAVATOR SPECIFIC CODE # # #
+    """
+    @TODO: update get joints for finals
+      shoulder_yaw_joint
+      shoulder_pitch_joint
+      elbow_pitch_joint
+      wrist_pitch_joint
+      spawning_zone_joint
+    @TODO: update joint comands
+        /arm/elbow_pitch/command/position -math.pi/4​ to 7*math.pi/8​
+        /arm/shoulder_pitch/command/position -3*math.pi/8 to 3*math.pi/8
+        /arm/shoulder_yaw/command/position
+        /arm/wrist_pitch/command/position
+    @TODO: create callback and populate a list for behaviors to look at
+        scoop_info 
+    @TODO: keep in mind TFs to inside bucket to dig proper location
+        scoop_spawn_zone
+    """
     def bucket_info(self):
         if self.rover_type != "excavator":
             rospy.logerr("bucket_info:" + self.rover_type + " is not an excavator")
@@ -596,6 +618,13 @@ class Scoot(object):
     # # # END EXCAVATOR SPECIFIC CODE # # #
 
     # # # HAULER SPECIFIC CODE # # #
+    """
+    @TODO: update bin command
+        /bin/command/position
+    @TODO: bin info is now in score so extract the hauler_volatile_mass from callback also create a callback
+        @NOTE this topic might change says so in the wiki
+        /srcp2/score
+    """
     def bin_info(self):
         if self.rover_type != "hauler":
             rospy.logerr("bin_info:" + self.rover_type + " is not a hauler")
