@@ -153,7 +153,8 @@ class Scoot(object):
         self.ROUND_NUMBER = 0
 
         self.skid_topic = None
-        self.sensor_control_topic = None
+        self.sensor_pitch_control_topic = None
+        self.sensor_yaw_control_topic = None
         self.mount_control = None
         self.base_arm_control = None
         self.bucket_control = None
@@ -210,9 +211,8 @@ class Scoot(object):
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
         #self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
-        #self.sensor_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor_controller/command', Float64,
-        #                                            queue_size=10)
-
+        self.sensor_pitch_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/pitch/command/position', Float64, queue_size=10)
+        self.sensor_yaw_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/yaw/command/position', Float64, queue_size=10)
         # Connect to services.
         rospy.loginfo("Waiting for control service")
         rospy.wait_for_service('/' + self.rover_name + '/control')
@@ -489,22 +489,35 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
-    """ @TODO sensors(cameras/lidar) are now on a mast in finals
-    so now we haveof course
-    sensor_tilt
-    sensor_yaw
-    """
-    def _look(self, angle):
-        self.sensor_control_topic.publish(angle)
+    def _look(self, pitch=0, yaw=0):
+        if pitch < -math.pi/3:
+                pitch = -math.pi/3
+        elif pitch > math.pi/3:
+                pitch = math.pi/3
+        if yaw < -math.pi:
+                yaw = -math.pi
+        elif yaw > math.pi:
+                yaw = math.pi
+        self.sensor_pitch_control_topic.publish(pitch)  # Up and Down
+        self.sensor_yaw_control_topic.publish(yaw)  # Left and Right
 
     def lookUp(self):
-        self._look(math.pi / 4.0)
+        self._look(-math.pi / 8.0)
 
     def lookForward(self):
-        self._look(0)
+        self._look(0,0)
 
     def lookDown(self):
-        self._look(-math.pi / 8.0)
+        self._look(math.pi / 4.0)
+        
+    def lookRight(self):
+        self._look(0,-math.pi/2)
+        
+    def lookLeft(self):
+        self._look(0,math.pi/2)
+    
+    def lookBack(self):
+        self._look(0,math.pi)
 
     # # # EXCAVATOR SPECIFIC CODE # # #
     """
