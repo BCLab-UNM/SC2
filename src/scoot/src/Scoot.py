@@ -149,6 +149,7 @@ class Scoot(object):
         self.TURN_SPEED = 0
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
+        self.MAX_BRAKES = 0
         self.VOL_TYPES = None
 
         self.skid_topic = None
@@ -165,6 +166,7 @@ class Scoot(object):
 
         self.localization_service = None
         self.model_state_service = None
+        self.brake_service = None
         self.vol_list_service = None
 
         self.truePoseCalled = False
@@ -196,6 +198,7 @@ class Scoot(object):
         self.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
         self.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
         self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
+        self.MAX_BRAKES = rospy.get_param("MAX_BRAKES", default=1000)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -217,6 +220,9 @@ class Scoot(object):
         rospy.wait_for_service('/' + self.rover_name + '/control')
         self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
+
+        rospy.wait_for_service('/' + self.rover_name + '/brake_rover')
+        self.brake_service = rospy.ServiceProxy('/' + self.rover_name + '/brake_rover', srv.BrakeRoverSrv)
 
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
@@ -491,17 +497,63 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
-    def _look(self, pitch=0, yaw=0):
-        if pitch < -math.pi/3:
-                pitch = -math.pi/3
-        elif pitch > math.pi/3:
-                pitch = math.pi/3
-        if yaw < -math.pi:
-                yaw = -math.pi
-        elif yaw > math.pi:
-                yaw = math.pi
-        self.sensor_pitch_control_topic.publish(pitch)  # Up and Down
-        self.sensor_yaw_control_topic.publish(yaw)  # Left and Right
+    def _brake_service_call(self, brake_value):
+        try:
+            self.brake_service.call(brake_value)
+        except (rospy.ServiceException, AttributeError):
+            rospy.logerr("Brake Service Exception: Brakes Failed to Disengage Brakes")
+            try:
+                self.brake_service.call(brake_value)
+                rospy.logwarn("Second attempt to disengage brakes was successful")
+            except (rospy.ServiceException, AttributeError):
+                rospy.logerr("Brake Service Exception: Second attempt failed to disengage brakes")
+                rospy.logerr("If you are seeing this message you can except strange behavior (flipping) from the rover")
+
+    def _brake_ramp(self, end_brake_value=499, stages=10, hz=10, exponent=1.3):
+        """
+        Applies the brakes "gradually"
+        Given the defaults it will apply the below values to the brakes over the course of 1 second
+        [1, 1, 3, 7, 15, 31, 62, 125, 250, 499]
+        end_brake_value: is just that it it the final value that will be sent to the brake service
+        stages: is the number of distinct values that will be sent to the brake service
+        hz: is number of states that happen per a second
+        exponent: is a magic number that will control the brake value ramping
+        """
+        rate = rospy.Rate(hz)  # default 10hz
+        for brake_value in list(numpy.logspace(0, math.log(end_brake_value, exponent), base=exponent, dtype='int',
+                                               endpoint=True, num=stages)):
+            self._brake_service_call(brake_value)
+            rate.sleep()
+
+    def brake(self, state=None):
+        if (state == "on") or (state is True) or (state is None):
+            self._brake_ramp(self.MAX_BRAKES)
+        elif (state == "off") or (state is False) or (state == 0.0):
+            self._brake_service_call(0)  # immediately disengage brakes
+        elif (type(state) != float) and (type(state) != int):
+            rospy.logerr("Invalid brake value, got:" + str(state))
+        elif state < 0:
+            rospy.logerr("Brake value can't be negative, got:" + str(state))
+            rospy.logwarn("Disengaging brakes")
+            self._brake_service_call(0)  # immediately disengage brakes
+        elif state >= (self.MAX_BRAKES + 1):
+            rospy.logerr("Brake value can't greater/equal to " + str(self.MAX_BRAKES) + ", got:" + str(state))
+            rospy.logwarn("Applying full brakes")
+            self._brake_ramp(self.MAX_BRAKES)
+        else:
+            self._brake_ramp(state)
+
+        # Intensity needs to be a float interpreted as a string from 0.0 to 1.0
+    def light_intensity(self, intensity):
+        intensity = float(intensity)
+        if intensity > 1.0:
+            intensity = 1.0
+        if intensity < 0.0:
+            intensity = 0.0
+        self._light(str(intensity))
+
+    def _look(self, angle):
+        self.sensor_control_topic.publish(angle)
 
     def lookUp(self):
         self._look(-math.pi / 8.0)
