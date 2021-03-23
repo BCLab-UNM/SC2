@@ -4,8 +4,8 @@
 # For strict competition runs, this is the ONLY part of this file that will
 # be used
 team:
-  scouts: 1
-  excavators: 0
+  scouts: 0
+  excavators: 1
   haulers: 0
 
 # ------------------------------------------------------------------------------
