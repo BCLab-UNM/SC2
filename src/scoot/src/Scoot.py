@@ -20,6 +20,7 @@ from scoot.srv import Core
 from functools import wraps
 
 odom_lock = threading.Lock()
+drive_lock = threading.Lock()
 
 
 class DriveException(Exception):
@@ -79,14 +80,15 @@ class TimeoutException(DriveException):
     pass
 
 
-# def sync(lock):
-#         def _sync(func):
-#             @wraps(func)
-#             def wrapper(*args, **kwargs):
-#                 with lock:
-#                     return func(*args, **kwargs)
-#                 return wrapper
-#         return _sync
+class sync(object):
+     def __init__(self, lock):
+         self.lock = lock
+     def __call__(self, func):
+         def wrapped_f(*args,**kwargs):
+             with self.lock:           
+                 return func(*args,**kwargs)
+         return wrapped_f
+
 
 class Location:
     """A class that encodes an EKF provided location and accessor methods"""
@@ -250,7 +252,7 @@ class Scoot(object):
         self.xform = tf.TransformListener()
         rospy.loginfo("Scoot Ready")
 
-    # @sync(odom_lock)
+    @sync(odom_lock)
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
@@ -412,6 +414,7 @@ class Scoot(object):
         angle = angles.shortest_angular_distance(loc.theta, heading)
         self.turn(angle, **kwargs)
 
+    @sync(drive_lock)
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs:
