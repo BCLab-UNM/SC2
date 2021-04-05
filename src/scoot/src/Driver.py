@@ -27,11 +27,21 @@ from obstacle.msg import Obstacles
 from object_detection.msg import Detection
 from angles import shortest_angular_distance
 
-package_lock = threading.Lock()
+driving_lock = threading.Lock()
+control_lock = threading.Lock()
 
 # from Scoot import sync
 from Scoot import Location
 
+
+class sync(object):
+     def __init__(self, lock):
+         self.lock = lock
+     def __call__(self, func):
+         def wrapped_f(*args,**kwargs):
+             with self.lock:
+                 return func(*args,**kwargs)
+         return wrapped_f
 
 class Task:
     """A robot relative place to navigate to. Expressed as r and theta"""
@@ -120,6 +130,7 @@ class State:
         _thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
+        self.print_debug('IDLE')
         self.drive(0, 0, State.DRIVE_MODE_STOP)
         self.CurrentState = State.STATE_IDLE
         while not self.Work.empty():
@@ -131,8 +142,9 @@ class State:
         if self.Doing is not None:
             self.Doing.result = result
 
-
+    @sync(control_lock)
     def _control(self, req):
+        rospy.loginfo("_control: Called")
         self.current_distance = float('inf')
         self.current_obstacles = 0
         self.current_obstacle_data = 0
@@ -142,16 +154,17 @@ class State:
         r = req.req[-1]
         t = Task(r, True)
         self.Work.put(t, True)
-
+        
         sleep_wait = 0.2
         sleep_turns = r.timeout / sleep_wait
-        #while not t.sema.acquire(blocking=False):
-        #    rospy.sleep(sleep_wait)
-        #    sleep_turns -= 1
-        #    if sleep_turns == 0:
-        #        # Ugh. Is this safe?
-        #        with package_lock:
-        #            self._stop_now(MoveResult.TIMEOUT)
+        while not self.Work.empty() or self.Doing is not None or self.Goal is not None:
+                with driving_lock: # try to stay waiting until a drive is finished
+                    pass
+                rospy.sleep(sleep_wait)
+                #sleep_turns -= 1
+                #if sleep_turns == 0:
+                #        with driving_lock:
+                #                self._stop_now(MoveResult.TIMEOUT)
 
         rval = MoveResult()
         rval.result = t.result
@@ -163,25 +176,26 @@ class State:
         self.current_obstacle_data = 0
         self.current_distance = float('inf')
         self.obstacle_heading = 0
+        rospy.loginfo("_control: right before return")
         return rval
 
-    # @sync(package_lock)
-    # def _reconfigure(self, config, level):
-    #     State.DRIVE_SPEED = config["DRIVE_SPEED"]
-    #     State.REVERSE_SPEED = config["REVERSE_SPEED"]
-    #     State.TURN_SPEED = config["TURN_SPEED"]
-    #     State.HEADING_RESTORE_FACTOR = config["HEADING_RESTORE_FACTOR"]
-    #     State.GOAL_DISTANCE_OK = config["GOAL_DISTANCE_OK"]
-    #     State.ROTATE_THRESHOLD = config["ROTATE_THRESHOLD"]
-    #     State.DRIVE_ANGLE_ABORT = config["DRIVE_ANGLE_ABORT"]
-    #     self.print_debug('Mobility parameter reconfiguration done.')
-    #     return config 
+    @sync(driving_lock)
+    def _reconfigure(self, config, level):
+        State.DRIVE_SPEED = config["DRIVE_SPEED"]
+        State.REVERSE_SPEED = config["REVERSE_SPEED"]
+        State.TURN_SPEED = config["TURN_SPEED"]
+        State.HEADING_RESTORE_FACTOR = config["HEADING_RESTORE_FACTOR"]
+        State.GOAL_DISTANCE_OK = config["GOAL_DISTANCE_OK"]
+        State.ROTATE_THRESHOLD = config["ROTATE_THRESHOLD"]
+        State.DRIVE_ANGLE_ABORT = config["DRIVE_ANGLE_ABORT"]
+        self.print_debug('Mobility parameter reconfiguration done.')
+        return config 
 
-    # @sync(package_lock)
+    # @sync(driving_lock)
     # def _joystick(self, joy_command):
     # self.JoystickCommand = joy_command
 
-    # @sync(package_lock)
+    @sync(driving_lock)
     def set_mode(self, msg):
         if msg.data == 1:
             self._stop_now(MoveResult.USER_ABORT)
@@ -209,7 +223,7 @@ class State:
                 self._stop_now(MoveResult.HOME_FIDUCIAL)
                 self.print_debug("__check_obstacles: MoveResult.HOME_FIDUCIAL")
 
-    # @sync(package_lock)
+    @sync(driving_lock)
     def _obstacle(self, msg):
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
@@ -220,7 +234,7 @@ class State:
             self.current_obstacle_data = msg.data
         self.__check_obstacles()
 
-    # @sync(package_lock)
+    @sync(driving_lock)
     def _vision(self, msg):
         rospy.loginfo("Driver.py's _vision called with:")
         rospy.loginfo(msg)
@@ -231,7 +245,7 @@ class State:
             rospy.set_param("/"+self.rover_name+"/cubesat_point_from_rover", {'x': msg.x, 'y': msg.y, 'z': msg.z})
         self.__check_obstacles()
     
-    # @sync(package_lock)
+    @sync(driving_lock)
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
@@ -251,7 +265,7 @@ class State:
     #         self.state_machine.publish(s)
     #     self.dbg_msg = msg
 
-    # @sync(package_lock)
+    @sync(driving_lock)
     def run(self):
         if self.CurrentState == State.STATE_IDLE:
             # self.print_debug('IDLE')
