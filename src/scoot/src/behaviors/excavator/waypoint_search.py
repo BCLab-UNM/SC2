@@ -22,7 +22,7 @@ def bug_0(locations):
 
     rospy.sleep(0.5)
     for waypoint in locations:
-        while not scoot.getOdomLocation().atGoal(waypoint, distance=2):
+        while not scoot.get_odom_location().at_goal(waypoint, distance=2):
             try:
                 rospy.loginfo('driving')
                 scoot.drive_to(waypoint)
@@ -56,7 +56,7 @@ def bug_0(locations):
                         pass
         rospy.loginfo('Reached waypoint')
         rospy.loginfo("Waypoint: " + str(waypoint.x) + ", " +  str(waypoint.y))
-        rospy.loginfo("My loc: " + str(scoot.getOdomLocation().getPose().x) + ", " + str(scoot.getOdomLocation().getPose().y))
+        rospy.loginfo("My loc: " + str(scoot.get_odom_location().get_pose().x) + ", " + str(scoot.get_odom_location().get_pose().y))
     
                 
 def main(task=None):

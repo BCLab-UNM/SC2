@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from past.builtins import raw_input
 from Scoot import *
 from behaviors import *
 from obstacle.msg import Obstacles
@@ -19,9 +20,9 @@ if __name__ == "__main__":
                 line = raw_input('>>> ')
                 if line is not None and line != '':
                     try:
-                        exec (line)
+                        exec(line)
                     except Exception as e:
-                        print (e)
+                        print(e)
         except EOFError as e:
-            print ("Goodbye")
-    print ("Qapla'!")
+            print("Goodbye")
+    print("Qapla'!")

@@ -1,47 +1,33 @@
 #! /usr/bin/env python3 
-
-import sys
-
-import numpy
 import rospy
 import angles
 import math
-import copy
 import _thread
 import threading
-
 from multiprocessing import Queue  # or import queue
-import tf
-# from sensor_msgs.msg import Joy
-from std_msgs.msg import UInt8, String, Float32
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist, Pose2D, Point
-# from dynamic_reconfigure.server import Server
-# from dynamic_reconfigure.client import Client
-from srcp2_msgs import msg, srv
-# from mobility.cfg import driveConfig
-# from mobility.srv import Core
 from scoot.srv import Core
 from scoot.msg import MoveResult
 from obstacle.msg import Obstacles
 from object_detection.msg import Detection
-from angles import shortest_angular_distance
+from Scoot import Location
 
 driving_lock = threading.Lock()
 control_lock = threading.Lock()
 
-# from Scoot import sync
-from Scoot import Location
 
+class Sync(object):
+    def __init__(self, lock):
+        self.lock = lock
 
-class sync(object):
-     def __init__(self, lock):
-         self.lock = lock
-     def __call__(self, func):
-         def wrapped_f(*args,**kwargs):
-             with self.lock:
-                 return func(*args,**kwargs)
-         return wrapped_f
+    def __call__(self, func):
+        def wrapped_f(*args, **kwargs):
+            with self.lock:
+                return func(*args, **kwargs)
+
+        return wrapped_f
+
 
 class Task:
     """A robot relative place to navigate to. Expressed as r and theta"""
@@ -56,6 +42,15 @@ class Task:
         else:
             self.sema = None
         """
+
+
+def print_debug(msg):
+    rospy.loginfo(msg)
+    #     if self.dbg_msg is None or self.dbg_msg != msg:
+    #         s = String()
+    #         s.data = msg
+    #         self.state_machine.publish(s)
+    #     self.dbg_msg = msg
 
 
 class State:
@@ -79,7 +74,7 @@ class State:
     ROTATE_THRESHOLD = 0
     DRIVE_ANGLE_ABORT = 0
 
-    DRIVE_SPEED_MAX = 2*math.pi
+    DRIVE_SPEED_MAX = 2 * math.pi
     TURN_SPEED_MAX = 1.2
 
     def __init__(self):
@@ -100,15 +95,17 @@ class State:
         # self.JoystickCommand.axes = [0,0,0,0,0,0]
 
         self.rover_name = rospy.get_param('rover_name', default='small_scout_1')
-        
+
         # Configuration 
-        State.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
-        State.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
-        State.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
-        State.HEADING_RESTORE_FACTOR = rospy.get_param("/"+self.rover_name+"/Core/HEADING_RESTORE_FACTOR", default=2)
-        State.GOAL_DISTANCE_OK = rospy.get_param("/"+self.rover_name+"/Core/GOAL_DISTANCE_OK", default=0.1)
-        State.ROTATE_THRESHOLD = rospy.get_param("/"+self.rover_name+"/Core/ROTATE_THRESHOLD", default=math.pi / 16)
-        State.DRIVE_ANGLE_ABORT = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_ANGLE_ABORT", default=math.pi / 4)
+        State.DRIVE_SPEED = rospy.get_param("/" + self.rover_name + "/Core/DRIVE_SPEED", default=5)
+        State.REVERSE_SPEED = rospy.get_param("/" + self.rover_name + "/Core/REVERSE_SPEED", default=5)
+        State.TURN_SPEED = rospy.get_param("/" + self.rover_name + "/Core/TURN_SPEED", default=5)
+        State.HEADING_RESTORE_FACTOR = rospy.get_param("/" + self.rover_name + "/Core/HEADING_RESTORE_FACTOR",
+                                                       default=2)
+        State.GOAL_DISTANCE_OK = rospy.get_param("/" + self.rover_name + "/Core/GOAL_DISTANCE_OK", default=0.1)
+        State.ROTATE_THRESHOLD = rospy.get_param("/" + self.rover_name + "/Core/ROTATE_THRESHOLD", default=math.pi / 16)
+        State.DRIVE_ANGLE_ABORT = rospy.get_param("/" + self.rover_name + "/Core/DRIVE_ANGLE_ABORT",
+                                                  default=math.pi / 4)
 
         # Subscribers
         # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
@@ -130,7 +127,7 @@ class State:
         _thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
-        self.print_debug('IDLE')
+        print_debug('IDLE')
         self.drive(0, 0, State.DRIVE_MODE_STOP)
         self.CurrentState = State.STATE_IDLE
         while not self.Work.empty():
@@ -142,7 +139,7 @@ class State:
         if self.Doing is not None:
             self.Doing.result = result
 
-    @sync(control_lock)
+    @Sync(control_lock)
     def _control(self, req):
         rospy.loginfo("_control: Called")
         self.current_distance = float('inf')
@@ -154,17 +151,17 @@ class State:
         r = req.req[-1]
         t = Task(r, True)
         self.Work.put(t, True)
-        
+
         sleep_wait = 0.2
         sleep_turns = r.timeout / sleep_wait
         while not self.Work.empty() or self.Doing is not None or self.Goal is not None:
-                with driving_lock: # try to stay waiting until a drive is finished
-                    pass
-                rospy.sleep(sleep_wait)
-                #sleep_turns -= 1
-                #if sleep_turns == 0:
-                #        with driving_lock:
-                #                self._stop_now(MoveResult.TIMEOUT)
+            with driving_lock:  # try to stay waiting until a drive is finished
+                pass
+            rospy.sleep(sleep_wait)
+            # sleep_turns -= 1
+            # if sleep_turns == 0:
+            #        with driving_lock:
+            #                self._stop_now(MoveResult.TIMEOUT)
 
         rval = MoveResult()
         rval.result = t.result
@@ -179,7 +176,7 @@ class State:
         rospy.loginfo("_control: right before return")
         return rval
 
-    @sync(driving_lock)
+    @Sync(driving_lock)
     def _reconfigure(self, config, level):
         State.DRIVE_SPEED = config["DRIVE_SPEED"]
         State.REVERSE_SPEED = config["REVERSE_SPEED"]
@@ -188,14 +185,15 @@ class State:
         State.GOAL_DISTANCE_OK = config["GOAL_DISTANCE_OK"]
         State.ROTATE_THRESHOLD = config["ROTATE_THRESHOLD"]
         State.DRIVE_ANGLE_ABORT = config["DRIVE_ANGLE_ABORT"]
-        self.print_debug('Mobility parameter reconfiguration done.')
-        return config 
+        print_debug('Mobility parameter reconfiguration done.')
+        return config
 
-    # @sync(driving_lock)
+        # @sync(driving_lock)
+
     # def _joystick(self, joy_command):
     # self.JoystickCommand = joy_command
 
-    @sync(driving_lock)
+    @Sync(driving_lock)
     def set_mode(self, msg):
         if msg.data == 1:
             self._stop_now(MoveResult.USER_ABORT)
@@ -206,24 +204,24 @@ class State:
 
             if (detected & Obstacles.IS_LIDAR) != 0:
                 self._stop_now(MoveResult.OBSTACLE_LASER)
-                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_LASER")
+                print_debug("__check_obstacles: MoveResult.OBSTACLE_LASER")
             elif (detected & Obstacles.IS_VOLATILE) != 0:
                 self._stop_now(MoveResult.OBSTACLE_VOLATILE)
-                self.print_debug("__check_obstacles: MoveResult.OBSTACLE_VOLATILE")
+                print_debug("__check_obstacles: MoveResult.OBSTACLE_VOLATILE")
             elif (detected & Obstacles.VISION_VOLATILE) != 0:
                 self._stop_now(MoveResult.VISION_VOLATILE)
-                self.print_debug("__check_obstacles: MoveResult.VISION_VOLATILE")
+                print_debug("__check_obstacles: MoveResult.VISION_VOLATILE")
             elif (detected & Obstacles.CUBESAT) != 0:
                 self._stop_now(MoveResult.CUBESAT)
-                self.print_debug("__check_obstacles: MoveResult.CUBESAT")
+                print_debug("__check_obstacles: MoveResult.CUBESAT")
             elif (detected & Obstacles.HOME_LEG) != 0:
                 self._stop_now(MoveResult.HOME_LEG)
-                self.print_debug("__check_obstacles: MoveResult.HOME_LEG")
+                print_debug("__check_obstacles: MoveResult.HOME_LEG")
             elif (detected & Obstacles.HOME_FIDUCIAL) != 0:
                 self._stop_now(MoveResult.HOME_FIDUCIAL)
-                self.print_debug("__check_obstacles: MoveResult.HOME_FIDUCIAL")
+                print_debug("__check_obstacles: MoveResult.HOME_FIDUCIAL")
 
-    @sync(driving_lock)
+    @Sync(driving_lock)
     def _obstacle(self, msg):
         self.current_obstacles &= ~msg.mask
         self.current_obstacles |= msg.msg
@@ -234,7 +232,7 @@ class State:
             self.current_obstacle_data = msg.data
         self.__check_obstacles()
 
-    @sync(driving_lock)
+    @Sync(driving_lock)
     def _vision(self, msg):
         rospy.loginfo("Driver.py's _vision called with:")
         rospy.loginfo(msg)
@@ -242,10 +240,10 @@ class State:
         self.current_distance = msg.distance
         self.obstacle_heading = msg.heading
         if msg.detection_id == Obstacles.CUBESAT:
-            rospy.set_param("/"+self.rover_name+"/cubesat_point_from_rover", {'x': msg.x, 'y': msg.y, 'z': msg.z})
+            rospy.set_param("/" + self.rover_name + "/cubesat_point_from_rover", {'x': msg.x, 'y': msg.y, 'z': msg.z})
         self.__check_obstacles()
-    
-    @sync(driving_lock)
+
+    @Sync(driving_lock)
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
@@ -256,16 +254,7 @@ class State:
         t.angular.z = angular
         self.driveControl.publish(t)
 
-    def print_debug(self, msg):
-        rospy.loginfo(msg)
-
-    #     if self.dbg_msg is None or self.dbg_msg != msg:
-    #         s = String()
-    #         s.data = msg 
-    #         self.state_machine.publish(s)
-    #     self.dbg_msg = msg
-
-    @sync(driving_lock)
+    @Sync(driving_lock)
     def run(self):
         if self.CurrentState == State.STATE_IDLE:
             # self.print_debug('IDLE')
@@ -317,7 +306,7 @@ class State:
                     elif self.Doing.request.angular <= 0:
                         self.Doing.request.angular = State.TURN_SPEED
 
-                    cur = self.OdomLocation.getPose()
+                    cur = self.OdomLocation.get_pose()
                     self.Goal = Pose2D()
                     self.Goal.theta = cur.theta + req_theta
                     self.Goal.x = cur.x + req_r * math.cos(self.Goal.theta)
@@ -331,9 +320,9 @@ class State:
 
                 self.__check_obstacles()
         elif self.CurrentState == State.STATE_TURN:
-            self.print_debug('TURN')
+            print_debug('TURN')
             self.__check_obstacles()
-            cur = self.OdomLocation.getPose()
+            cur = self.OdomLocation.get_pose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             if abs(heading_error) > State.ROTATE_THRESHOLD:
                 if heading_error < 0:
@@ -345,13 +334,14 @@ class State:
                 self.drive(0, 0, State.DRIVE_MODE_STOP)
 
         elif self.CurrentState == State.STATE_DRIVE:
-            self.print_debug('DRIVE')
+            print_debug('DRIVE')
             self.__check_obstacles()
-            cur = self.OdomLocation.getPose()
+            cur = self.OdomLocation.get_pose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(cur.theta,
                                                           math.atan2(self.Goal.y - cur.y, self.Goal.x - cur.x))
-            if self.OdomLocation.atGoal(self.Goal, State.GOAL_DISTANCE_OK) or abs(goal_angle) > State.DRIVE_ANGLE_ABORT:
+            if self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK) or abs(
+                    goal_angle) > State.DRIVE_ANGLE_ABORT:
                 self.Goal = None
                 self.CurrentState = State.STATE_IDLE
                 self.drive(0, 0, State.DRIVE_MODE_STOP)
@@ -365,13 +355,14 @@ class State:
                            State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_REVERSE:
-            self.print_debug('REVERSE')
+            print_debug('REVERSE')
             self.__check_obstacles()
-            cur = self.OdomLocation.getPose()
+            cur = self.OdomLocation.get_pose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(math.pi + cur.theta,
                                                           math.atan2(self.Goal.y - cur.y, self.Goal.x - cur.x))
-            if self.OdomLocation.atGoal(self.Goal, State.GOAL_DISTANCE_OK) or abs(goal_angle) > State.DRIVE_ANGLE_ABORT:
+            if self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK) or abs(
+                    goal_angle) > State.DRIVE_ANGLE_ABORT:
                 self.Goal = None
                 self.CurrentState = State.STATE_IDLE
                 self.drive(0, 0, State.DRIVE_MODE_STOP)
@@ -384,7 +375,7 @@ class State:
                            State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_TIMED:
-            self.print_debug('TIMED')
+            print_debug('TIMED')
             self.__check_obstacles()
             if self.Doing.request.linear == 0 and self.Doing.request.angular == 0:
                 self.drive(0, 0, State.DRIVE_MODE_STOP)

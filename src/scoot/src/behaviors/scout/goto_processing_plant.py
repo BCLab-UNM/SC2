@@ -1,12 +1,10 @@
 #! /usr/bin/env python3
 """Goto Processing Plant node."""
 
-from __future__ import print_function
 import sys
 import rospy
 from Scoot import Scoot
 from .. import go_to
-
 from obstacle.msg import Obstacles
 
 
@@ -25,10 +23,10 @@ def main(task=None):
     scoot.brake()
        
     if result:
-        print('succeeded')
+        rospy.loginfo('goto_processing_plant: succeeded')
         sys.exit(0)
     else:
-        print('failed')
+        rospy.loginfo('goto_processing_plant: failed')
         sys.exit(1)
 
 
