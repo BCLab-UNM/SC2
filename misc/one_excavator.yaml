@@ -18,7 +18,6 @@ seed: 42
 use_gui: true
 use_noise: false
 start_power_percentage: 100.0
-sync: false
 start_paused: false
 duration: 86400 # seconds
 spawn_center_x: 0
