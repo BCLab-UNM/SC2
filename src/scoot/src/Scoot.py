@@ -535,7 +535,12 @@ class Scoot(object):
         if self.rover_type != "excavator":
             rospy.logerr("move_shoulder_yaw:" + self.rover_type + " is not an excavator")
             return
-        # @NOTE: the controller handles if values should wrap and takes the "shortest" path
+        if angle > math.pi:
+            rospy.logerr("move_shoulder_yaw:" + str(angle) + " exceeds allowed limits moving to max position")
+            angle = math.pi  # max
+        elif angle < -math.pi:
+            rospy.logerr("move_shoulder_yaw:" + str(angle) + " exceeds allowed limits moving to minimum position")
+            angle = -math.pi  # min
         self.shoulder_yaw_control.publish(angle)  # publishes angle on the shoulder_yaw_joint_controller/command topic
 
     def move_shoulder_pitch(self, angle):
