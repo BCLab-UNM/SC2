@@ -128,7 +128,7 @@ class State:
 
     def _stop_now(self, result):
         print_debug('IDLE')
-        self.drive(0, 0, State.DRIVE_MODE_STOP)
+        self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
         self.CurrentState = State.STATE_IDLE
         while not self.Work.empty():
             item = self.Work.get(False)
@@ -247,9 +247,10 @@ class State:
     def _odom(self, msg):
         self.OdomLocation.Odometry = msg
 
-    def drive(self, linear, angular, mode):
+    def drive(self, linear_x, linear_y, angular, mode):
         t = Twist()
-        t.linear.x = linear
+        t.linear.x = linear_x
+        t.linear.y = linear_y
         t.angular.y = mode
         t.angular.z = angular
         self.driveControl.publish(t)
@@ -265,15 +266,6 @@ class State:
 
             if self.Work.empty():
                 pass
-                '''
-                # Let the joystick drive.
-                lin = self.JoystickCommand.axes[4] * State.DRIVE_SPEED
-                ang = self.JoystickCommand.axes[3] * State.TURN_SPEED
-                if abs(lin) < 0.1 and abs(ang) < 0.1 :
-                    self.drive(0, 0, State.DRIVE_MODE_STOP)
-                else:
-                    self.drive(lin, ang, State.DRIVE_MODE_PID)
-                 '''
             else:
                 self.Doing = self.Work.get(False)
 
@@ -295,12 +287,12 @@ class State:
                         req_r += State.GOAL_DISTANCE_OK / 2.0
                     elif req_r < 0:
                         req_r -= State.GOAL_DISTANCE_OK / 2.0
-
+                    '''
                     if self.Doing.request.linear > State.DRIVE_SPEED_MAX:
                         self.Doing.request.linear = State.DRIVE_SPEED_MAX
                     elif self.Doing.request.linear <= 0:
                         self.Doing.request.linear = State.DRIVE_SPEED
-
+                    '''
                     if self.Doing.request.angular > State.TURN_SPEED_MAX:
                         self.Doing.request.angular = State.TURN_SPEED_MAX
                     elif self.Doing.request.angular <= 0:
@@ -312,8 +304,11 @@ class State:
                     self.Goal.x = cur.x + req_r * math.cos(self.Goal.theta)
                     self.Goal.y = cur.y + req_r * math.sin(self.Goal.theta)
                     self.Start = cur
-
-                    if self.Doing.request.r < 0:
+                    if self.Doing.request.linear_y != 0:  # STRAFING # @TODO check angles ***********************
+                        self.Goal.x = cur.x + self.Doing.request.linear_x * math.cos(self.Goal.theta) - self.Doing.request.linear_y * math.sin(self.Goal.theta)
+                        self.Goal.y = cur.y + self.Doing.request.linear_y * math.cos(self.Goal.theta) - self.Doing.request.linear_x * math.sin(self.Goal.theta)
+                        self.CurrentState = State.STATE_DRIVE
+                    elif self.Doing.request.r < 0:
                         self.CurrentState = State.STATE_REVERSE
                     else:
                         self.CurrentState = State.STATE_TURN
@@ -326,31 +321,39 @@ class State:
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             if abs(heading_error) > State.ROTATE_THRESHOLD:
                 if heading_error < 0:
-                    self.drive(0, -self.Doing.request.angular, State.DRIVE_MODE_PID)
+                    self.drive(0, 0, -self.Doing.request.angular, State.DRIVE_MODE_PID)
                 else:
-                    self.drive(0, self.Doing.request.angular, State.DRIVE_MODE_PID)
+                    self.drive(0, 0, self.Doing.request.angular, State.DRIVE_MODE_PID)
             else:
                 self.CurrentState = State.STATE_DRIVE
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
 
         elif self.CurrentState == State.STATE_DRIVE:
-            print_debug('DRIVE')
+            if self.Doing.request.linear_y != 0:
+                print_debug('STRAFE')
+            else:
+                print_debug('DRIVE')
+            print_debug("dist: " + str(math.hypot(self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x,
+                                                  self.Goal.y - self.OdomLocation.Odometry.pose.pose.position.y)))
             self.__check_obstacles()
             cur = self.OdomLocation.get_pose()
             heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
             goal_angle = angles.shortest_angular_distance(cur.theta,
                                                           math.atan2(self.Goal.y - cur.y, self.Goal.x - cur.x))
-            if self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK) or abs(
-                    goal_angle) > State.DRIVE_ANGLE_ABORT:
+            if self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK) or (self.Doing.request.linear_y == 0 and
+                                                                                abs(goal_angle) >
+                                                                                State.DRIVE_ANGLE_ABORT):
+                if abs(goal_angle) > State.DRIVE_ANGLE_ABORT:
+                    print_debug('goal_angle exceeded ABORT')
                 self.Goal = None
                 self.CurrentState = State.STATE_IDLE
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
 
             elif abs(heading_error) > State.DRIVE_ANGLE_ABORT / 2:
                 self._stop_now(MoveResult.PATH_FAIL)
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
             else:
-                self.drive(self.Doing.request.linear,
+                self.drive(self.Doing.request.linear_x, self.Doing.request.linear_y,
                            heading_error * State.HEADING_RESTORE_FACTOR,
                            State.DRIVE_MODE_PID)
 
@@ -365,26 +368,26 @@ class State:
                     goal_angle) > State.DRIVE_ANGLE_ABORT:
                 self.Goal = None
                 self.CurrentState = State.STATE_IDLE
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
             elif abs(heading_error) > State.DRIVE_ANGLE_ABORT / 2:
                 self._stop_now(MoveResult.PATH_FAIL)
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
             else:
-                self.drive(-State.REVERSE_SPEED,
-                           heading_error * State.HEADING_RESTORE_FACTOR,
-                           State.DRIVE_MODE_PID)
+                self.drive(-State.REVERSE_SPEED, 0, heading_error * State.HEADING_RESTORE_FACTOR, State.DRIVE_MODE_PID)
 
         elif self.CurrentState == State.STATE_TIMED:
             print_debug('TIMED')
             self.__check_obstacles()
-            if self.Doing.request.linear == 0 and self.Doing.request.angular == 0:
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+            if self.Doing.request.linear_x == 0 and self.Doing.request.linear_y == 0 and \
+                    self.Doing.request.angular == 0:
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
             else:
-                self.drive(self.Doing.request.linear, self.Doing.request.angular, State.DRIVE_MODE_PID)
+                self.drive(self.Doing.request.linear_x, self.Doing.request.linear_y, self.Doing.request.angular,
+                           State.DRIVE_MODE_PID)
 
             if self.TimerCount == 0:
                 self.CurrentState = State.STATE_IDLE
-                self.drive(0, 0, State.DRIVE_MODE_STOP)
+                self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
             else:
                 self.TimerCount = self.TimerCount - 1
 
