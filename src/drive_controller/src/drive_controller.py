@@ -10,6 +10,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Float64
 
 M_PI_2 = 1.5708
+M_PI = M_PI_2 * 2
 
 class DriveController:
 
@@ -32,6 +33,16 @@ class DriveController:
         self.wheel_base = 1.0
         self.steering_track = 1.0
 
+    
+    def clip_steering_angle(self, steer, vel):
+        max_steer = M_PI_2
+        min_steer = -1 * M_PI_2
+        if (steer > max_steer) and (steer - M_PI > min_steer):
+            return steer - M_PI, -1 * vel
+        if (steer < min_steer) and (steer + M_PI < max_steer):
+            return steer + M_PI, -1 * vel
+        return steer, vel
+
     def _drive(self, msg):
         lin_x = msg.linear.x
         lin_y = msg.linear.y
@@ -51,6 +62,11 @@ class DriveController:
         front_right_steering = math.atan2(y_comp_plus_ang, x_comp_plus_ang)
         back_left_steering = math.atan2(y_comp_minus_ang, x_comp_minus_ang)
         back_right_steering = math.atan2(y_comp_minus_ang, x_comp_plus_ang)
+
+        front_left_steering, vel_left_front = self.clip_steering_angle(front_left_steering, vel_left_front)
+        front_right_steering, vel_right_front = self.clip_steering_angle(front_right_steering, vel_right_front)
+        back_left_steering, vel_left_back = self.clip_steering_angle(back_left_steering, vel_left_back)
+        back_right_steering, vel_right_back = self.clip_steering_angle(back_right_steering, vel_right_back)
                 
         self.__drive_front_left_wheel(vel_left_front)
         self.__drive_front_right_wheel(vel_right_front)
@@ -61,7 +77,7 @@ class DriveController:
         self.__steer_front_right_wheel(front_right_steering)
         self.__steer_back_left_wheel(back_left_steering)
         self.__steer_back_right_wheel(back_right_steering)
-
+  
     def __drive_front_left_wheel(self, velocity):
         v = Float64()
         v.data = velocity
