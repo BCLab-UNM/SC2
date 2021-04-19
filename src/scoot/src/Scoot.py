@@ -483,15 +483,14 @@ class Scoot(object):
 
     def drive(self, distance, **kwargs):
         req = MoveRequest(
-            r=distance,
+            x=distance,
         )
         return self.__drive(req, **kwargs)
 
     def translate(self, x, y, **kwargs):
         req = MoveRequest(
-            r=math.sqrt(x*x + y*y),
-            linear_x=x,
-            linear_y=y
+            x=x,
+            y=y
         )
         return self.__drive(req, **kwargs)
 
@@ -504,7 +503,7 @@ class Scoot(object):
     def timed_drive(self, time, linear, angular, **kwargs):
         req = MoveRequest(
             timer=time,
-            linear_x=linear,
+            linear=linear,
             angular=angular,
         )
         return self.__drive(req, **kwargs)
