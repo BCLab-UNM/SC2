@@ -17,9 +17,15 @@ RUN apt-get -qq update && \
         ros-noetic-gazebo-ros \
         ros-noetic-geometry2 \
         python3-catkin-tools \
-        python3-osrf-pycommon
+        python3-osrf-pycommon \
+        python3 \
+        python3-pip
+
 
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+
+RUN pip3 install --upgrade setuptools
+RUN pip3 install ipython
 
 # Clear apt cache to save on space
 RUN rm -rf /var/lib/apt/lists/*
