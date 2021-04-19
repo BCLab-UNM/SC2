@@ -17,8 +17,8 @@
     
   <node name="Core" pkg="scoot" type="Core.py" respawn="true">
     <param name="HEADING_RESTORE_FACTOR" value="1.0"/>
-    <param name="GOAL_DISTANCE_OK" value="0.1"/>
-    <param name="ROTATE_THRESHOLD" value="0.19"/>
+    <param name="GOAL_DISTANCE_OK" value="0.05"/>
+    <param name="ROTATE_THRESHOLD" value="0.001"/>
     <param name="DRIVE_ANGLE_ABORT" value="1.5"/>
 
     <!-- Default drive speeds. These are also used for manual driving. -->
