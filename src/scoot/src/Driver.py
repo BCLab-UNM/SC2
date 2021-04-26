@@ -248,7 +248,11 @@ class State:
         t.linear.y = linear_y
         t.angular.y = mode
         t.angular.z = angular
-        self.driveControl.publish(t)
+        if math.isclose(t.angular.z, 0, abs_tol=.1):  # practically 0
+            t.angular.z = 0
+        if self.last_twist != t:
+            self.driveControl.publish(t)
+        self.last_twist = t
 
     def run(self):
         r = rospy.Rate(10)  # 10hz
