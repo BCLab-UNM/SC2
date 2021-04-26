@@ -60,8 +60,10 @@ class State:
 
     # Tune these with dynaimc reconfigure.
     DRIVE_SPEED = 0
+    DRIVE_SPEED_SLOW = 0
     REVERSE_SPEED = 0
     TURN_SPEED = 0
+    TURN_SPEED_SLOW = 0
     HEADING_RESTORE_FACTOR = 0
     GOAL_DISTANCE_OK = 0
     ROTATE_THRESHOLD = 0
@@ -84,11 +86,14 @@ class State:
         self.current_obstacle_data = 0
         self.current_distance = float('inf')
         self.obstacle_heading = 0
+        self.task = MoveResult.SUCCESS
+        self.last_twist = Twist(linear=[math.inf, math.inf])
 
         self.rover_name = rospy.get_param('rover_name', default='small_scout_1')
 
         # Configuration 
         State.DRIVE_SPEED = rospy.get_param("/" + self.rover_name + "/Core/DRIVE_SPEED", default=5)
+        State.DRIVE_SPEED_SLOW = rospy.get_param("/" + self.rover_name + "/Core/DRIVE_SPEED_SLOW", default=1)
         State.REVERSE_SPEED = rospy.get_param("/" + self.rover_name + "/Core/REVERSE_SPEED", default=5)
         State.TURN_SPEED = rospy.get_param("/" + self.rover_name + "/Core/TURN_SPEED", default=5)
         State.TURN_SPEED_SLOW = rospy.get_param("/" + self.rover_name + "/Core/TURN_SPEED_SLOW", default=5)
