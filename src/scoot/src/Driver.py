@@ -130,7 +130,7 @@ class State:
         while not self.Work.empty():
             item = self.Work.get(False)
             item.result = result
-
+        self.task.result = result
         if self.Doing is not None:
             self.Doing.result = result
 
@@ -144,14 +144,14 @@ class State:
             self.Work.put(Task(r, False), False)
 
         r = req.req[-1]
-        t = Task(r, True)
-        self.Work.put(t, True)
+        self.task = Task(r, True)
+        self.Work.put(self.task, True)  # @TODO think about if we do want to support a drive queue
 
         sleep_wait = 0.2
         sleep_turns = r.timeout / sleep_wait
 
         rospy.sleep(sleep_wait)
-        self.run()
+        self.run()  # this will be a blocking call
         """
         while not self.Work.empty() or (self.Doing is not None) or self.Goal is not None:  # isinstance(arg, list)
             with driving_lock:  # try to stay waiting until a drive is finished
@@ -163,7 +163,7 @@ class State:
             #                self._stop_now(MoveResult.TIMEOUT)
         """
         rval = MoveResult()
-        rval.result = t.result
+        rval.result = self.task.result
         rval.obstacle = self.current_obstacles
         rval.obstacle_data = self.current_obstacle_data
         rval.distance = self.current_distance
