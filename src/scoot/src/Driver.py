@@ -2,7 +2,6 @@
 import rospy
 import angles
 import math
-import _thread
 import threading
 from multiprocessing import Queue  # or import queue
 from nav_msgs.msg import Odometry
@@ -105,7 +104,6 @@ class State:
                                                   default=math.pi / 4)
 
         # Subscribers
-        # rospy.Subscriber('joystick', Joy, self._joystick, queue_size=10)
         rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
         rospy.Subscriber('/' + self.rover_name + '/detections', Detection, self._vision)
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
@@ -114,14 +112,10 @@ class State:
         self.control = rospy.Service('control', Core, self._control)
 
         # Publishers
-        # self.state_machine = rospy.Publisher('state_machine', String, queue_size=1, latch=True)
         self.driveControl = rospy.Publisher('/' + self.rover_name + '/cmd_vel', Twist, queue_size=10)
 
         # Configuration 
         # self.config_srv = Server(driveConfig, self._reconfigure)
-
-        # Start a thread to do initial configuration.
-        # _thread.start_new_thread(self.do_initial_config, ())
 
     def _stop_now(self, result):
         print_debug('IDLE')
@@ -152,16 +146,6 @@ class State:
 
         rospy.sleep(sleep_wait)
         self.run()  # this will be a blocking call
-        """
-        while not self.Work.empty() or (self.Doing is not None) or self.Goal is not None:  # isinstance(arg, list)
-            with driving_lock:  # try to stay waiting until a drive is finished
-                pass
-            rospy.sleep(sleep_wait)
-            # sleep_turns -= 1
-            # if sleep_turns == 0:
-            #        with driving_lock:
-            #                self._stop_now(MoveResult.TIMEOUT)
-        """
         rval = MoveResult()
         rval.result = self.task.result
         rval.obstacle = self.current_obstacles
@@ -239,8 +223,6 @@ class State:
 
     @Sync(driving_lock)
     def drive(self, linear_x, linear_y, angular, mode):
-        print_debug('drive called: x: ' + str(linear_x))
-        print_debug('drive called: y: ' + str(linear_y))
         if mode is State.DRIVE_MODE_STOP:
             self.Doing = None
         t = Twist()
@@ -251,6 +233,8 @@ class State:
         if math.isclose(t.angular.z, 0, abs_tol=.1):  # practically 0
             t.angular.z = 0
         if self.last_twist != t:
+            print_debug('drive called: x: ' + str(linear_x))
+            print_debug('drive called: y: ' + str(linear_y))
             self.driveControl.publish(t)
         self.last_twist = t
 
@@ -274,6 +258,7 @@ class State:
                             cur = self.OdomLocation.get_pose()
                             self.Start = cur
                             self.Goal = Pose2D()
+                            goal_dist = math.inf
                             if req_theta == 0:
                                 self.Doing.request.linear = State.DRIVE_SPEED
                                 if self.Doing.request.y == 0:  # Forward Backwards drive
@@ -306,7 +291,8 @@ class State:
                         self.Doing.request.angular = State.TURN_SPEED_SLOW  # CLOSE so slowing down
                     if math.isclose(heading_error, 0, abs_tol=0.1):
                         self.Doing.request.angular = State.TURN_SPEED_SLOW / 4  # SOOO CLOSE so slowing down more
-                    if abs(heading_error) > State.ROTATE_THRESHOLD and not math.isclose(heading_error, 0, abs_tol=0.001):
+                    if abs(heading_error) > State.ROTATE_THRESHOLD and not math.isclose(heading_error, 0,
+                                                                                        abs_tol=0.001):
                         if heading_error < 0:
                             self.drive(0, 0, -self.Doing.request.angular, State.DRIVE_MODE_PID)
                         else:
@@ -315,8 +301,6 @@ class State:
                         self.CurrentState = State.STATE_IDLE
                         self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
                 elif self.CurrentState == State.STATE_DRIVE:
-                    direction_x = 1
-                    direction_y = 1
                     if self.Doing.request.y != 0:
                         print_debug('STRAFE')
                     else:
@@ -330,50 +314,64 @@ class State:
                     heading_error = angles.shortest_angular_distance(cur.theta, self.Goal.theta)
                     goal_angle = angles.shortest_angular_distance(math.pi + cur.theta,
                                                                   math.atan2(self.Goal.y - cur.y, self.Goal.x - cur.x))
-                    print_debug("dist: " + str(math.hypot(self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x,
-                                                          self.Goal.y - self.OdomLocation.Odometry.pose.pose.position.y)))
-                    if self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK):
+                    new_goal_dist = math.hypot(self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x,
+                                               self.Goal.y - self.OdomLocation.Odometry.pose.pose.position.y)
+                    if goal_dist - new_goal_dist < -State.GOAL_DISTANCE_OK:  # overshot allowed distance
+                        print_debug('overshot: ' + str(new_goal_dist))
+                        self.drive(0, 0, 0,
+                                   State.DRIVE_MODE_PID)  # for waiting use DRIVE_MODE_PID so we dont clear the task
+                        r.sleep()
+                        new_goal_dist = math.hypot(self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x,
+                                                   self.Goal.y - self.OdomLocation.Odometry.pose.pose.position.y)
+                        if new_goal_dist <= State.GOAL_DISTANCE_OK:  # stopped and double check
+                            print_debug('at goal')
+                            self.Goal = None
+                            self.CurrentState = State.STATE_IDLE
+                            self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
+                        else:
+                            print_debug('overshot: stopping @TODO FIX ME')
+                            self.Goal = None
+                            self.CurrentState = State.STATE_IDLE
+                            self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
+                            """ @TODO Fix & finish this code so if overshoot can set a new goal or if exceeds PATH_FAIL
+                            if not math.isclose(self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x, 0,
+                                                abs_tol=State.GOAL_DISTANCE_OK):
+                                # if self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x > 0:
+                                self.Doing.request.x = self.Goal.x - self.OdomLocation.Odometry.pose.pose.position.x
+                                self.Doing.request.linear = State.DRIVE_SPEED_SLOW  # State.DRIVE_SPEED / 4
+                                print_debug('overshot recalc x' + str(self.Doing.request.x))
+                            if not math.isclose(self.Goal.y - self.OdomLocation.Odometry.pose.pose.position.y, 0,
+                                                abs_tol=State.GOAL_DISTANCE_OK):
+                                self.Doing.request.y = self.Goal.y - self.OdomLocation.Odometry.pose.pose.position.y
+                                self.Doing.request.linear = State.DRIVE_SPEED_SLOW  # State.DRIVE_SPEED / 4
+                                print_debug('overshot recalc y' + str(self.Doing.request.y))
+                            """
+                    elif self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK):
                         print_debug('at goal')
                         self.Goal = None
                         self.CurrentState = State.STATE_IDLE
                         self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
-                        # elif abs(goal_angle) > State.DRIVE_ANGLE_ABORT:
-                        # @TODO NO OVER SHOT CODE
-
-                        """
-                        if self.OdomLocation.at_goal(self.Goal, State.GOAL_DISTANCE_OK) or (self.Doing.request.linear_y == 0 and
-                                                                                            abs(goal_angle) >
-                                                                                            State.DRIVE_ANGLE_ABORT):
-                            if abs(goal_angle) > State.DRIVE_ANGLE_ABORT:
-                                print_debug('goal_angle exceeded ABORT')
-                            self.Goal = None
-                            self.CurrentState = State.STATE_IDLE
-                            self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
-    
-                        elif abs(heading_error) > State.DRIVE_ANGLE_ABORT / 2:
-                            self._stop_now(MoveResult.PATH_FAIL)
-                            self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
-                            ---------------
-                        
-                        elif abs(heading_error) > State.DRIVE_ANGLE_ABORT / 2:
-                            print_debug('heading_error exceeded')
-                            self.CurrentState = State.STATE_IDLE
-                            self._stop_now(MoveResult.PATH_FAIL)
-                            self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
-                        """
+                    elif self.Doing.request.y == 0 and abs(heading_error) > State.DRIVE_ANGLE_ABORT / 2:
+                        print_debug('heading_error exceeded')
+                        self.Goal = None
+                        self.Doing.result = MoveResult.PATH_FAIL
+                        self.CurrentState = State.STATE_IDLE
+                        self._stop_now(MoveResult.PATH_FAIL)
+                        self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
                     else:
                         if abs(self.Doing.request.y) + abs(self.Doing.request.x) == 0:
                             linear_x = 0
                         else:
-                            linear_x = self.Doing.request.linear * direction_x * self.Doing.request.x / (
+                            linear_x = self.Doing.request.linear * self.Doing.request.x / (
                                     abs(self.Doing.request.y) + abs(self.Doing.request.x))
                         if abs(self.Doing.request.y) + abs(self.Doing.request.x) == 0:
                             linear_y = 0
                         else:
-                            linear_y = self.Doing.request.linear * direction_y * self.Doing.request.y / (
+                            linear_y = self.Doing.request.linear * self.Doing.request.y / (
                                     abs(self.Doing.request.y) + abs(self.Doing.request.x))
                         self.drive(linear_x, linear_y, heading_error * State.HEADING_RESTORE_FACTOR,
                                    State.DRIVE_MODE_PID)
+                    goal_dist = new_goal_dist
 
                 elif self.CurrentState == State.STATE_TIMED:
                     print_debug('TIMED')
