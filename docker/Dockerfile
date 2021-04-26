@@ -1,32 +1,50 @@
 FROM ros:noetic
 
-# set up the ros-ws
-RUN mkdir -p /SC2/src
+ENV WORKSPACE=/SC2
+ENV DEBIAN_FRONTEND noninteractive
 
 # Install dependencies
-RUN sudo apt update && apt upgrade -y && sudo apt install -y
-RUN sudo apt install -y \
-	ros-noetic-tf \
-	ros-noetic-angles \
-	ros-noetic-gazebo-msgs \
-	ros-noetic-robot-localization \
-	ros-noetic-stereo-image-proc \
-	ros-noetic-gazebo-ros \
-	ros-noetic-geometry2 \
-	python3-catkin-tools \
-	python3-osrf-pycommon
+RUN apt-get -qq update && \
+    apt-get -qq upgrade && \
+    apt-get -qq install \
+        apt-utils \
+        build-essential \
+        ros-noetic-tf \
+        ros-noetic-angles \
+        ros-noetic-gazebo-msgs \
+        ros-noetic-robot-localization \
+        ros-noetic-stereo-image-proc \
+        ros-noetic-gazebo-ros \
+        ros-noetic-geometry2 \
+        python3-catkin-tools \
+        python3-osrf-pycommon \
+        python3 \
+        python3-pip
 
-RUN pip install imutils
-RUN pip install scipy==1.2.0
+
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+
+RUN pip3 install --upgrade setuptools
+RUN pip3 install ipython
 
 # Clear apt cache to save on space
 RUN rm -rf /var/lib/apt/lists/*
 
 # Copy in SC2 project
-COPY . /SC2
-RUN chmod 777 /SC2
-RUN rm -rf /SC2/devel
-RUN rm -rf /SC2/build
+COPY . $WORKSPACE
+RUN chmod 777 $WORKSPACE
+RUN rm -rf $WORKSPACE/devel
+RUN rm -rf $WORKSPACE/build
 
 # Build project
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash; source /SC2/srcp2-competitors/ros_workspace/install/setup.bash; cd /SC2; catkin_make"
+RUN source /opt/ros/noetic/setup.bash && \
+    source $WORKSPACE/srcp2-competitors/ros_workspace/install/setup.bash && \
+	cd $WORKSPACE && \
+    catkin_make && \
+    catkin_make install
+
+# Setup Entrypoint
+COPY ./docker/entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
+
+CMD ["bash"]
