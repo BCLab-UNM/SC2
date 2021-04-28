@@ -284,8 +284,7 @@ class Scoot(object):
 
     @Sync(odom_lock)
     def get_odom_location(self):
-        with odom_lock:
-            return self.OdomLocation
+        return self.OdomLocation
 
     @Sync(odom_lock)
     def get_true_pose(self):
