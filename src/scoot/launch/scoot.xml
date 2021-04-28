@@ -17,20 +17,20 @@
     
   <node name="Core" pkg="scoot" type="Core.py" respawn="true">
     <param name="HEADING_RESTORE_FACTOR" value="1.0"/>
-    <param name="GOAL_DISTANCE_OK" value="0.1"/>
-    <param name="ROTATE_THRESHOLD" value="0.19"/>
+    <param name="GOAL_DISTANCE_OK" value="0.05"/>
+    <param name="ROTATE_THRESHOLD" value="0.001"/>
     <param name="DRIVE_ANGLE_ABORT" value="1.5"/>
 
     <!-- Default drive speeds. These are also used for manual driving. -->
-    <param name="DRIVE_SPEED" value="5"/>
-    <param name="REVERSE_SPEED" value="3"/>
-    <param name="TURN_SPEED" value="5"/>
+    <param name="DRIVE_SPEED" value="1"/>
+    <param name="REVERSE_SPEED" value="1"/>
+    <param name="TURN_SPEED" value="1"/>
 
     <!-- Additional slow and fast drive speeds available through the Swarmie API -->
-    <param name="DRIVE_SPEED_SLOW" value="0.1"/>
+    <param name="DRIVE_SPEED_SLOW" value="0.5"/>
     <param name="TURN_SPEED_SLOW" value="0.5"/>
-    <param name="DRIVE_SPEED_FAST" value="0.25"/>
-    <param name="TURN_SPEED_FAST" value="1.1"/>
+    <param name="DRIVE_SPEED_FAST" value="2"/>
+    <param name="TURN_SPEED_FAST" value="2"/>
   </node>
 
   <node name="odom" pkg="scoot" type="FakeLocalization.py" args="$(arg name)" respawn="true" >

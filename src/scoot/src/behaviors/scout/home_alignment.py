@@ -9,14 +9,15 @@ from obstacle.msg import Obstacles
 from scoot.msg import MoveResult
 from Scoot import Scoot, VolatileException, ObstacleException, PathException, AbortException, MoveResult
 
-# @TODO Whiteboard test the angles are not quite right 
+
+# @TODO Whiteboard test the angles are not quite right
 def side_align(distance, side, sides, start_pose, home_pose):
     global scoot
-    
     scoot.drive(distance, ignore=Obstacles.IS_VOLATILE)
-    scoot.set_heading(start_pose.theta + math.pi/2, ignore=-1)
+    scoot.set_heading(start_pose.theta + math.pi / 2, ignore=-1)
 
-# @TODO Whiteboard test the angles are not quite right 
+
+# @TODO Whiteboard test the angles are not quite right
 def main(task=None):
     global scoot
     if task:
@@ -29,24 +30,24 @@ def main(task=None):
         scoot.start(node_name='home_alignment')
     rospy.loginfo('Home Alignment Started')
 
-    start_pose = scoot.getOdomLocation().getPose()
+    start_pose = scoot.get_odom_location().get_pose()
 
-    #side_len = scoot.getOdomLocation().distance(scoot.home_pose.x, scoot.home_pose.y)
+    # side_len = scoot.getOdomLocation().distance(scoot.home_pose.x, scoot.home_pose.y)
     side_len = 2
     # @TODO: check if need to get closer, also what is a reasonable range
-    # @TODO: Set heading torwards home or use scoot.drive_to(scoot.home_pose, distance) where distance is desired
-    distance = side_len # @TODO test if this is a reasonable thing to do
+    # @TODO: Set heading towards home or use scoot.drive_to(scoot.home_pose, distance) where distance is desired
+    distance = side_len  # @TODO test if this is a reasonable thing to do
     sides = 6
-    scoot.set_heading(start_pose.theta + (math.pi / 2.0), ignore=Obstacles.IS_LIDAR) # @TODO: ignore= home | vision | lidar
-    scoot.drive(distance/2.0)
+    scoot.set_heading(start_pose.theta + (math.pi / 2.0),
+                      ignore=Obstacles.IS_LIDAR)  # @TODO: ignore= home | vision | lidar
+    scoot.drive(distance / 2.0)
     for i in range(1, sides):
-        scoot.set_heading(start_pose.theta + (i * (2.0 * math.pi / sides)), ignore=Obstacles.IS_LIDAR) # @TODO: ignore= home | vision | lidar
+        scoot.set_heading(start_pose.theta + (i * (2.0 * math.pi / sides)),
+                          ignore=Obstacles.IS_LIDAR)  # @TODO: ignore= home | vision | lidar
         scoot.drive(distance)
-        # @TODO: Set heading torwards home
-        
+        # @TODO: Set heading towards home
 
-    
-    start_pose = scoot.getOdomLocation().getPose()
+    start_pose = scoot.get_odom_location().get_pose()
     '''
     sides = 6
     for i in range(0,(sides+1)):
@@ -55,21 +56,22 @@ def main(task=None):
         else: 
     '''
 
-    start_pose = scoot.getOdomLocation().getPose()
+    start_pose = scoot.get_odom_location().get_pose()
 
-    #side_len = scoot.getOdomLocation().distance(scoot.home_pose.x, scoot.home_pose.y)
+    # side_len = scoot.getOdomLocation().distance(scoot.home_pose.x, scoot.home_pose.y)
     side_len = 2
     # @TODO: check if need to get closer, also what is a reasonable range
-    # @TODO: Set heading torwards home or use scoot.drive_to(scoot.home_pose, distance) where distance is desired
-    distance = side_len # @TODO test if this is a reasonable thing to do
+    # @TODO: Set heading towards home or use scoot.drive_to(scoot.home_pose, distance) where distance is desired
+    distance = side_len  # @TODO test if this is a reasonable thing to do
     sides = 6
-    scoot.set_heading(start_pose.theta + (math.pi / 2.0), ignore=Obstacles.IS_LIDAR) # @TODO: ignore= home | vision | lidar
-    scoot.drive(distance/2.0)
+    scoot.set_heading(start_pose.theta + (math.pi / 2.0),
+                      ignore=Obstacles.IS_LIDAR)  # @TODO: ignore= home | vision | lidar
+    scoot.drive(distance / 2.0)
     for i in range(1, sides):
-        scoot.set_heading(start_pose.theta + (i * (2.0 * math.pi / sides)), ignore=Obstacles.IS_LIDAR) # @TODO: ignore= home | vision | lidar
+        scoot.set_heading(start_pose.theta + (i * (2.0 * math.pi / sides)),
+                          ignore=Obstacles.IS_LIDAR)  # @TODO: ignore= home | vision | lidar
         scoot.drive(distance)
-        # @TODO: Set heading torwards home
-        
+        # @TODO: Set heading towards home
 
     sys.exit(0)  # "succeeded"
 

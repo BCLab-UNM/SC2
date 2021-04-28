@@ -1,4 +1,5 @@
-float64 r 
+float64 x
+float64 y
 float64 theta
 float64 timer
 float64 angular

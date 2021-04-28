@@ -4,22 +4,21 @@ import math
 import angles
 import tf
 import threading
-import numpy
 
 from rospy import ServiceException
 from srcp2_msgs import msg, srv
 
 from sensor_msgs.msg import JointState
-from std_msgs.msg import String, Float64
-from geometry_msgs.msg import Twist, Pose2D, Point, PoseWithCovariance, PoseWithCovarianceStamped, PoseStamped, \
+from std_msgs.msg import Float64
+from geometry_msgs.msg import Pose2D, Point, PoseWithCovarianceStamped, PoseStamped, \
     Quaternion, Pose
 from nav_msgs.msg import Odometry
 from scoot.msg import MoveResult, MoveRequest
 from scoot.srv import Core
 
-from functools import wraps
-
 odom_lock = threading.Lock()
+drive_lock = threading.Lock()
+joint_lock = threading.Lock()
 
 
 class DriveException(Exception):
@@ -79,14 +78,17 @@ class TimeoutException(DriveException):
     pass
 
 
-# def sync(lock):
-#         def _sync(func):
-#             @wraps(func)
-#             def wrapper(*args, **kwargs):
-#                 with lock:
-#                     return func(*args, **kwargs)
-#                 return wrapper
-#         return _sync
+class Sync(object):
+    def __init__(self, lock):
+        self.lock = lock
+
+    def __call__(self, func):
+        def wrapped_f(*args, **kwargs):
+            with self.lock:
+                return func(*args, **kwargs)
+
+        return wrapped_f
+
 
 class Location:
     """A class that encodes an EKF provided location and accessor methods"""
@@ -94,14 +96,14 @@ class Location:
     def __init__(self, odo):
         self.Odometry = odo
 
-    def getPose(self):  # TODO: add a ros warning if self.Odometry none
-        '''Return a std_msgs.Pose from this Location. Useful because Pose 
+    def get_pose(self):  # TODO: add a ros warning if self.Odometry none
+        """Return a std_msgs.Pose from this Location. Useful because Pose
         has angles represented as roll, pitch, yaw.
-            
+
         Returns:
-            
-        * (`std_msgs.msg.Pose`) The pose. 
-        '''
+
+        * (`std_msgs.msg.Pose`) The pose.
+        """
         if self.Odometry is None:
             quat = [0, 0, 0, 0, ]
         else:
@@ -123,7 +125,7 @@ class Location:
 
         return pose
 
-    def atGoal(self, goal, distance):
+    def at_goal(self, goal, distance):
         """Determine if the pose is within acceptable distance of this location
 
         Returns:
@@ -144,8 +146,8 @@ class Scoot(object):
     """
 
     def __init__(self, rover):
-        self.rover_name = None
-        self.rover_type = None
+        self.rover_name = rover  # @note this will get overwritten but should still be correct
+        self.rover_type = self.rover_name.split("_")[1]  # @note this will get overwritten but should still be correct
         self.TURN_SPEED = 0
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
@@ -193,9 +195,9 @@ class Scoot(object):
             self.rover_name = rospy.get_namespace()
         self.rover_name = self.rover_name.strip('/')
         self.rover_type = self.rover_name.split("_")[1]  # cuts of the _# part of the rover name
-        self.DRIVE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/DRIVE_SPEED", default=5)
-        self.REVERSE_SPEED = rospy.get_param("/"+self.rover_name+"/Core/REVERSE_SPEED", default=5)
-        self.TURN_SPEED = rospy.get_param("/"+self.rover_name+"/Core/TURN_SPEED", default=5)
+        self.DRIVE_SPEED = rospy.get_param("/" + self.rover_name + "/Core/DRIVE_SPEED", default=5)
+        self.REVERSE_SPEED = rospy.get_param("/" + self.rover_name + "/Core/REVERSE_SPEED", default=5)
+        self.TURN_SPEED = rospy.get_param("/" + self.rover_name + "/Core/TURN_SPEED", default=5)
 
         '''Tracking SRCP2's Wiki 
                 Documentation/API/Robots/Hauler.md  
@@ -205,13 +207,16 @@ class Scoot(object):
             our scoot.launch
             and matching with indexes from our Obstacles.msg '''
         self.VOL_TYPES = rospy.get_param("vol_types",
-                                         default=["ice", "ethene", "methane", "methanol", "carbon_dioxide", "ammonia", "hydrogen_sulfite", "sulfur_dioxide", "regolith"])
+                                         default=["ice", "ethene", "methane", "methanol", "carbon_dioxide", "ammonia",
+                                                  "hydrogen_sulfite", "sulfur_dioxide", "regolith"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
-        #self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
-        self.sensor_pitch_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/pitch/command/position', Float64, queue_size=10)
-        self.sensor_yaw_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/yaw/command/position', Float64, queue_size=10)
+        # self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
+        self.sensor_pitch_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/pitch/command/position',
+                                                          Float64, queue_size=10)
+        self.sensor_yaw_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/yaw/command/position', Float64,
+                                                        queue_size=10)
         # Connect to services.
         rospy.loginfo("Waiting for control service")
         rospy.wait_for_service('/' + self.rover_name + '/control')
@@ -224,47 +229,49 @@ class Scoot(object):
         if self.rover_type == "scout":
             pass  # rospy.wait_for_service('/vol_detected_service')
         elif self.rover_type == "excavator":
-            self.shoulder_yaw_control = rospy.Publisher('/' + self.rover_name + '/arm/shoulder_yaw/command/position', Float64,
-                                                 queue_size=10)
-            self.shoulder_pitch_control = rospy.Publisher('/' + self.rover_name + '/arm/shoulder_pitch/command/position',
-                                                    Float64, queue_size=10)
+            self.shoulder_yaw_control = rospy.Publisher('/' + self.rover_name + '/arm/shoulder_yaw/command/position',
+                                                        Float64,
+                                                        queue_size=10)
+            self.shoulder_pitch_control = rospy.Publisher(
+                '/' + self.rover_name + '/arm/shoulder_pitch/command/position',
+                Float64, queue_size=10)
             self.bucket_control = rospy.Publisher('/' + self.rover_name + '/arm/wrist_pitch/command/position', Float64,
                                                   queue_size=10)
             self.elbow_pitch_control = rospy.Publisher('/' + self.rover_name + '/arm/elbow_pitch/command/position',
-                                                      Float64, queue_size=10)
-            
+                                                       Float64, queue_size=10)
+
             rospy.Subscriber('/' + self.rover_name + '/scoop_info', msg.ExcavatorScoopMsg, self._bucket_info)
 
         elif self.rover_type == "hauler":
             self.bin_control = rospy.Publisher('/' + self.rover_name + '/bin/command/position', Float64,
                                                queue_size=10)
-            #rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
+            # rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
 
         rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
-        rospy.Subscriber('/srcp2/score', msg.ScoreMsg , self._score)
+        rospy.Subscriber('/srcp2/score', msg.ScoreMsg, self._score)
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
         self.xform = tf.TransformListener()
         rospy.loginfo("Scoot Ready")
 
-    # @sync(odom_lock)
-    def _odom(self, msg):
-        self.OdomLocation.Odometry = msg
+    @Sync(odom_lock)
+    def _odom(self, message):
+        self.OdomLocation.Odometry = message
 
-    def _bin_info(self, msg):
-        self.bin_info_msg = msg
+    def _bin_info(self, message):
+        self.bin_info_msg = message
 
-    def _bucket_info(self, msg):
-        self.bucket_info_msg = msg
+    def _bucket_info(self, message):
+        self.bucket_info_msg = message
 
-    def _joint_states(self, msg):
-        self.joint_states = msg
+    def _joint_states(self, message):
+        self.joint_states = message
 
-    def _score(self, msg):
-        self.score = msg
+    def _score(self, message):
+        self.score = message
 
     def get_joint_states(self):
         return self.joint_states
@@ -275,11 +282,12 @@ class Scoot(object):
         rospy.logerr("get_joint_state: unknown joint:" + str(joint_name))
         rospy.loginfo("get_joint_state: valid joints" + str(self.joint_states.name))
 
-    def getOdomLocation(self):
-        with odom_lock:
-            return self.OdomLocation
+    @Sync(odom_lock)
+    def get_odom_location(self):
+        return self.OdomLocation
 
-    def getTruePose(self):
+    @Sync(odom_lock)
+    def get_true_pose(self):
         if self.truePoseCalled:
             print("True pose already called once.")
             # @TODO if the rover has moved 2m+ might be more useful to apply the offset to odom and return that
@@ -330,16 +338,16 @@ class Scoot(object):
 
         return self.xform.transformPose(target_frame, pose)
 
-    def getControlData(self):
+    def get_control_data(self):
         return self.control_data
 
-    def getVolPose(self):
+    def get_volatile_pose(self):
         pose_stamped = PoseWithCovarianceStamped()
         pose_stamped.header.frame_id = '/small_scout_1_tf/chassis'
         pose_stamped.header.stamp = rospy.Time.now()
         odom_p = self.OdomLocation.Odometry.pose.pose.position
         odom_o = self.OdomLocation.Odometry.pose.pose.orientation
-        self.getTruePose()
+        self.get_true_pose()
         offset_pos = self.world_offset.position  # Point
         offset_ori = self.world_offset.orientation  # Quaternion
         pose_stamped.pose.pose.position = Point(odom_p.x + offset_pos.x, odom_p.y + offset_pos.y,
@@ -366,24 +374,24 @@ class Scoot(object):
     # forward offset allows us to have a fixed additional distance to drive. Can be negative to underdrive to a
     # location. Motivated by the claw extension.
     def drive_to(self, place, forward_offset=0, **kwargs):
-        '''Drive directly to a particular point in space. The point must be in 
-        the odometry reference frame. 
-        
+        """Drive directly to a particular point in space. The point must be in
+        the odometry reference frame.
+
         Arguments:
-        
-        * `place`: (`geometry_msgs.msg.Point` or `geometry_msgs.msg.Pose2D`): The place to drive. 
-        # This is OK becasue they have the same member variables.
-        # Being agnostic about the type allows us to handle Pose2D and Point messages with the same code. 
-        # Actually just requires that the object has TODO member variables and methods. 
+
+        * `place`: (`geometry_msgs.msg.Point` or `geometry_msgs.msg.Pose2D`): The place to drive.
+        # This is OK because they have the same member variables.
+        # Being agnostic about the type allows us to handle Pose2D and Point messages with the same code.
+        # Actually just requires that the object has TODO member variables and methods.
 
         Keyword Arguments/Returns/Raises:
-        
-        * See `mobility.swarmie.Swarmie.drive`
+
+        * See `scoot.scoot.drive`
         * forward_offset to the odometry reference frame.  Appropriate value
         to be passed in, otherwise the reference frame remains unchanged.
-            
-        '''
-        loc = self.getOdomLocation().getPose()
+
+        """
+        loc = self.get_odom_location().get_pose()
         dist = math.hypot(loc.y - place.y, loc.x - place.x)
         angle = angles.shortest_angular_distance(loc.theta,
                                                  math.atan2(place.y - loc.y,
@@ -404,14 +412,15 @@ class Scoot(object):
         return self.__drive(req, **kwargs)
 
     def set_heading(self, heading, **kwargs):
-        '''Turn to face an absolute heading in radians. (zero is east)
+        """Turn to face an absolute heading in radians. (zero is east)
         Arguments:
         * `heading`: (`float`) The heading in radians.
-        '''
-        loc = self.getOdomLocation().getPose()
+        """
+        loc = self.get_odom_location().get_pose()
         angle = angles.shortest_angular_distance(loc.theta, heading)
         self.turn(angle, **kwargs)
 
+    @Sync(drive_lock)
     def __drive(self, request, **kwargs):
         request.obstacles = ~0
         if 'ignore' in kwargs:
@@ -473,7 +482,14 @@ class Scoot(object):
 
     def drive(self, distance, **kwargs):
         req = MoveRequest(
-            r=distance,
+            x=distance,
+        )
+        return self.__drive(req, **kwargs)
+
+    def translate(self, x, y, **kwargs):
+        req = MoveRequest(
+            x=x,
+            y=y
         )
         return self.__drive(req, **kwargs)
 
@@ -491,35 +507,36 @@ class Scoot(object):
         )
         return self.__drive(req, **kwargs)
 
-    def _look(self, pitch=0, yaw=0):
-        if pitch < -math.pi/3:
-                pitch = -math.pi/3
-        elif pitch > math.pi/3:
-                pitch = math.pi/3
+    @Sync(joint_lock)
+    def _look(self, pitch=0.0, yaw=0.0):
+        if pitch < -math.pi / 3:
+            pitch = -math.pi / 3
+        elif pitch > math.pi / 3:
+            pitch = math.pi / 3
         if yaw < -math.pi:
-                yaw = -math.pi
+            yaw = -math.pi
         elif yaw > math.pi:
-                yaw = math.pi
+            yaw = math.pi
         self.sensor_pitch_control_topic.publish(pitch)  # Up and Down
         self.sensor_yaw_control_topic.publish(yaw)  # Left and Right
 
-    def lookUp(self):
+    def look_up(self):
         self._look(-math.pi / 8.0)
 
-    def lookForward(self):
-        self._look(0,0)
+    def look_forward(self):
+        self._look(0, 0)
 
-    def lookDown(self):
+    def look_down(self):
         self._look(math.pi / 4.0)
-        
-    def lookRight(self):
-        self._look(0,-math.pi/2)
-        
-    def lookLeft(self):
-        self._look(0,math.pi/2)
-    
-    def lookBack(self):
-        self._look(0,math.pi)
+
+    def look_right(self):
+        self._look(0, -math.pi / 2)
+
+    def look_left(self):
+        self._look(0, math.pi / 2)
+
+    def look_back(self):
+        self._look(0, math.pi)
 
     # # # EXCAVATOR SPECIFIC CODE # # #
     def bucket_info(self):
@@ -527,6 +544,7 @@ class Scoot(object):
             rospy.logerr("bucket_info:" + self.rover_type + " is not an excavator")
         return self.bucket_info_msg  # last message from the bucket_info topic bucket_info srcp2_msgs/ExcavatorMsg
 
+    @Sync(joint_lock)
     def move_shoulder_yaw(self, angle):
         """ shoulder_yaw "#1" has full horizontal rotation motion
         Allows the rover "excavator" move volatiles between volatile and hauler without needing to move the wheels
@@ -543,6 +561,7 @@ class Scoot(object):
             angle = -math.pi  # min
         self.shoulder_yaw_control.publish(angle)  # publishes angle on the shoulder_yaw_joint_controller/command topic
 
+    @Sync(joint_lock)
     def move_shoulder_pitch(self, angle):
         """ Base Arm "#2" limited vertical motion -math.pi/5 to math.pi/3 radians
         Best bang for our buck, in regards to arm movement as its the biggest part
@@ -553,14 +572,15 @@ class Scoot(object):
             rospy.logerr("move_shoulder_pitch:" + self.rover_type + " is not an excavator")
             return
         # checking bounds
-        if angle > (3*math.pi / 8.0):
+        if angle > (3 * math.pi / 8.0):
             rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to max position")
-            angle = 3*math.pi / 8.0  # max
-        elif angle < (-3*math.pi / 8.0):
+            angle = 3 * math.pi / 8.0  # max
+        elif angle < (-3 * math.pi / 8.0):
             rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to minimum position")
-            angle = -3*math.pi / 8.0  # min
+            angle = -3 * math.pi / 8.0  # min
         self.shoulder_pitch_control.publish(angle)
 
+    @Sync(joint_lock)
     def move_elbow_pitch(self, angle):
         """Distal Arm "#3" limited vertical motion -math.pi/3 to math.pi/3 radians
         Good for lowering the bucket
@@ -570,14 +590,15 @@ class Scoot(object):
             rospy.logerr("move_elbow_pitch:" + self.rover_type + " is not an excavator")
             return
         # checking bounds
-        if angle > (7*math.pi / 8.0): #@NOTE: or its elbow_pitch_joint: 7pi/8 != pi/4 as the wiki says
+        if angle > (7 * math.pi / 8.0):  # @NOTE: or its elbow_pitch_joint: 7pi/8 != pi/4 as the wiki says
             rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to max position")
-            angle = 7*math.pi / 8.0 # max
+            angle = 7 * math.pi / 8.0  # max
         elif angle < (-math.pi / 4.0):
             rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to minimum position")
-            angle = -math.pi / 4.0 # min
+            angle = -math.pi / 4.0  # min
         self.elbow_pitch_control.publish(angle)
 
+    @Sync(joint_lock)
     def move_bucket(self, angle):
         # checking bounds
         if self.rover_type == "excavator":
@@ -586,7 +607,7 @@ class Scoot(object):
                 angle = 2 * math.pi / 3.0  # max
             elif angle < (-2 * math.pi / 3.0):
                 rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to minimum position")
-                angle =  -2 * math.pi / 3.0  # min
+                angle = -2 * math.pi / 3.0  # min
             self.bucket_control.publish(angle)
             return
         rospy.logerr("move_bucket:" + self.rover_type + " is not an excavator")
@@ -624,6 +645,7 @@ class Scoot(object):
             return
         return self.score.hauler_volatile_score
 
+    @Sync(joint_lock)
     def move_bin(self, angle):
         if self.rover_type != "hauler":
             rospy.logerr("move_bin:" + self.rover_type + " is not a hauler")
@@ -649,7 +671,7 @@ class Scoot(object):
     # # # END HAULER SPECIFIC CODE # # #
 
     def get_closest_vol_pose(self):
-        rover_pose = self.getOdomLocation().getPose()
+        rover_pose = self.get_odom_location().get_pose()
         try:
             vol_list = self.vol_list_service.call()
         except (ServiceException, AttributeError):

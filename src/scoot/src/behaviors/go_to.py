@@ -4,17 +4,15 @@
 from __future__ import print_function
 import sys
 import rospy
-import math
-from Scoot import Scoot
-from geometry_msgs.msg import Point, Pose, Quaternion
+from geometry_msgs.msg import Point
 from std_msgs.msg import String
 from Scoot import Scoot, Location
-from nav_msgs.msg import Odometry
 
 scoot = None
 pub = None
 status_topic = '/small_scout_1/bug_nav_status'
 last_status_msg = None
+
 
 def goto(x, y, timeout, tolerance):
     global last_status_msg
@@ -31,10 +29,12 @@ def goto(x, y, timeout, tolerance):
             else:
                 return False
 
+
 def status_handler(msg):
     global last_status_msg
     rospy.logwarn("Received status from bug nav: " + str(msg.data))
     last_status_msg = msg.data
+
 
 def main(task=None):
     global pub
@@ -53,6 +53,7 @@ def main(task=None):
     if rospy.is_shutdown():
         rospy.loginfo('shutdown')
         sys.exit(0)  # "succeeded
+
 
 if __name__ == '__main__':
     rospy.init_node('waypoint_stub')

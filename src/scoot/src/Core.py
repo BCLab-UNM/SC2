@@ -22,7 +22,6 @@ if __name__ == '__main__':
             rospy.loginfo("Core Starting without Task")
 
         while not rospy.is_shutdown():
-            driver.run()
             r.sleep()
     except rospy.ROSInterruptException:
         pass
