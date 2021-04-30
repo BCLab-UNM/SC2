@@ -13,9 +13,9 @@ int32 CUBESAT          = 512
 int32 HOME_LEG         = 1024
 int32 HOME_FIDUCIAL    = 2048
 
-# From https://gitlab.com/scheducation/srcp2-final-public/-/wikis/1.-General/3.-Scoring-and-Objectives
+# Note the rules still say ethene but the simulation "lib*.so"s create ethane
 uint8 ice               = 0
-uint8 ethene            = 1
+uint8 ethane            = 1 
 uint8 methane           = 2
 uint8 methanol          = 3
 uint8 carbon_dioxide    = 4
