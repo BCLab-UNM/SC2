@@ -173,7 +173,7 @@ class Scoot(object):
         self.true_pose_got = None
 
         self.OdomLocation = Location(None)
-        self.home_pose = Point()
+        self.repair_station_pose = Point()
         self.world_offset = None
         self.control = None
         self.control_data = None
