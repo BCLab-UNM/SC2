@@ -494,6 +494,8 @@ class Scoot(object):
         return self.__drive(req, **kwargs)
 
     def turn(self, theta, **kwargs):
+        if abs(theta) < math.pi / 16:
+            return
         req = MoveRequest(
             theta=theta,
         )
