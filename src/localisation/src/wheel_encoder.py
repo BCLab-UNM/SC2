@@ -17,6 +17,10 @@ class WheelEncoder:
     def __init__(self):
         self.name = rospy.get_param('rover_name', default='small_scout_1')
 
+        print("Subscribing to /{}/imu".format(self.name))
+        print("Subscribing to /{}/joint_states".format(self.name))
+        print("Publishing to /{}/odom".format(self.name)) 
+        
         rospy.Subscriber("/{}/imu".format(self.name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)
         self.odom_pub = rospy.Publisher("/{}/odom".format(self.name), Odometry, queue_size=50)
@@ -29,8 +33,10 @@ class WheelEncoder:
         self.previous_front_right_wheel_angle = 0
         self.previous_back_left_wheel_angle = 0
         self.previous_back_right_wheel_angle = 0
-        self.wheel_radius = 0.27 # meters
-        self.track_width = 1.75 # meters
+        #self.wheel_radius = 0.27 # meters
+        self.wheel_radius = 0.17 # meters
+        # self.track_width = 1.75 # meters
+        self.track_width = 1 # meters
         self.sample_rate = 1
         self.message_count = 0
 
@@ -59,7 +65,11 @@ class WheelEncoder:
         
         current_time = rospy.Time.now()  
         dt = (current_time - self.last_time).to_sec()
-                
+
+        # Check that sufficient time has passed to avoid duplicate time stamps
+        if dt < 1: # Requre at least 1 second to have passed between function execution
+            return
+        
         ### Calculate angular velocity ###
         
         # Angular displacement in radians - could use all four wheels, start with just two
@@ -117,12 +127,15 @@ class WheelEncoder:
         #self.theta += v_wtheta
         
         # Composing your odometry message
-
+        
         # The odometry message contains pose and twist information. The pose represents your current robot pose in the the odom frame (x, y, theta).
                 
         # since all odometry is 6DOF we'll need a quaternion created from yaw
         odom_quat = tf.transformations.quaternion_from_euler(0, 0, self.theta)
 
+        # Check if the timestamp will be different
+        
+        
         # first, we'll publish the transform over tf
         self.odom_broadcaster.sendTransform(
             (self.x, self.y, 0.),
@@ -172,6 +185,8 @@ if __name__ == '__main__':
     
     rospy.init_node('wheel_encoder', anonymous=True)
 
+    print("Wheel encoder node started")
+    
     # Register shutdown handler (includes ctrl-c handling)
     rospy.on_shutdown( shutdownHandler )
 
