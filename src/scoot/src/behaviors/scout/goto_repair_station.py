@@ -14,22 +14,22 @@ def main(task=None):
             scoot = task
         else:
             scoot = task.scoot
-    rospy.loginfo('Goto Processing Plant Started')
-    home_pose = scoot.home_pose
+    rospy.loginfo('Goto Repair Station Started')
+    repair_station_pose = scoot.repair_station_pose
     go_to.main()
-    result = go_to.goto(home_pose.x, home_pose.y, 0, 0)
+    result = go_to.goto(repair_station_pose.x, repair_station_pose.y, 0, 0)
 
-    scoot.drive(0, ignore=Obstacles.IS_LIDAR|Obstacles.IS_VOLATILE)
+    scoot.drive(0, ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE)
     scoot.brake()
        
     if result:
-        rospy.loginfo('goto_processing_plant: succeeded')
+        rospy.loginfo('goto_repair_station: succeeded')
         sys.exit(0)
     else:
-        rospy.loginfo('goto_processing_plant: failed')
+        rospy.loginfo('goto_repair_station: failed')
         sys.exit(1)
 
 
 if __name__ == '__main__':
-    rospy.init_node('goto_processing_plant')
+    rospy.init_node('goto_repair_station')
     sys.exit(main())

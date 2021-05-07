@@ -173,7 +173,7 @@ class Scoot(object):
         self.true_pose_got = None
 
         self.OdomLocation = Location(None)
-        self.home_pose = Point()
+        self.repair_station_pose = Point()
         self.world_offset = None
         self.control = None
         self.control_data = None
@@ -207,7 +207,7 @@ class Scoot(object):
             our scoot.launch
             and matching with indexes from our Obstacles.msg '''
         self.VOL_TYPES = rospy.get_param("vol_types",
-                                         default=["ice", "ethene", "methane", "methanol", "carbon_dioxide", "ammonia",
+                                         default=["ice", "ethane", "methane", "methanol", "carbon_dioxide", "ammonia",
                                                   "hydrogen_sulfite", "sulfur_dioxide", "regolith"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
@@ -494,6 +494,8 @@ class Scoot(object):
         return self.__drive(req, **kwargs)
 
     def turn(self, theta, **kwargs):
+        if abs(theta) < math.pi / 16:
+            return
         req = MoveRequest(
             theta=theta,
         )

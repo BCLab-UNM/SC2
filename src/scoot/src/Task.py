@@ -53,8 +53,6 @@ class Task:
     PROG_GOTO_PROCESSING_PLANT = getattr(hauler,
                                          rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
 
-    ROUND_NUMBER = rospy.get_param('round', default=1)
-
     def __init__(self):
         self.scoot = None
         self.state_publisher = rospy.Publisher('/infoLog', String, queue_size=2, latch=False)
@@ -94,37 +92,23 @@ class Task:
         # @TODO create flow chart of behaviors and ensure match with state mech
         try:
             if self.scoot.rover_type == 'scout':
-
-                if self.ROUND_NUMBER == 1:
-                    # If all good then would go: search->fine_search->search
-                    if self.current_state == Task.STATE_SCOUT_SEARCH:
-                        if self.launch(self.PROG_SCOUT_SEARCH) == 0:
-                            rospy.loginfo('Search succeeded. Do Fine Search')
-                            self.current_state = Task.STATE_SCOUT_FINE_SEARCH
-                        else:
-                            rospy.loginfo('Search failed! Trying again')
-                            self.current_state = Task.STATE_SCOUT_SEARCH
-                    elif self.current_state == Task.STATE_SCOUT_FINE_SEARCH:
-                        if self.launch(self.PROG_SCOUT_FINE_SEARCH) == 0:
-                            rospy.loginfo('Fine Search succeeded. Starting search.')
-                            self.current_state = Task.STATE_SCOUT_SEARCH
-                        else:
-                            rospy.logwarn('Fine Search failed!')
-                            self.current_state = Task.STATE_SCOUT_SEARCH
+                # If all good then would go: search->fine_search->search
+                if self.current_state == Task.STATE_SCOUT_SEARCH:
+                    if self.launch(self.PROG_SCOUT_SEARCH) == 0:
+                        rospy.loginfo('Search succeeded. Do Fine Search')
+                        self.current_state = Task.STATE_SCOUT_FINE_SEARCH
                     else:
-                        rospy.logerr_throttle(20, "UNKNOWN Scout state: " + str(self.current_state))
-                elif self.ROUND_NUMBER == 3:
-                    if self.current_state == Task.STATE_SCOUT_SEARCH:
-                        if self.launch(self.PROG_SCOUT_SEARCH) == 0:
-                            rospy.loginfo('Search succeeded. Do Fine Search')
-                        else:
-                            rospy.loginfo('Search failed! Trying again')
-                    # If all good then would go: search->...
-                    # @TODO: state mech for scout's round 3
-                    #
+                        rospy.loginfo('Search failed! Trying again')
+                        self.current_state = Task.STATE_SCOUT_SEARCH
+                elif self.current_state == Task.STATE_SCOUT_FINE_SEARCH:
+                    if self.launch(self.PROG_SCOUT_FINE_SEARCH) == 0:
+                        rospy.loginfo('Fine Search succeeded. Starting search.')
+                        self.current_state = Task.STATE_SCOUT_SEARCH
+                    else:
+                        rospy.logwarn('Fine Search failed!')
+                        self.current_state = Task.STATE_SCOUT_SEARCH
                 else:
-                    rospy.logerr_throttle(20, 'Scout instance should not be running this round')
-
+                    rospy.logerr_throttle(20, "UNKNOWN Scout state: " + str(self.current_state))
             elif self.scoot.rover_type == 'hauler':
                 rospy.logwarn_once('Hauler behaviors are currently not implemented')
                 if self.current_state == Task.STATE_HAULER_GOTO_EXCAVATOR:
