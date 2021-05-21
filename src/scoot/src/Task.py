@@ -25,18 +25,21 @@ class Task:
     STATE_SCOUT_GOTO_PROCESSING_PLANT = 1
     STATE_SCOUT_HOME_ALIGNMENT = 2
     STATE_SCOUT_REORIENT = 3
+    STATE_SCOUT_REPAIR = 4
 
     STATE_EXCAVATOR_GOTO_VOLATILE = 0
     STATE_EXCAVATOR_DIG = 1
     STATE_EXCAVATOR_DROPOFF = 2
     STATE_EXCAVATOR_SEARCH = 3
     STATE_EXCAVATOR_REORIENT = 4
+    STATE_EXCAVATOR_REPAIR = 5
 
     STATE_HAULER_GOTO_EXCAVATOR = 0
     STATE_HAULER_WAITING = 1
     STATE_HAULER_DUMP = 2
     STATE_HAULER_GOTO_PROCESSING_PLANT = 3
     STATE_HAULER_REORIENT = 4
+    STATE_HAULER_REPAIR = 5
 
     # Function handles for all the behaviors so if the search param was set to searchRandomWalk
     # then PROG_SCOUT_SEARCH would be scout.searchRandomWalk.main this allows running alternative behaviors at launch
@@ -45,19 +48,22 @@ class Task:
     PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
     PROG_SCOUT_GOTO_PROCESSING_PLANT = getattr(scout, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
     PROG_SCOUT_REORIENT = getattr(scout, rospy.get_param('reorient', default='reorient')).main
+    PROG_SCOUT_REPAIR = getattr(scout, rospy.get_param('repair', default='repair')).main
     
     PROG_EXCAVATOR_SEARCH = getattr(excavator, rospy.get_param('waypoint_search', default='waypoint_search')).main
 
     PROG_EXCAVATOR_DIG = getattr(excavator, rospy.get_param('dig', default='dig')).main
     PROG_EXCAVATOR_DROPOFF = getattr(excavator, rospy.get_param('dropoff', default='dropoff')).main
     PROG_EXCAVATOR_GOTO_VOLATILE = getattr(excavator, rospy.get_param('goto_volatile', default='goto_volatile')).main
-    PROG_EXCAVATOR_REORIENT = getattr(scout, rospy.get_param('reorient', default='reorient')).main
+    PROG_EXCAVATOR_REORIENT = getattr(excavator, rospy.get_param('reorient', default='reorient')).main
+    PROG_EXCAVATOR_REPAIR = getattr(excavator, rospy.get_param('repair', default='repair')).main
 
     PROG_HAULER_DUMP = getattr(hauler, rospy.get_param('dump', default='dump')).main
     PROG_HAULER_GOTO_EXCAVATOR = getattr(hauler, rospy.get_param('goto_excavator', default='goto_excavator')).main
     PROG_GOTO_PROCESSING_PLANT = getattr(hauler,
                                          rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
-    PROG_HAULER_REORIENT = getattr(scout, rospy.get_param('reorient', default='reorient')).main
+    PROG_HAULER_REORIENT = getattr(hauler, rospy.get_param('reorient', default='reorient')).main
+    PROG_HAULER_REPAIR = getattr(hauler, rospy.get_param('repair', default='repair')).main
 
     def __init__(self):
         self.scoot = None
@@ -116,6 +122,9 @@ class Task:
                 elif self.current_state == Task.STATE_SCOUT_REORIENT:
                     if self.launch(self.PROG_SCOUT_REORIENT) == 0:
                         rospy.loginfo('Reorientation succeeded.')
+                elif self.current_state == Task.STATE_SCOUT_REPAIR:
+                    if self.launch(self.PROG_SCOUT_REPAIR) == 0:
+                        rospy.loginfo('Repair succeeded.')
                 else:
                     rospy.logerr_throttle(20, "UNKNOWN Scout state: " + str(self.current_state))
             elif self.scoot.rover_type == 'hauler':
@@ -149,6 +158,9 @@ class Task:
                 elif self.current_state == Task.STATE_HAULER_REORIENT:
                     if self.launch(self.PROG_HAULER_REORIENT) == 0:
                         rospy.loginfo('Reorientation succeeded.')
+                elif self.current_state == Task.STATE_HAULER_REPAIR:
+                    if self.launch(self.PROG_HAULER_REPAIR) == 0:
+                        rospy.loginfo('Repair succeeded.')
                 else:
                     rospy.logerr_throttle(20, "UNKNOWN Hauler state: " + str(self.current_state))
 
@@ -187,6 +199,9 @@ class Task:
                 elif self.current_state == Task.STATE_EXCAVATOR_REORIENT:
                     if self.launch(self.PROG_EXCAVATOR_REORIENT) == 0:
                         rospy.loginfo('Reorientation succeeded.')
+                elif self.current_state == Task.STATE_EXCAVATOR_REPAIR:
+                    if self.launch(self.PROG_EXCAVATOR_REPAIR) == 0:
+                        rospy.loginfo('Repair succeeded.')
                 else:
                     rospy.logerr_throttle(20, "UNKNOWN Excavator state: " + str(self.current_state))
             else:
