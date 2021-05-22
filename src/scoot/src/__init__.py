@@ -7,4 +7,5 @@ namespaces.
 from . import Scoot
 from . import Driver
 from . import repl
+from . import Logo_Detection
 from behaviors import *
