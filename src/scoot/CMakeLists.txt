@@ -178,6 +178,7 @@ catkin_install_python(PROGRAMS
   src/behaviors/scout/goto_waypoint.py
   src/behaviors/scout/goto_repair_station.py
   src/test_square.py
+  src/Logo_Detection.py
   
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )

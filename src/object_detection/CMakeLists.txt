@@ -163,7 +163,6 @@ include_directories(
 catkin_install_python(PROGRAMS
   src/Object_Detection.py
   src/Volatile_Detection.py
-  src/Logo_Detection.py
   src/Cubesat_Detection.py
   src/Leg_Detection.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
