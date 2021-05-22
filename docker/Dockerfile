@@ -25,7 +25,7 @@ RUN apt-get -qq update && \
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 RUN pip3 install --upgrade setuptools
-RUN pip3 install ipython future
+RUN pip3 install ipython future imutils scipy
 
 # Clear apt cache to save on space
 RUN rm -rf /var/lib/apt/lists/*
