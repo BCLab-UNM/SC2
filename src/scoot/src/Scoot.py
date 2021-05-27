@@ -672,6 +672,25 @@ class Scoot(object):
 
     # # # END HAULER SPECIFIC CODE # # #
 
+    def get_next_best_vol_pose(self):
+        # @SEE https://gitlab.com/scheducation/srcp2-final-public/-/wikis/1.-General/3.-Scoring-and-Objectives
+        pass  # @TODO Min Quantity and Priority Queue
+        rover_pose = self.get_odom_location().get_pose()
+        """
+        Look at /srcp2/score types_collected & masses_collected_kg list zip them
+        Minimum Required Quantity:
+        ice 60
+        carbon_dioxide 3
+        ammonia 4
+        hydrogen_sulfite 10
+        sulfur_dioxide 2
+        
+        Once Achieved priority queue score and distance weights:
+        ethane, methanol, methane
+        carbon_dioxide, ammonia
+        hydrogen_sulfite, sulfur_dioxide, ice
+        """
+
     def get_closest_vol_pose(self):
         while rospy.get_param("/volatile_locations_latch", default=False):
             rospy.sleep(0.2)  # wait for it be be unlatched
@@ -691,3 +710,16 @@ class Scoot(object):
         # where the min pose is at
         # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
         # vol_list.volatile_type[index])
+    
+    def remove_closest_vol_pose(self):
+        pass
+        while rospy.get_param("/volatile_locations_latch", default=False):
+            rospy.sleep(0.2)  # wait for it be be unlatched
+        rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+        volatile_locations = rospy.get_param("/volatile_locations", default=list())
+        rover_pose = self.get_odom_location().get_pose()
+        closest_vol_pose = min(volatile_locations,
+                               key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
+        volatile_locations.remove(closest_vol_pose)
+        rospy.set_param('/volatile_locations', volatile_locations)
+        rospy.set_param('/volatile_locations_latch', False)
