@@ -673,21 +673,19 @@ class Scoot(object):
     # # # END HAULER SPECIFIC CODE # # #
 
     def get_closest_vol_pose(self):
+        while rospy.get_param("/volatile_locations_latch", default=False):
+            rospy.sleep(0.2)  # wait for it be be unlatched
+        rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+        volatile_locations = rospy.get_param("/volatile_locations", default=list())
+        rospy.set_param('/volatile_locations_latch', False)
+        if not volatile_locations:  # No volatiles, behavior should then wait for non None return
+            return None
         rover_pose = self.get_odom_location().get_pose()
-        try:
-            vol_list = self.vol_list_service.call()
-        except (ServiceException, AttributeError):
-            rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
-            try:
-                vol_list = self.vol_list_service.call()
-                rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
-            except (ServiceException, AttributeError):
-                rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
-                return None
-        closest_vol_pose = min(vol_list.poses,
-                               key=lambda k: math.sqrt((k.x - rover_pose.x) ** 2 + (k.y - rover_pose.y) ** 2))
+        
+        closest_vol_pose = min(volatile_locations,
+                               key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
         rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
-        rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose.x) + ", y:" + str(closest_vol_pose.y))
+        rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose['x']) + ", y:" + str(closest_vol_pose['y']))
         return closest_vol_pose
         # If we wanted to return all the elements we would get the index from min or find the index
         # where the min pose is at
