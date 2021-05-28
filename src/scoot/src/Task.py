@@ -22,8 +22,8 @@ class Task:
     STATE_SCOUT_SEARCH = 0
     STATE_SCOUT_FINE_SEARCH = 1
 
-    STATE_SCOUT_GOTO_PROCESSING_PLANT = 1
-    STATE_SCOUT_HOME_ALIGNMENT = 2
+    #STATE_SCOUT_GOTO_PROCESSING_PLANT = 1
+    #STATE_SCOUT_HOME_ALIGNMENT = 2
     STATE_SCOUT_REORIENT = 3
     STATE_SCOUT_REPAIR = 4
 
@@ -45,8 +45,8 @@ class Task:
     # then PROG_SCOUT_SEARCH would be scout.searchRandomWalk.main this allows running alternative behaviors at launch
     PROG_SCOUT_SEARCH = getattr(scout, rospy.get_param('search', default='search')).main
     PROG_SCOUT_FINE_SEARCH = getattr(scout, rospy.get_param('fine_search', default='fine_search')).main
-    PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
-    PROG_SCOUT_GOTO_PROCESSING_PLANT = getattr(scout, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
+    #PROG_SCOUT_HOME_ALIGNMENT = getattr(scout, rospy.get_param('home_alignment', default='home_alignment')).main
+    #PROG_SCOUT_GOTO_PROCESSING_PLANT = getattr(scout, rospy.get_param('goto_processing_plant', default='goto_processing_plant')).main
     PROG_SCOUT_REORIENT = getattr(scout, rospy.get_param('reorient', default='reorient')).main
     PROG_SCOUT_REPAIR = getattr(scout, rospy.get_param('repair', default='repair')).main
     

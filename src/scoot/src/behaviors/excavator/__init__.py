@@ -3,3 +3,5 @@ from . import waypoint_search
 from . import goto_volatile
 from . import dig
 from . import dropoff
+from . import reorient
+from . import repair

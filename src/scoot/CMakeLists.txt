@@ -168,12 +168,18 @@ catkin_install_python(PROGRAMS
   src/behaviors/excavator/dig.py
   src/behaviors/excavator/dropoff.py
   src/behaviors/excavator/goto_volatile.py
+  src/behaviors/excavator/reorient.py
+  src/behaviors/excavator/repair.py
   src/behaviors/hauler/dump.py
   src/behaviors/hauler/goto_excavator.py
   src/behaviors/hauler/goto_processing_plant.py
+  src/behaviors/hauler/reorient.py
+  src/behaviors/hauler/repair.py
   src/behaviors/scout/fine_search.py
   src/behaviors/scout/search.py
   src/behaviors/scout/DDSA.py
+  src/behaviors/scout/reorient.py
+  src/behaviors/scout/repair.py
   src/behaviors/go_to.py
   src/behaviors/reorient.py
   src/behaviors/repair.py
