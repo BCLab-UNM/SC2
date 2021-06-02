@@ -16,6 +16,7 @@ def main(task=None):
     rospy.loginfo('Reorientation Started')
     scoot._look(0, math.pi - 0.01)
     scoot._look(0, -math.pi + 0.01)
+    scoot.look_forward()
     sys.exit(0)  # "succeeded"
 
 if __name__ == '__main__':
