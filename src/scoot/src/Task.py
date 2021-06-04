@@ -35,8 +35,8 @@ class Task:
     STATE_HAULER_DUMP = 2
     STATE_HAULER_GOTO_PROCESSING_PLANT = 3
 
-    STATE_REORIENT = 0
-    STATE_REPAIR = 1
+    STATE_REORIENT = 4
+    STATE_REPAIR = 5
     
     # Function handles for all the behaviors so if the search param was set to searchRandomWalk
     # then PROG_SCOUT_SEARCH would be scout.searchRandomWalk.main this allows running alternative behaviors at launch
