@@ -175,6 +175,8 @@ catkin_install_python(PROGRAMS
   src/behaviors/scout/search.py
   src/behaviors/scout/DDSA.py
   src/behaviors/go_to.py
+  src/behaviors/reorient.py
+  src/behaviors/repair.py
   src/behaviors/scout/goto_waypoint.py
   src/behaviors/scout/goto_repair_station.py
   src/test_square.py

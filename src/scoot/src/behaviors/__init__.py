@@ -3,3 +3,6 @@ from . import scout
 from . import excavator
 from . import hauler
 
+from . import reorient
+from . import repair
+
