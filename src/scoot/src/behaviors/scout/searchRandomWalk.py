@@ -50,15 +50,17 @@ def random_walk(num_moves):
     except VolatileException:
         rospy.logwarn("I found a volatile! " + scoot.VOL_TYPES[scoot.control_data])
         # locking behavior so only one is accessing or writing to the volatile_locations ros param at a time
-        while rospy.get_param("/volatile_locations_latch", default=False):
-            rospy.sleep(0.2)  # wait for it be be unlatched
-        rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
-        volatile_locations = rospy.get_param("/volatile_locations", default=list())
-        volatile_locations.append({'data': scoot.control_data,
-                                   'x': scoot.get_odom_location().get_pose().x,
-                                   'y': scoot.get_odom_location().get_pose().y})
-        rospy.set_param('/volatile_locations', volatile_locations)
-        rospy.set_param('/volatile_locations_latch', False)
+        try:
+            while rospy.get_param("/volatile_locations_latch", default=False):
+                rospy.sleep(0.2)  # wait for it be be unlatched
+            rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+            volatile_locations = rospy.get_param("/volatile_locations", default=list())
+            volatile_locations.append({'data': scoot.control_data,
+                                       'x': scoot.get_odom_location().get_pose().x,
+                                       'y': scoot.get_odom_location().get_pose().y})
+            rospy.set_param('/volatile_locations', volatile_locations)
+        finally:
+            rospy.set_param('/volatile_locations_latch', False)
 
         # move away before exiting
         ignoring |= Obstacles.IS_VOLATILE
