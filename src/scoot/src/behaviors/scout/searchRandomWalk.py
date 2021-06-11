@@ -27,8 +27,8 @@ def wander():
     global ignoring
     try:
         rospy.loginfo("Wandering...")
-        scoot.drive(random.gauss(4, 1), ignore=ignoring)
-        scoot.turn(random.gauss(-math.pi / 4, math.pi / 4), ignore=ignoring)
+        scoot.drive(random.gauss(25, 5), ignore=ignoring)
+        scoot.turn(random.gauss(-math.pi / 3, math.pi / 3), ignore=ignoring)
 
     except ObstacleException:
         rospy.loginfo("I saw an obstacle!")
