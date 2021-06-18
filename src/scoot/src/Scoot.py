@@ -692,11 +692,13 @@ class Scoot(object):
         """
 
     def get_closest_vol_pose(self):
-        while rospy.get_param("/volatile_locations_latch", default=False):
-            rospy.sleep(0.2)  # wait for it be be unlatched
-        rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
-        volatile_locations = rospy.get_param("/volatile_locations", default=list())
-        rospy.set_param('/volatile_locations_latch', False)
+        try:
+            while rospy.get_param("/volatile_locations_latch", default=False):
+                rospy.sleep(0.2)  # wait for it be be unlatched
+            rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+            volatile_locations = rospy.get_param("/volatile_locations", default=list())
+        finally:
+            rospy.set_param('/volatile_locations_latch', False)
         if not volatile_locations:  # No volatiles, behavior should then wait for non None return
             return None
         rover_pose = self.get_odom_location().get_pose()
@@ -712,14 +714,15 @@ class Scoot(object):
         # vol_list.volatile_type[index])
     
     def remove_closest_vol_pose(self):
-        pass
-        while rospy.get_param("/volatile_locations_latch", default=False):
-            rospy.sleep(0.2)  # wait for it be be unlatched
-        rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
-        volatile_locations = rospy.get_param("/volatile_locations", default=list())
-        rover_pose = self.get_odom_location().get_pose()
-        closest_vol_pose = min(volatile_locations,
-                               key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
-        volatile_locations.remove(closest_vol_pose)
-        rospy.set_param('/volatile_locations', volatile_locations)
-        rospy.set_param('/volatile_locations_latch', False)
+        try:
+            while rospy.get_param("/volatile_locations_latch", default=False):
+                rospy.sleep(0.2)  # wait for it be be unlatched
+            rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+            volatile_locations = rospy.get_param("/volatile_locations", default=list())
+            rover_pose = self.get_odom_location().get_pose()
+            closest_vol_pose = min(volatile_locations,
+                                   key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
+            volatile_locations.remove(closest_vol_pose)
+            rospy.set_param('/volatile_locations', volatile_locations)
+        finally:
+            rospy.set_param('/volatile_locations_latch', False)
