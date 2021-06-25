@@ -165,6 +165,7 @@ class Scoot(object):
         self.bucket_info_msg = None
         self.bin_info_msg = None
 
+        self.light_service = None
         self.localization_service = None
         self.model_state_service = None
         self.vol_list_service = None
@@ -222,6 +223,9 @@ class Scoot(object):
         rospy.wait_for_service('/' + self.rover_name + '/control')
         self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
+
+        rospy.wait_for_service('/' + self.rover_name + '/spot_light')
+        self.light_service = rospy.ServiceProxy('/' + self.rover_name + '/spot_light', srv.SpotLightSrv)
 
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
@@ -539,6 +543,31 @@ class Scoot(object):
 
     def look_back(self):
         self._look(0, math.pi)
+
+    def _light(self, state):
+        """ float 0 to 20 meters """
+        try:
+            self.light_service.call(range=state)
+        except rospy.ServiceException:
+            rospy.logerr("Light Service Exception: Light Service Failed to Respond")
+            try:
+                self.light_service.call(range=state)
+                rospy.logwarn("Second attempt to use lights was successful")
+            except rospy.ServiceException:
+                rospy.logerr("Light Service Exception: Second attempt failed to use lights")
+
+    def light_on(self):
+        self._light(20)
+
+    def light_low(self):
+        self._light(10)
+
+    def light_off(self):
+        self._light(0)
+
+    def light_intensity(self, intensity):
+        # Intensity needs to be a float interpreted from 0.0 to 1.0
+        self._light(float(intensity)*20)
 
     # # # EXCAVATOR SPECIFIC CODE # # #
     def bucket_info(self):
