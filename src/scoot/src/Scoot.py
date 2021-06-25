@@ -153,7 +153,6 @@ class Scoot(object):
         self.REVERSE_SPEED = 0
         self.VOL_TYPES = None
 
-        self.skid_topic = None
         self.sensor_pitch_control_topic = None
         self.sensor_yaw_control_topic = None
         self.shoulder_yaw_control = None
@@ -212,7 +211,6 @@ class Scoot(object):
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
-        # self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
         self.sensor_pitch_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/pitch/command/position',
                                                           Float64, queue_size=10)
         self.sensor_yaw_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/yaw/command/position', Float64,
