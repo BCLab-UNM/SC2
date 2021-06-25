@@ -39,7 +39,7 @@ class WheelEncoder:
         # self.track_width = 1.75 # meters
         self.track_width = 1 # meters
         self.sample_rate = 1
-        self.msg_min_delta = 0.1 # seconds <--- Changing this from 0.1 spoils the accuracy. That should not be the case!
+        self.msg_min_delta = 0.5 # seconds <--- Changing this from 0.1 spoils the accuracy. That should not be the case!
         self.message_count = 0
 
     def imuCallback(self, data):
@@ -157,22 +157,22 @@ class WheelEncoder:
         
         
         # first, we'll publish the transform over tf
-        self.odom_broadcaster.sendTransform(
-            (self.x, self.y, 0.),
-            odom_quat,
-            current_time,
-            "{}_tf/base_footprint".format(self.name),
-            "odom"
-        )
-
+        #self.odom_broadcaster.sendTransform(
+        #    (self.x, self.y, 0.),
+        #    odom_quat,
+        #    current_time,
+        #    "{}_/base_footprint".format(self.name),
+        #    "odom"
+        #)
+        
         # And link up the map
-        self.odom_broadcaster.sendTransform(
-            (0, 0, 0),
-            tf.transformations.quaternion_from_euler(0, 0, 0),
-            current_time,
-            "odom",
-            "map"
-        )
+        #self.odom_broadcaster.sendTransform(
+        #    (0, 0, 0),
+        #    tf.transformations.quaternion_from_euler(0, 0, 0),
+        #    current_time,
+        #    "odom",
+        #    "map"
+        #)
 
         # next, we'll publish the odometry message over ROS
         odom = Odometry()
@@ -183,7 +183,7 @@ class WheelEncoder:
         odom.pose.pose = Pose(Point(self.x, self.y, 0.), Quaternion(*odom_quat))
 
         # set the velocity
-        odom.child_frame_id = "{}_tf/base_footprint".format(self.name)
+        odom.child_frame_id = "{}_base_footprint".format(self.name)
         odom.twist.twist = Twist(Vector3(v_rx, v_ry, 0), Vector3(0, 0, v_rtheta))
 
         # publish the message

@@ -50,23 +50,23 @@
   </group>
   <node name="drive_controller" pkg="drive_controller" type="drive_controller.py">
   </node>
-    <!--
+
   <node pkg="robot_localization" type="ekf_localization_node" name="robot_localization_ekf_node_odom" clear_params="true">
     <param name="two_d_mode" value="true"/>
     <param name="publish_tf" value="true" />
     <param name="map_frame" value="map" />
     <param name="odom_frame" value="odom" />
 
-    <param name="base_link_frame" value="$(arg name)_tf/base_footprint"/>
+    <param name="base_link_frame" value="$(arg name)_base_footprint"/>
 
-    <param name="odom0" value="/small_scout_1/odom" />
+    <param name="odom0" value="$(arg name)/odom" />
     <rosparam param="odom0_config">[false, false, false,
                                     false, false, true,
                                     true, false, false,
                                     false, false, true,
                                     false, false, false]</rosparam>
 
-    <param name="imu0" value="/small_scout_1/imu" />
+    <param name="imu0" value="$(arg name)/imu" />
     <rosparam param="imu0_config">[false, false, false,
                                    false, false, true,
                                    false, false, false,
@@ -107,6 +107,5 @@
 
     <remap from="/odometry/filtered" to="$(arg name)/odometry/filtered"/>
   </node>
-   -->
 
 </launch>
