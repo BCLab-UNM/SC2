@@ -768,7 +768,7 @@ class Scoot(object):
         hydrogen_sulfite, sulfur_dioxide, ice
         """
 
-    def get_closest_vol_pose(self):
+    def get_closest_vol_point(self):
         try:
             while rospy.get_param("/volatile_locations_latch", default=False):
                 rospy.sleep(0.2)  # wait for it be be unlatched
@@ -790,7 +790,7 @@ class Scoot(object):
         # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
         # vol_list.volatile_type[index])
 
-    def remove_closest_vol_pose(self):
+    def remove_closest_vol(self):
         try:
             while rospy.get_param("/volatile_locations_latch", default=False):
                 rospy.sleep(0.2)  # wait for it be be unlatched
