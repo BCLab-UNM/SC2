@@ -23,7 +23,6 @@ def main(task=None):
     except VolatileException:
         sys.exit(0)  # "succeeded" # @TODO: might retest mass as this volatile might be almost exhausted
     # @TODO: obstacle avoidance calls should live here
-    scoot.brake()
     if scoot.OdomLocation.at_goal(vol_pose, 2.0):
         sys.exit(0)  # "succeeded"
     else:

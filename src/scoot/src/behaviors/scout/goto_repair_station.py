@@ -20,8 +20,6 @@ def main(task=None):
     result = go_to.goto(repair_station_pose.x, repair_station_pose.y, 0, 0)
 
     scoot.drive(0, ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE)
-    scoot.brake()
-       
     if result:
         rospy.loginfo('goto_repair_station: succeeded')
         sys.exit(0)

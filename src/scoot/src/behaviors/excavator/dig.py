@@ -19,7 +19,6 @@ def main(task=None):
         scoot = Scoot("excavator")
         scoot.start(node_name='dig')
     rospy.loginfo('Dig Started')
-    scoot.brake()
     # Check Bucket status
     if scoot.bucket_info().mass_in_bucket <= 10:
         # Reset to "home"

@@ -18,7 +18,6 @@ def main(task=None):
         scoot = Scoot("excavator")
         scoot.start(node_name='dropoff')
     rospy.loginfo('Dropoff Started')
-    scoot.brake()
     # @TODO check if have anything in bucket, verify state meh can can handle a value for said state
     # @TODO: check for message from hauler
     scoot.move_mount(math.pi)
