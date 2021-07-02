@@ -784,7 +784,8 @@ class Scoot(object):
                                key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
         rospy.loginfo(self.rover_name + ": rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
         rospy.loginfo(self.rover_name + ": get_closest_vol_pose: x:" + str(closest_vol_pose['x']) + ", y:" +
-        return closest_vol_pose
+                      str(closest_vol_pose['y']))
+        return Point(closest_vol_pose['x'], closest_vol_pose['y'], 0)
         # If we wanted to return all the elements we would get the index from min or find the index
         # where the min pose is at
         # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
