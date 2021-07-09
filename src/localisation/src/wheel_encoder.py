@@ -105,13 +105,13 @@ class WheelEncoder:
         v_left = omega_left * self.wheel_radius
         v_right = omega_right * self.wheel_radius
 
-        rospy.loginfo("Wheel Radius: ", self.wheel_radius)
+        rospy.loginfo("Wheel Radius: " + str(self.wheel_radius))
 
         v_rx = ( v_right + v_left ) / 2.0
         v_ry = 0
 
-        rospy.loginfo("Velocity: ", v_rx, " m/s")
-        rospy.loginfo("Yaw: ", self.theta)
+        rospy.loginfo("Velocity: " + str(v_rx) + " m/s")
+        rospy.loginfo("Yaw: " + str(self.theta))
         
         # We increase the track width by a factor of 4 to match empirical tests
         v_rtheta = ( v_right - v_left ) / 2*self.track_width
@@ -129,19 +129,19 @@ class WheelEncoder:
         v_wx = v_rx*cos(self.theta)
         v_wy = v_rx*sin(self.theta)
 
-        rospy.loginfo("X displacement: ", v_wx, " m")
-        rospy.loginfo("Y displacement: ", v_wy, " m")
-        rospy.loginfo("Delta_t: ", dt, " s")
+        rospy.loginfo("X displacement: " + str(v_wx) + " m")
+        rospy.loginfo("Y displacement: " + str(v_wy) + " m")
+        rospy.loginfo("Delta_t: " + str(dt) + " s")
 
-        rospy.loginfo("Back Left Wheel Angle: ", back_left_wheel_angle)
+        rospy.loginfo("Back Left Wheel Angle: " + str(back_left_wheel_angle))
         
         #v_wtheta = v_rtheta * dt 
                 
         self.x += v_wx*2*math.pi # I don't understand why this 2pi factor is needed
         self.y += v_wy*2*math.pi
 
-        rospy.loginfo("X coord: ", self.x)
-        rospy.loginfo("Y coord: ", self.y)
+        rospy.loginfo("X coord: " + str(self.x))
+        rospy.loginfo("Y coord: " + str(self.y))
 
         # Replaced with IMU theta
         #self.theta += v_wtheta
