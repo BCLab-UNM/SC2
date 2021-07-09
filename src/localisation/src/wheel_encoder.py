@@ -18,9 +18,9 @@ class WheelEncoder:
     def __init__(self):
         self.name = rospy.get_param('rover_name', default='small_scout_1')
 
-        print("Subscribing to /{}/imu".format(self.name))
-        print("Subscribing to /{}/joint_states".format(self.name))
-        print("Publishing to /{}/odom".format(self.name)) 
+        rospy.loginfo("Subscribing to /{}/imu".format(self.name))
+        rospy.loginfo("Subscribing to /{}/joint_states".format(self.name))
+        rospy.loginfo("Publishing to /{}/odom".format(self.name))
         
         rospy.Subscriber("/{}/imu".format(self.name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)
@@ -105,13 +105,13 @@ class WheelEncoder:
         v_left = omega_left * self.wheel_radius
         v_right = omega_right * self.wheel_radius
 
-        print("Wheel Radius: ", self.wheel_radius)
+        rospy.loginfo("Wheel Radius: ", self.wheel_radius)
 
         v_rx = ( v_right + v_left ) / 2.0
         v_ry = 0
 
-        print("Velocity: ", v_rx, " m/s") 
-        print("Yaw: ", self.theta)
+        rospy.loginfo("Velocity: ", v_rx, " m/s")
+        rospy.loginfo("Yaw: ", self.theta)
         
         # We increase the track width by a factor of 4 to match empirical tests
         v_rtheta = ( v_right - v_left ) / 2*self.track_width
@@ -129,19 +129,19 @@ class WheelEncoder:
         v_wx = v_rx*cos(self.theta)
         v_wy = v_rx*sin(self.theta)
 
-        print("X displacement: ", v_wx, " m")
-        print("Y displacement: ", v_wy, " m")
-        print("Delta_t: ", dt, " s")
+        rospy.loginfo("X displacement: ", v_wx, " m")
+        rospy.loginfo("Y displacement: ", v_wy, " m")
+        rospy.loginfo("Delta_t: ", dt, " s")
 
-        print("Back Left Wheel Angle: ", back_left_wheel_angle)
+        rospy.loginfo("Back Left Wheel Angle: ", back_left_wheel_angle)
         
         #v_wtheta = v_rtheta * dt 
                 
         self.x += v_wx*2*math.pi # I don't understand why this 2pi factor is needed
         self.y += v_wy*2*math.pi
 
-        print("X coord: ", self.x)
-        print("Y coord: ", self.y)
+        rospy.loginfo("X coord: ", self.x)
+        rospy.loginfo("Y coord: ", self.y)
 
         # Replaced with IMU theta
         #self.theta += v_wtheta
@@ -199,13 +199,13 @@ class WheelEncoder:
         self.previous_back_right_wheel_angle = back_right_wheel_angle
         
 def shutdownHandler():
-    print("Wheel encoder shutting down.")
+    rospy.loginfo("Wheel encoder shutting down.")
 
 if __name__ == '__main__':
     
     rospy.init_node('wheel_encoder', anonymous=True)
 
-    print("Wheel encoder node started")
+    rospy.loginfo("Wheel encoder node started")
     
     # Register shutdown handler (includes ctrl-c handling)
     rospy.on_shutdown( shutdownHandler )
