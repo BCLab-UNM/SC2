@@ -4,7 +4,7 @@
   <arg name="name" default="small_scout_1"/>
   <arg name="search" default="search"/>
   <arg name="mode" default="auto"/>
-  <rosparam param="vol_types">["ice", "ethene", "methane", "methanol", "carbon_dioxide", "ammonia", "hydrogen_sulfite", "sulfur_dioxide", "regolith"]</rosparam>
+  <rosparam param="vol_types">["ice", "ethane", "methane", "methanol", "carbon_dioxide", "ammonia", "hydrogen_sulfite", "sulfur_dioxide", "regolith"]</rosparam>
 
   <group ns="$(arg name)">
 
@@ -44,7 +44,7 @@
         <remap from="left/camera_info" to="camera/left/camera_info"/>
         <remap from="right/camera_info" to="camera/right/camera_info"/>
     </node>
-
+    
   </group>
   <node name="drive_controller" pkg="drive_controller" type="drive_controller.py">
   </node>

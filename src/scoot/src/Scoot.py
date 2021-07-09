@@ -19,6 +19,7 @@ from scoot.srv import Core
 odom_lock = threading.Lock()
 drive_lock = threading.Lock()
 joint_lock = threading.Lock()
+health_lock = threading.Lock()
 
 
 class DriveException(Exception):
@@ -152,8 +153,8 @@ class Scoot(object):
         self.DRIVE_SPEED = 0
         self.REVERSE_SPEED = 0
         self.VOL_TYPES = None
+        self.health = None
 
-        self.skid_topic = None
         self.sensor_pitch_control_topic = None
         self.sensor_yaw_control_topic = None
         self.shoulder_yaw_control = None
@@ -165,15 +166,18 @@ class Scoot(object):
         self.bucket_info_msg = None
         self.bin_info_msg = None
 
+        self.light_service = None
         self.localization_service = None
         self.model_state_service = None
         self.vol_list_service = None
+        self.power_saver_service = None
+        self.power_saver_state = False
 
         self.truePoseCalled = False
         self.true_pose_got = None
 
         self.OdomLocation = Location(None)
-        self.home_pose = Point()
+        self.repair_station_pose = Point()
         self.world_offset = None
         self.control = None
         self.control_data = None
@@ -207,12 +211,11 @@ class Scoot(object):
             our scoot.launch
             and matching with indexes from our Obstacles.msg '''
         self.VOL_TYPES = rospy.get_param("vol_types",
-                                         default=["ice", "ethene", "methane", "methanol", "carbon_dioxide", "ammonia",
+                                         default=["ice", "ethane", "methane", "methanol", "carbon_dioxide", "ammonia",
                                                   "hydrogen_sulfite", "sulfur_dioxide", "regolith"])
 
         #  @NOTE: when we use namespaces we wont need to have the rover_name
         # Create publishers.
-        # self.skid_topic = rospy.Publisher('/' + self.rover_name + '/skid_cmd_vel', Twist, queue_size=10)
         self.sensor_pitch_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/pitch/command/position',
                                                           Float64, queue_size=10)
         self.sensor_yaw_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/yaw/command/position', Float64,
@@ -223,8 +226,15 @@ class Scoot(object):
         self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
         rospy.loginfo("Done waiting for control service")
 
+        rospy.wait_for_service('/' + self.rover_name + '/spot_light')
+        self.light_service = rospy.ServiceProxy('/' + self.rover_name + '/spot_light', srv.SpotLightSrv)
+
         rospy.wait_for_service('/' + self.rover_name + '/get_true_pose')
         self.localization_service = rospy.ServiceProxy('/' + self.rover_name + '/get_true_pose', srv.LocalizationSrv)
+        rospy.wait_for_service('/' + self.rover_name + '/system_monitor/power_saver')
+        self.power_saver_service = rospy.ServiceProxy('/' + self.rover_name + '/system_monitor/power_saver',
+                                                      srv.SystemPowerSaveSrv)
+
         rospy.loginfo("Done waiting for general services")
         if self.rover_type == "scout":
             pass  # rospy.wait_for_service('/vol_detected_service')
@@ -250,6 +260,7 @@ class Scoot(object):
         rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odom', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/system_monitor', msg.SystemMonitorMsg, self._health)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
         rospy.Subscriber('/srcp2/score', msg.ScoreMsg, self._score)
         # Transform listener. Use this to transform between coordinate spaces.
@@ -260,6 +271,10 @@ class Scoot(object):
     @Sync(odom_lock)
     def _odom(self, message):
         self.OdomLocation.Odometry = message
+
+    @Sync(health_lock)
+    def _health(self, message):
+        self.health = message
 
     def _bin_info(self, message):
         self.bin_info_msg = message
@@ -289,7 +304,7 @@ class Scoot(object):
     @Sync(odom_lock)
     def get_true_pose(self):
         if self.truePoseCalled:
-            print("True pose already called once.")
+            rospy.logwarn("True pose already called once.")
             # @TODO if the rover has moved 2m+ might be more useful to apply the offset to odom and return that
             # as this assumes the rover has not moved since the prior call
             return self.true_pose_got
@@ -310,7 +325,36 @@ class Scoot(object):
 
                 return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
             except (rospy.ServiceException, AttributeError) as exc:
-                print("Service did not process request: " + str(exc))
+                rospy.logwarn("Service did not process request: " + str(exc))
+
+    @Sync(health_lock)
+    def get_power_level(self):
+        if self.health:
+            return self.health.power_level
+        rospy.logerr("No rover system_monitor messages received " +
+                     "please check system_monitor_enabled is set to true in the yaml")
+
+    @Sync(health_lock)
+    def is_solar_charging(self):
+        if self.health:
+            return self.health.solar_ok
+        rospy.logerr("No rover system_monitor messages received " +
+                     "please check system_monitor_enabled is set to true in the yaml")
+
+    def _power_saver(self, enabled):
+        self.power_saver_state = enabled
+        try:
+            result = self.power_saver_service(power_save=enabled)
+            rospy.loginfo(result.message)
+            return result.success
+        except (rospy.ServiceException, AttributeError) as exc:
+            rospy.logwarn("power_saver_enable service did not process request: " + str(exc))
+
+    def power_saver_on(self):
+        self._power_saver(True)
+
+    def power_saver_off(self):
+        self._power_saver(False)
 
     def transform_pose(self, target_frame, pose, timeout=3.0):
         """Transform PoseStamped into the target frame of reference.
@@ -494,6 +538,8 @@ class Scoot(object):
         return self.__drive(req, **kwargs)
 
     def turn(self, theta, **kwargs):
+        if abs(theta) < math.pi / 16:
+            return
         req = MoveRequest(
             theta=theta,
         )
@@ -537,6 +583,31 @@ class Scoot(object):
 
     def look_back(self):
         self._look(0, math.pi)
+
+    def _light(self, state):
+        """ float 0 to 20 meters """
+        try:
+            self.light_service.call(range=state)
+        except rospy.ServiceException:
+            rospy.logerr("Light Service Exception: Light Service Failed to Respond")
+            try:
+                self.light_service.call(range=state)
+                rospy.logwarn("Second attempt to use lights was successful")
+            except rospy.ServiceException:
+                rospy.logerr("Light Service Exception: Second attempt failed to use lights")
+
+    def light_on(self):
+        self._light(20)
+
+    def light_low(self):
+        self._light(10)
+
+    def light_off(self):
+        self._light(0)
+
+    def light_intensity(self, intensity):
+        # Intensity needs to be a float interpreted from 0.0 to 1.0
+        self._light(float(intensity)*20)
 
     # # # EXCAVATOR SPECIFIC CODE # # #
     def bucket_info(self):
@@ -670,24 +741,57 @@ class Scoot(object):
 
     # # # END HAULER SPECIFIC CODE # # #
 
-    def get_closest_vol_pose(self):
+    def get_next_best_vol_pose(self):
+        # @SEE https://gitlab.com/scheducation/srcp2-final-public/-/wikis/1.-General/3.-Scoring-and-Objectives
+        pass  # @TODO Min Quantity and Priority Queue
         rover_pose = self.get_odom_location().get_pose()
+        """
+        Look at /srcp2/score types_collected & masses_collected_kg list zip them
+        Minimum Required Quantity:
+        ice 60
+        carbon_dioxide 3
+        ammonia 4
+        hydrogen_sulfite 10
+        sulfur_dioxide 2
+        
+        Once Achieved priority queue score and distance weights:
+        ethane, methanol, methane
+        carbon_dioxide, ammonia
+        hydrogen_sulfite, sulfur_dioxide, ice
+        """
+
+    def get_closest_vol_pose(self):
         try:
-            vol_list = self.vol_list_service.call()
-        except (ServiceException, AttributeError):
-            rospy.logerr("get_closest_vol_pose: vol_list_service call failed")
-            try:
-                vol_list = self.vol_list_service.call()
-                rospy.logwarn("get_closest_vol_pose: vol_list_service call succeeded")
-            except (ServiceException, AttributeError):
-                rospy.logerr("get_closest_vol_pose: vol_list_service call failed second time, giving up")
-                return None
-        closest_vol_pose = min(vol_list.poses,
-                               key=lambda k: math.sqrt((k.x - rover_pose.x) ** 2 + (k.y - rover_pose.y) ** 2))
+            while rospy.get_param("/volatile_locations_latch", default=False):
+                rospy.sleep(0.2)  # wait for it be be unlatched
+            rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+            volatile_locations = rospy.get_param("/volatile_locations", default=list())
+        finally:
+            rospy.set_param('/volatile_locations_latch', False)
+        if not volatile_locations:  # No volatiles, behavior should then wait for non None return
+            return None
+        rover_pose = self.get_odom_location().get_pose()
+
+        closest_vol_pose = min(volatile_locations,
+                               key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
         rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
-        rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose.x) + ", y:" + str(closest_vol_pose.y))
+        rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose['x']) + ", y:" + str(closest_vol_pose['y']))
         return closest_vol_pose
         # If we wanted to return all the elements we would get the index from min or find the index
         # where the min pose is at
         # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
         # vol_list.volatile_type[index])
+
+    def remove_closest_vol_pose(self):
+        try:
+            while rospy.get_param("/volatile_locations_latch", default=False):
+                rospy.sleep(0.2)  # wait for it be be unlatched
+            rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+            volatile_locations = rospy.get_param("/volatile_locations", default=list())
+            rover_pose = self.get_odom_location().get_pose()
+            closest_vol_pose = min(volatile_locations,
+                                   key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
+            volatile_locations.remove(closest_vol_pose)
+            rospy.set_param('/volatile_locations', volatile_locations)
+        finally:
+            rospy.set_param('/volatile_locations_latch', False)

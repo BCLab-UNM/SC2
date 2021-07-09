@@ -15,7 +15,8 @@ M_PI = M_PI_2 * 2
 class DriveController:
 
     def __init__(self):
-        self.rover_name = 'small_scout_1'
+        self.rover_namespace = rospy.get_namespace()
+        self.rover_name = self.rover_namespace.strip('/')
         
         rospy.Subscriber('/' + self.rover_name + '/cmd_vel', Twist, self._drive)
     

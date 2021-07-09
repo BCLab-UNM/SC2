@@ -271,7 +271,7 @@ class State:
                                         cur.theta) + self.Doing.request.y * math.sin(cur.theta)
                                     self.Goal.y = cur.y + self.Doing.request.x * math.sin(
                                         cur.theta) + self.Doing.request.y * math.cos(cur.theta)
-                            elif req_theta > State.ROTATE_THRESHOLD:  # Turn
+                            elif abs(req_theta) > State.ROTATE_THRESHOLD:  # Turn
                                 self.CurrentState = State.STATE_TURN
                                 self.Goal.theta = cur.theta + req_theta
                                 if self.Doing.request.angular > State.TURN_SPEED_MAX:
@@ -298,6 +298,7 @@ class State:
                         else:
                             self.drive(0, 0, self.Doing.request.angular, State.DRIVE_MODE_PID)
                     else:
+                        self.Goal = None
                         self.CurrentState = State.STATE_IDLE
                         self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
                 elif self.CurrentState == State.STATE_DRIVE:
