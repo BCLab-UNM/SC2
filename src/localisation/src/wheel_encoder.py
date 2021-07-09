@@ -20,11 +20,11 @@ class WheelEncoder:
 
         rospy.loginfo("Subscribing to /{}/imu".format(self.name))
         rospy.loginfo("Subscribing to /{}/joint_states".format(self.name))
-        rospy.loginfo("Publishing to /{}/odom".format(self.name))
+        rospy.loginfo("Publishing to /{}/odom/wheel".format(self.name))
         
         rospy.Subscriber("/{}/imu".format(self.name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)
-        self.odom_pub = rospy.Publisher("/{}/odom".format(self.name), Odometry, queue_size=50)
+        self.odom_pub = rospy.Publisher("/{}/odom/wheel".format(self.name), Odometry, queue_size=50)
         self.odom_broadcaster = tf.TransformBroadcaster()
         self.last_time = rospy.Time.now()  
         self.x = 0

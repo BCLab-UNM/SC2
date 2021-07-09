@@ -234,7 +234,7 @@ class Dist:
     
 
 def init_listener():
-    rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, estimated_location_handler)
+    rospy.Subscriber('/small_scout_1/odom', Odometry, estimated_location_handler)
     rospy.Subscriber('/small_scout_1/laser/scan', LaserScan, lidar_handler)
     rospy.Subscriber("/small_scout_1/imu", Imu, imu_handler)
     rospy.Subscriber('/small_scout_1/obstacle', Obstacles, obstacle_handler)
@@ -666,8 +666,8 @@ def bug_algorithm(tx, ty, bug_type):
     global stats_printed
     global total_time_start
     
-    print "Waiting for location data on '/small_scout_1/odom/filtered...'"
-    rospy.wait_for_message('/small_scout_1/odom/filtered', Odometry,)
+    print "Waiting for location data on '/small_scout_1/odom...'"
+    rospy.wait_for_message('/small_scout_1/odom', Odometry,)
     print "... received."
 
     print("Waiting for break service...")

@@ -106,7 +106,7 @@ class State:
         # Subscribers
         rospy.Subscriber('/' + self.rover_name + '/obstacle', Obstacles, self._obstacle)
         rospy.Subscriber('/' + self.rover_name + '/detections', Detection, self._vision)
-        rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/odom', Odometry, self._odom)
 
         # Services 
         self.control = rospy.Service('control', Core, self._control)

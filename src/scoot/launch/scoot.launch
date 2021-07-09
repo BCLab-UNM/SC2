@@ -59,7 +59,7 @@
 
     <param name="base_link_frame" value="$(arg name)_base_footprint"/>
 
-    <param name="odom0" value="$(arg name)/odom" />
+    <param name="odom0" value="$(arg name)/odom/wheel" />
     <rosparam param="odom0_config">[false, false, false,
                                     false, false, true,
                                     true, false, false,
@@ -105,7 +105,7 @@
                                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0,
                                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1]</rosparam>
 
-    <remap from="/odometry/filtered" to="$(arg name)/odometry/filtered"/>
+    <remap from="/odom" to="$(arg name)/odom"/>
   </node>
 
 </launch>

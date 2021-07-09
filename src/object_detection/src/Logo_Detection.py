@@ -33,7 +33,7 @@ class LogoDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/small_scout_1/points2', PointCloud2, self.pc_callback)
-		self.scoot_odom_subscriber = rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, self.odom_callback)
+		self.scoot_odom_subscriber = rospy.Subscriber('/small_scout_1/odom', Odometry, self.odom_callback)
 		self.left_camera_subscriber = message_filters.Subscriber('/small_scout_1/camera/left/image_raw', Image)
 
 		self.logo_detection_image_left_publisher = rospy.Publisher('/small_scout_1/logo_detections/image/left', Image, queue_size=100)
