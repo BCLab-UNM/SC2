@@ -271,7 +271,7 @@ class State:
                                         cur.theta) + self.Doing.request.y * math.sin(cur.theta)
                                     self.Goal.y = cur.y + self.Doing.request.x * math.sin(
                                         cur.theta) + self.Doing.request.y * math.cos(cur.theta)
-                            elif req_theta > State.ROTATE_THRESHOLD:  # Turn
+                            elif abs(req_theta) > State.ROTATE_THRESHOLD:  # Turn
                                 self.CurrentState = State.STATE_TURN
                                 self.Goal.theta = cur.theta + req_theta
                                 if self.Doing.request.angular > State.TURN_SPEED_MAX:
