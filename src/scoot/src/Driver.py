@@ -298,6 +298,7 @@ class State:
                         else:
                             self.drive(0, 0, self.Doing.request.angular, State.DRIVE_MODE_PID)
                     else:
+                        self.Goal = None
                         self.CurrentState = State.STATE_IDLE
                         self.drive(0, 0, 0, State.DRIVE_MODE_STOP)
                 elif self.CurrentState == State.STATE_DRIVE:

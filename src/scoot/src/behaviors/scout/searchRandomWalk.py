@@ -9,8 +9,7 @@ import random
 from obstacle.msg import Obstacles
 from scoot.msg import MoveResult
 
-from Scoot import VolatileException, ObstacleException, PathException, AbortException, MoveResult, \
-    VisionVolatileException, CubesatException, HomeLegException, HomeLogoException, DriveException, Scoot
+from Scoot import VolatileException, ObstacleException, PathException, AbortException, MoveResult, DriveException, Scoot
 
 ignoring = 0
 
@@ -18,30 +17,18 @@ ignoring = 0
 def turnaround(ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE):
     global scoot
     global ignoring
-    scoot.drive(-0.275 * 2, ignore=ignore | ignoring | Obstacles.CUBESAT)  # back up by wheel diameter
-
-    if scoot.ROUND_NUMBER == 3 and not scoot.cubesat_found:
-        scoot.lookUp()
+    scoot.drive(-0.275 * 2, ignore=ignore | ignoring)  # back up by wheel diameter
     scoot.turn(random.gauss(math.pi / 2, math.pi / 4), ignore=ignore | ignoring)
-    scoot.lookForward()
+    scoot._look(math.pi / 7, 0)  # look down-ish pi/8 did not see the rocks and pi/6 saw the ground
 
 
 def wander():
     global scoot
     global ignoring
     try:
-        # Look up and spin around looking for cubesat if not found
-        if scoot.ROUND_NUMBER == 3 and not scoot.cubesat_found:
-            rospy.loginfo("Spinning...")
-            scoot.lookUp()
-            # if this finds a cubesat it will go down to random_walk's except CubesatException handler
-            heading = scoot.get_odom_location().get_pose().theta
-            scoot.timed_drive(20, 0, scoot.TURN_SPEED, ignore=ignoring)
-            scoot.set_heading(heading, ignore=ignoring)  # restore heading
-            scoot.lookForward()
         rospy.loginfo("Wandering...")
-        # @NOTE: The cubesat has a lot of false positives when not looking up
-        scoot.drive(random.gauss(4, 1), ignore=ignoring | Obstacles.CUBESAT)
+        scoot.drive(random.gauss(4, 1), ignore=ignoring)
+        scoot.turn(random.gauss(-math.pi / 4, math.pi / 4), ignore=ignoring)
 
     except ObstacleException:
         rospy.loginfo("I saw an obstacle!")
@@ -52,7 +39,9 @@ def wander():
 def random_walk(num_moves):
     """Do random walk `num_moves` times."""
     global scoot
-    scoot.lookForward()
+    global ignoring
+    scoot._look(math.pi / 7, 0)  # look down-ish pi/8 did not see the rocks and pi/6 saw the ground
+    rospy.sleep(3)  # @TODO look at joint state to se if sleep is needed
     try:
         for move in range(num_moves):
             if rospy.is_shutdown():
@@ -60,65 +49,29 @@ def random_walk(num_moves):
             wander()
     except VolatileException:
         rospy.logwarn("I found a volatile! " + scoot.VOL_TYPES[scoot.control_data])
-        res = scoot.score(scoot.control_data)
-        if not res:
-            rospy.logwarn("Turning around")
-            turnaround()
-            rospy.sleep(.5)
+        # locking behavior so only one is accessing or writing to the volatile_locations ros param at a time
+        try:
+            while rospy.get_param("/volatile_locations_latch", default=False):
+                rospy.sleep(0.2)  # wait for it be be unlatched
+            rospy.set_param('/volatile_locations_latch', True)  # this is to support multiple rovers
+            volatile_locations = rospy.get_param("/volatile_locations", default=list())
+            volatile_locations.append({'data': scoot.control_data,
+                                       'x': scoot.get_odom_location().get_pose().x,
+                                       'y': scoot.get_odom_location().get_pose().y})
+            rospy.set_param('/volatile_locations', volatile_locations)
+        finally:
+            rospy.set_param('/volatile_locations_latch', False)
+
+        # move away before exiting
+        ignoring |= Obstacles.IS_VOLATILE
+        wander()
         rospy.logwarn('Exiting')
         sys.exit(0)
-    except VisionVolatileException as e:
-        pass  # @NOTE: not going to use until odom is good
-    except CubesatException as e:
-        rospy.loginfo("Found CubeSat waiting")
-        scoot.brake()
-        # scoot.turn(-e.heading, ignore=ignoring | Obstacles.CUBESAT | Obstacles.IS_LIDAR)
-        rospy.sleep(3)
-        try:
-            scoot.timed_drive(5, 0, 0.1, ignore=ignoring)  # so we can update the cubesat point if its still in view
-        except DriveException:
-            pass
-        scoot.brake()
-        scoot.score_cubesat()
-        scoot.lookForward()
-        sys.exit(0)
-    except HomeLegException as e:
-        rospy.loginfo("Found Home's leg turning to center and going to")
-        # turn and drive to it, score
-        try:
-            scoot.turn(-e.heading, ignore=Obstacles.HOME_LEG | ignoring | Obstacles.IS_LIDAR)
-            scoot.drive(e.distance, ignore=Obstacles.HOME_LEG | ignoring)
-        except HomeLogoException as e:
-            home_exception_behavior(e)
-        except ObstacleException:
-            # back up by wheel diameter
-            scoot.drive(-0.275 * 2, ignore=Obstacles.IS_LIDAR | Obstacles.IS_VOLATILE | ignoring | Obstacles.CUBESAT)
-        finally:
-            scoot.brake()
-        scoot.score_home_arrive()
-        sys.exit(0)
-    except HomeLogoException as e:
-        home_exception_behavior(e)
-        sys.exit(0)
-
-
-def home_exception_behavior(e):
-    global ignoring
-    rospy.loginfo("Found Home's Logo turning to center and going to")
-    # turn and drive to it, score
-    try:
-        scoot.turn(-e.heading, ignore=ignoring | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG)
-        scoot.drive(e.distance, ignore=ignoring | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG)
-    except ObstacleException:
-        pass  # This is expected as we are driving until we run into the logo
-    finally:
-        scoot.brake()
-    scoot.score_home_aligned()
 
 
 def main(task=None):
     global scoot
-    global ignoring  # this is based on the round and phase of the round
+    global ignoring
     if task:
         if type(task) == Scoot:
             scoot = task
@@ -128,19 +81,12 @@ def main(task=None):
         scoot = Scoot("small_scout_1")
         scoot.start(node_name='search')
     rospy.loginfo("Search Node Started")
-    ignoring = 0
-    if scoot.ROUND_NUMBER == 1:
-        ignoring |= Obstacles.CUBESAT | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG | Obstacles.VISION_VOLATILE
-    elif scoot.ROUND_NUMBER == 3:
-        ignoring |= Obstacles.VOLATILE | Obstacles.VISION_VOLATILE
-        if not scoot.cubesat_found:
-            ignoring |= Obstacles.HOME_LEG | Obstacles.HOME_FIDUCIAL
-        elif not scoot.home_arrived:
-            ignoring |= Obstacles.CUBESAT
+    # reset ignoring
+    ignoring = Obstacles.CUBESAT | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG | Obstacles.VISION_VOLATILE
 
     random_walk(num_moves=50)
     scoot.brake()
-    rospy.loginfo("I'm probably lost!")
+    rospy.loginfo("I'm probably lost!")  # @ TODO add a reorient state in the task state meh
     sys.exit(1)
 
 
