@@ -44,10 +44,9 @@
         <remap from="left/camera_info" to="camera/left/camera_info"/>
         <remap from="right/camera_info" to="camera/right/camera_info"/>
     </node>
+
+    <node name="drive_controller" pkg="drive_controller" type="drive_controller.py"></node>
   </group>
-  
-  <node name="drive_controller" pkg="drive_controller" type="drive_controller.py">
-  </node>
   
   <node pkg="robot_localization" type="ekf_localization_node" name="robot_localization_ekf_node_odom" clear_params="true">
     <param name="two_d_mode" value="true"/>
