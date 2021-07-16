@@ -36,9 +36,9 @@ def run():
     delta_f_w = dist(fake, wheel)  
     while not rospy.is_shutdown():
         rospy.sleep(0.3)
-        print "delta_f_e:", delta_f_e - dist(fake, ekf)
-        print "delta_w_e:", delta_w_e - dist(wheel, ekf)
-        print "delta_f_w:", delta_f_w - dist(fake, wheel)
+        print("delta_f_e:", delta_f_e - dist(fake, ekf))
+        print("delta_w_e:", delta_w_e - dist(wheel, ekf))
+        print("delta_f_w:", delta_f_w - dist(fake, wheel))
 
 if __name__ == '__main__':
     run()
