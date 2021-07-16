@@ -7,7 +7,7 @@ from gazebo_msgs.srv import GetModelState
 
 def publish_fake_odom():
     rover_name = rospy.get_param('rover_name', default='small_scout_1')
-    pub = rospy.Publisher('/' + rover_name + '/odometry/filtered', Odometry, queue_size=10)
+    pub = rospy.Publisher('/' + rover_name + '/odom/fake', Odometry, queue_size=10)
     rospy.init_node('odom', anonymous=True)
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():

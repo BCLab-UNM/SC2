@@ -35,7 +35,7 @@ class CubesatDetection(object):
 		self.bridge = CvBridge()
 
 		self.point_cloud_subscriber = rospy.Subscriber('/small_scout_1/points2', PointCloud2, self.pc_callback)
-		# self.scoot_odom_subscriber = rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, self.odom_callback)
+		# self.scoot_odom_subscriber = rospy.Subscriber('/small_scout_1/odom', Odometry, self.odom_callback)
 		self.left_camera_subscriber = rospy.Subscriber('/small_scout_1/camera/left/image_raw', Image, self.cam_callback)
 
 		self.cubesat_detection_image_left_publisher = rospy.Publisher('/small_scout_1/cubesat_detections/image/left', Image, queue_size=100)

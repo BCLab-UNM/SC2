@@ -26,9 +26,9 @@ def run():
     global wheel
     global fake
     global ekf
-    rospy.Subscriber('/small_scout_1/odom/', Odometry, _wheel)
-    rospy.Subscriber('/small_scout_1/odom/filtered', Odometry, _fake)
-    rospy.Subscriber('/small_scout_1/odometry/filtered', Odometry, _ekf)
+    rospy.Subscriber('/small_scout_1/odom/wheel', Odometry, _wheel)
+    rospy.Subscriber('/small_scout_1/odom/fake', Odometry, _fake)
+    rospy.Subscriber('/small_scout_1/odom', Odometry, _ekf)
     rospy.init_node("odom_dif_test")
     rospy.sleep(0.5)
     delta_f_e = dist(fake, ekf)
@@ -36,9 +36,9 @@ def run():
     delta_f_w = dist(fake, wheel)  
     while not rospy.is_shutdown():
         rospy.sleep(0.3)
-        print "delta_f_e:", delta_f_e - dist(fake, ekf)
-        print "delta_w_e:", delta_w_e - dist(wheel, ekf)
-        print "delta_f_w:", delta_f_w - dist(fake, wheel)
+        print("delta_f_e:", delta_f_e - dist(fake, ekf))
+        print("delta_w_e:", delta_w_e - dist(wheel, ekf))
+        print("delta_f_w:", delta_f_w - dist(fake, wheel))
 
 if __name__ == '__main__':
     run()

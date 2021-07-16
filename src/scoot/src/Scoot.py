@@ -259,7 +259,7 @@ class Scoot(object):
 
         rospy.loginfo("Done waiting for rover specific services")
         # Subscribe to topics.
-        rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
+        rospy.Subscriber('/' + self.rover_name + '/odom', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/system_monitor', msg.SystemMonitorMsg, self._health)
         rospy.Subscriber('/' + self.rover_name + '/joint_states', JointState, self._joint_states)
         rospy.Subscriber('/srcp2/score', msg.ScoreMsg, self._score)

@@ -2,6 +2,7 @@
 
 # Generates odometry from wheel poses 
 
+import math 
 import sys
 import tf.transformations as transform
 from sensor_msgs.msg import JointState, Imu
@@ -17,9 +18,13 @@ class WheelEncoder:
     def __init__(self):
         self.name = rospy.get_param('rover_name', default='small_scout_1')
 
+        rospy.loginfo("Subscribing to /{}/imu".format(self.name))
+        rospy.loginfo("Subscribing to /{}/joint_states".format(self.name))
+        rospy.loginfo("Publishing to /{}/odom/wheel".format(self.name))
+        
         rospy.Subscriber("/{}/imu".format(self.name), Imu, self.imuCallback)
         rospy.Subscriber("/{}/joint_states".format(self.name), JointState, self.jointStatesCallback)
-        self.odom_pub = rospy.Publisher("/{}/odom".format(self.name), Odometry, queue_size=50)
+        self.odom_pub = rospy.Publisher("/{}/odom/wheel".format(self.name), Odometry, queue_size=50)
         self.odom_broadcaster = tf.TransformBroadcaster()
         self.last_time = rospy.Time.now()  
         self.x = 0
@@ -29,9 +34,12 @@ class WheelEncoder:
         self.previous_front_right_wheel_angle = 0
         self.previous_back_left_wheel_angle = 0
         self.previous_back_right_wheel_angle = 0
-        self.wheel_radius = 0.27 # meters
-        self.track_width = 1.75 # meters
+        #self.wheel_radius = 0.27 # meters
+        self.wheel_radius = 0.17 # meters
+        # self.track_width = 1.75 # meters
+        self.track_width = 1 # meters
         self.sample_rate = 1
+        self.msg_min_delta = 0.5 # seconds <--- Changing this from 0.1 spoils the accuracy. That should not be the case!
         self.message_count = 0
 
     def imuCallback(self, data):
@@ -41,7 +49,7 @@ class WheelEncoder:
             data.orientation.z,
             data.orientation.w)
         roll, pitch, yaw = transform.euler_from_quaternion(q) # in [-pi, pi]
-        self.theta = yaw
+        self.theta = yaw + 0.78 # rotate 45 degrees 
 
         
     def jointStatesCallback(self, data):
@@ -51,15 +59,20 @@ class WheelEncoder:
 
         if self.message_count % self.sample_rate != 0:
             return
-        
-        back_left_wheel_angle = data.position[ data.name.index('bl_wheel_joint') ]
-        back_right_wheel_angle = data.position[ data.name.index('br_wheel_joint') ]
-        front_left_wheel_angle = data.position[ data.name.index('fl_wheel_joint') ]
-        front_right_wheel_angle = data.position[ data.name.index('fr_wheel_joint') ]
+
+        # Divide by 180 to get radians
+        back_left_wheel_angle = data.position[ data.name.index('bl_wheel_joint') ]*math.pi/180
+        back_right_wheel_angle = data.position[ data.name.index('br_wheel_joint') ]*math.pi/180
+        front_left_wheel_angle = data.position[ data.name.index('fl_wheel_joint') ]*math.pi/180
+        front_right_wheel_angle = data.position[ data.name.index('fr_wheel_joint') ]*math.pi/180
         
         current_time = rospy.Time.now()  
         dt = (current_time - self.last_time).to_sec()
-                
+
+        # Check that sufficient time has passed to avoid duplicate time stamps
+        if dt < self.msg_min_delta: # Specify the minimum time between messages for function execution (to prevent timestamp warning killing the repl)
+            return
+        
         ### Calculate angular velocity ###
         
         # Angular displacement in radians - could use all four wheels, start with just two
@@ -92,10 +105,16 @@ class WheelEncoder:
         v_left = omega_left * self.wheel_radius
         v_right = omega_right * self.wheel_radius
 
-        v_rx = ( v_right + v_left ) /2
+        rospy.loginfo("Wheel Radius: " + str(self.wheel_radius))
+
+        v_rx = ( v_right + v_left ) / 2.0
         v_ry = 0
+
+        rospy.loginfo("Velocity: " + str(v_rx) + " m/s")
+        rospy.loginfo("Yaw: " + str(self.theta))
+        
         # We increase the track width by a factor of 4 to match empirical tests
-        v_rtheta = ( v_right - v_left ) / self.track_width
+        v_rtheta = ( v_right - v_left ) / 2*self.track_width
         
         # Velocities and pose in the odom frame
         # The velocities expressed in the robot base frame can be transformed into the odom frame. 
@@ -103,43 +122,57 @@ class WheelEncoder:
         # We are operating in the x-y plane, we ignore altitude - which will result in errors as the robot climbs up and down.
         # Integrate the velocities over time (multiply by the time differential dt and sum)
 
-        v_wx = (v_rx * cos(self.theta) - v_ry * sin(self.theta)) * dt
-        v_wy = (v_rx * sin(self.theta) + v_ry * cos(self.theta)) * dt
-        #v_wx = v_rx*cos(self.theta+v_rtheta/2)
-        #v_wy = v_rx*sin(self.theta+v_rtheta/2)
+        #v_wx = (v_rx * cos(self.theta) - v_ry * sin(self.theta)) * dt
+        #v_wy = (v_rx * sin(self.theta) + v_ry * cos(self.theta)) * dt
 
-        v_wtheta = v_rtheta * dt 
+        # We know our heading from the imu - no need to calculate it from wheel velocities
+        v_wx = v_rx*cos(self.theta)
+        v_wy = v_rx*sin(self.theta)
+
+        rospy.loginfo("X displacement: " + str(v_wx) + " m")
+        rospy.loginfo("Y displacement: " + str(v_wy) + " m")
+        rospy.loginfo("Delta_t: " + str(dt) + " s")
+
+        rospy.loginfo("Back Left Wheel Angle: " + str(back_left_wheel_angle))
+        
+        #v_wtheta = v_rtheta * dt 
                 
-        self.x += v_wx
-        self.y += v_wy
+        self.x += v_wx*2*math.pi # I don't understand why this 2pi factor is needed
+        self.y += v_wy*2*math.pi
+
+        rospy.loginfo("X coord: " + str(self.x))
+        rospy.loginfo("Y coord: " + str(self.y))
 
         # Replaced with IMU theta
         #self.theta += v_wtheta
         
         # Composing your odometry message
-
+        
         # The odometry message contains pose and twist information. The pose represents your current robot pose in the the odom frame (x, y, theta).
                 
         # since all odometry is 6DOF we'll need a quaternion created from yaw
         odom_quat = tf.transformations.quaternion_from_euler(0, 0, self.theta)
 
+        # Check if the timestamp will be different
+        
+        
         # first, we'll publish the transform over tf
-        self.odom_broadcaster.sendTransform(
-            (self.x, self.y, 0.),
-            odom_quat,
-            current_time,
-            "{}_tf/base_footprint".format(self.name),
-            "odom"
-        )
-
+        #self.odom_broadcaster.sendTransform(
+        #    (self.x, self.y, 0.),
+        #    odom_quat,
+        #    current_time,
+        #    "{}_/base_footprint".format(self.name),
+        #    "odom"
+        #)
+        
         # And link up the map
-        self.odom_broadcaster.sendTransform(
-            (0, 0, 0),
-            tf.transformations.quaternion_from_euler(0, 0, 0),
-            current_time,
-            "odom",
-            "map"
-        )
+        #self.odom_broadcaster.sendTransform(
+        #    (0, 0, 0),
+        #    tf.transformations.quaternion_from_euler(0, 0, 0),
+        #    current_time,
+        #    "odom",
+        #    "map"
+        #)
 
         # next, we'll publish the odometry message over ROS
         odom = Odometry()
@@ -150,7 +183,7 @@ class WheelEncoder:
         odom.pose.pose = Pose(Point(self.x, self.y, 0.), Quaternion(*odom_quat))
 
         # set the velocity
-        odom.child_frame_id = "{}_tf/base_footprint".format(self.name)
+        odom.child_frame_id = "{}_base_footprint".format(self.name)
         odom.twist.twist = Twist(Vector3(v_rx, v_ry, 0), Vector3(0, 0, v_rtheta))
 
         # publish the message
@@ -163,15 +196,17 @@ class WheelEncoder:
         self.previous_front_left_wheel_angle = front_left_wheel_angle                                
         self.previous_front_right_wheel_angle = front_right_wheel_angle
         self.previous_back_left_wheel_angle = back_left_wheel_angle
-        self.previous_back_right_wheel_angle = back_right_wheel_angle                                
+        self.previous_back_right_wheel_angle = back_right_wheel_angle
         
 def shutdownHandler():
-    print("Wheel encoder shutting down.")
+    rospy.loginfo("Wheel encoder shutting down.")
 
 if __name__ == '__main__':
     
     rospy.init_node('wheel_encoder', anonymous=True)
 
+    rospy.loginfo("Wheel encoder node started")
+    
     # Register shutdown handler (includes ctrl-c handling)
     rospy.on_shutdown( shutdownHandler )
 
