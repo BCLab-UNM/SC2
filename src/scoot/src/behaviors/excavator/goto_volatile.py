@@ -3,6 +3,7 @@
 
 import sys
 import rospy
+import math
 from Scoot import Scoot, Location, VolatileException, ObstacleException
 
 def main(task=None):
@@ -15,6 +16,8 @@ def main(task=None):
         scoot = Scoot("excavator")
         scoot.start(node_name='goto_volatile')
     rospy.loginfo('Goto Volatile Started')
+    scoot.move_shoulder_yaw(-math.pi)
+    rospy.sleep(3)
     vol_pose = scoot.get_closest_vol_point()
     # @TODO make a while loop or change state meh
     if vol_pose:
