@@ -441,7 +441,10 @@ class Scoot(object):
                                                  math.atan2(place.y - loc.y,
                                                             place.x - loc.x))
         effective_dist = dist - forward_offset
-
+        
+        if abs(angle) > .05:
+            self.turn(angle, **kwargs)
+        
         if effective_dist < 0:
             # The driver API skips the turn state if the request distance is
             # negative. This ensures the rover will perform the turn before
