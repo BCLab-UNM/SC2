@@ -5,4 +5,27 @@
         <arg name="search" value="searchRandomWalk"/>
         <arg name="mode" value="auto"/>
     </include>
+    <include file="$(find scoot)/launch/scoot.launch">
+        <arg name="name" value="small_scout_2"/>
+        <arg name="search" value="searchRandomWalk"/>
+        <arg name="mode" value="auto"/>
+    </include>
+    <include file="$(find scoot)/launch/scoot.launch">
+        <arg name="name" value="small_scout_3"/>
+        <arg name="search" value="searchRandomWalk"/>
+        <arg name="mode" value="auto"/>
+    </include>
+    <include file="$(find scoot)/launch/scoot.launch">
+        <arg name="name" value="small_scout_4"/>
+        <arg name="search" value="searchRandomWalk"/>
+        <arg name="mode" value="auto"/>
+    </include>
+    <include file="$(find scoot)/launch/scoot.launch">
+        <arg name="name" value="small_excavator_1"/>
+        <arg name="mode" value="auto"/>
+    </include>
+    <include file="$(find scoot)/launch/scoot.launch">
+        <arg name="name" value="small_hauler_1"/>
+        <arg name="mode" value="auto"/>
+    </include>
 </launch>

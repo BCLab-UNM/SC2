@@ -221,10 +221,10 @@ class Scoot(object):
         self.sensor_yaw_control_topic = rospy.Publisher('/' + self.rover_name + '/sensor/yaw/command/position', Float64,
                                                         queue_size=10)
         # Connect to services.
-        rospy.loginfo("Waiting for control service")
+        rospy.loginfo(self.rover_name + ": Waiting for control service")
         rospy.wait_for_service('/' + self.rover_name + '/control')
         self.control = rospy.ServiceProxy('/' + self.rover_name + '/control', Core)
-        rospy.loginfo("Done waiting for control service")
+        rospy.loginfo(self.rover_name + ": Done waiting for control service")
 
         rospy.wait_for_service('/' + self.rover_name + '/spot_light')
         self.light_service = rospy.ServiceProxy('/' + self.rover_name + '/spot_light', srv.SpotLightSrv)
@@ -235,7 +235,7 @@ class Scoot(object):
         self.power_saver_service = rospy.ServiceProxy('/' + self.rover_name + '/system_monitor/power_saver',
                                                       srv.SystemPowerSaveSrv)
 
-        rospy.loginfo("Done waiting for general services")
+        rospy.loginfo(self.rover_name + ": Done waiting for general services")
         if self.rover_type == "scout":
             pass  # rospy.wait_for_service('/vol_detected_service')
         elif self.rover_type == "excavator":
@@ -257,7 +257,7 @@ class Scoot(object):
                                                queue_size=10)
             # rospy.Subscriber('/' + self.rover_name + '/bin_info', msg.HaulerMsg, self._bin_info)
 
-        rospy.loginfo("Done waiting for rover specific services")
+        rospy.loginfo(self.rover_name + ": Done waiting for rover specific services")
         # Subscribe to topics.
         rospy.Subscriber('/' + self.rover_name + '/odometry/filtered', Odometry, self._odom)
         rospy.Subscriber('/' + self.rover_name + '/system_monitor', msg.SystemMonitorMsg, self._health)
@@ -266,7 +266,7 @@ class Scoot(object):
         # Transform listener. Use this to transform between coordinate spaces.
         # Transform messages must predate any sensor messages so initialize this first.
         self.xform = tf.TransformListener()
-        rospy.loginfo("Scoot Ready")
+        rospy.loginfo(self.rover_name + ": Scoot Ready")
 
     @Sync(odom_lock)
     def _odom(self, message):
@@ -294,8 +294,8 @@ class Scoot(object):
     def get_joint_pos(self, joint_name):
         if joint_name in self.joint_states.name:
             return self.joint_states.position[self.joint_states.name.index(joint_name)]
-        rospy.logerr("get_joint_state: unknown joint:" + str(joint_name))
-        rospy.loginfo("get_joint_state: valid joints" + str(self.joint_states.name))
+        rospy.logerr(self.rover_name + ": get_joint_state: unknown joint:" + str(joint_name))
+        rospy.loginfo(self.rover_name + ": get_joint_state: valid joints" + str(self.joint_states.name))
 
     @Sync(odom_lock)
     def get_odom_location(self):
@@ -304,7 +304,7 @@ class Scoot(object):
     @Sync(odom_lock)
     def get_true_pose(self):
         if self.truePoseCalled:
-            rospy.logwarn("True pose already called once.")
+            rospy.logwarn(self.rover_name + ": True pose already called once.")
             # @TODO if the rover has moved 2m+ might be more useful to apply the offset to odom and return that
             # as this assumes the rover has not moved since the prior call
             return self.true_pose_got
@@ -312,7 +312,7 @@ class Scoot(object):
             try:
                 self.truePoseCalled = True
                 self.true_pose_got = self.localization_service(call=True).pose
-                rospy.logwarn("true_pose_got:")
+                rospy.logwarn(self.rover_name + ": true_pose_got:")
                 rospy.logwarn(self.true_pose_got.position)
                 odom_p = self.OdomLocation.Odometry.pose.pose.position
                 odom_o = self.OdomLocation.Odometry.pose.pose.orientation
@@ -325,30 +325,30 @@ class Scoot(object):
 
                 return self.true_pose_got  # @TODO might save this as a rosparam so if scoot crashes
             except (rospy.ServiceException, AttributeError) as exc:
-                rospy.logwarn("Service did not process request: " + str(exc))
+                rospy.logwarn(self.rover_name + ": Service did not process request: " + str(exc))
 
     @Sync(health_lock)
     def get_power_level(self):
         if self.health:
             return self.health.power_level
-        rospy.logerr("No rover system_monitor messages received " +
+        rospy.logerr(self.rover_name + ": No rover system_monitor messages received " +
                      "please check system_monitor_enabled is set to true in the yaml")
 
     @Sync(health_lock)
     def is_solar_charging(self):
         if self.health:
             return self.health.solar_ok
-        rospy.logerr("No rover system_monitor messages received " +
+        rospy.logerr(self.rover_name + ": No rover system_monitor messages received " +
                      "please check system_monitor_enabled is set to true in the yaml")
 
     def _power_saver(self, enabled):
         self.power_saver_state = enabled
         try:
             result = self.power_saver_service(power_save=enabled)
-            rospy.loginfo(result.message)
+            rospy.loginfo(self.rover_name + result.message)
             return result.success
         except (rospy.ServiceException, AttributeError) as exc:
-            rospy.logwarn("power_saver_enable service did not process request: " + str(exc))
+            rospy.logwarn(self.rover_name + ": power_saver_enable service did not process request: " + str(exc))
 
     def power_saver_on(self):
         self._power_saver(True)
@@ -441,7 +441,10 @@ class Scoot(object):
                                                  math.atan2(place.y - loc.y,
                                                             place.x - loc.x))
         effective_dist = dist - forward_offset
-
+        
+        if abs(angle) > .05:
+            self.turn(angle, **kwargs)
+        
         if effective_dist < 0:
             # The driver API skips the turn state if the request distance is
             # negative. This ensures the rover will perform the turn before
@@ -451,7 +454,7 @@ class Scoot(object):
 
         req = MoveRequest(
             theta=angle,
-            r=effective_dist,
+            x=effective_dist,
         )
         return self.__drive(req, **kwargs)
 
@@ -589,12 +592,12 @@ class Scoot(object):
         try:
             self.light_service.call(range=state)
         except rospy.ServiceException:
-            rospy.logerr("Light Service Exception: Light Service Failed to Respond")
+            rospy.logerr(self.rover_name + ": Light Service Exception: Light Service Failed to Respond")
             try:
                 self.light_service.call(range=state)
-                rospy.logwarn("Second attempt to use lights was successful")
+                rospy.logwarn(self.rover_name + ": Second attempt to use lights was successful")
             except rospy.ServiceException:
-                rospy.logerr("Light Service Exception: Second attempt failed to use lights")
+                rospy.logerr(self.rover_name + ": Light Service Exception: Second attempt failed to use lights")
 
     def light_on(self):
         self._light(20)
@@ -612,7 +615,7 @@ class Scoot(object):
     # # # EXCAVATOR SPECIFIC CODE # # #
     def bucket_info(self):
         if self.rover_type != "excavator":
-            rospy.logerr("bucket_info:" + self.rover_type + " is not an excavator")
+            rospy.logerr(self.rover_name + ": bucket_info:" + self.rover_type + " is not an excavator")
         return self.bucket_info_msg  # last message from the bucket_info topic bucket_info srcp2_msgs/ExcavatorMsg
 
     @Sync(joint_lock)
@@ -622,13 +625,15 @@ class Scoot(object):
         @NOTE: Effort Limits are ignored
         """
         if self.rover_type != "excavator":
-            rospy.logerr("move_shoulder_yaw:" + self.rover_type + " is not an excavator")
+            rospy.logerr(self.rover_name + ": move_shoulder_yaw:" + self.rover_type + " is not an excavator")
             return
         if angle > math.pi:
-            rospy.logerr("move_shoulder_yaw:" + str(angle) + " exceeds allowed limits moving to max position")
+            rospy.logerr(self.rover_name + ": move_shoulder_yaw:" + str(angle) + "exceeds allowed limits moving to "
+                                                                                 "max position")
             angle = math.pi  # max
         elif angle < -math.pi:
-            rospy.logerr("move_shoulder_yaw:" + str(angle) + " exceeds allowed limits moving to minimum position")
+            rospy.logerr(self.rover_name + ": move_shoulder_yaw:" + str(angle) + "exceeds allowed limits moving to "
+                                                                                 "minimum position")
             angle = -math.pi  # min
         self.shoulder_yaw_control.publish(angle)  # publishes angle on the shoulder_yaw_joint_controller/command topic
 
@@ -640,14 +645,16 @@ class Scoot(object):
         @NOTE: Effort Limits are ignored
         """
         if self.rover_type != "excavator":
-            rospy.logerr("move_shoulder_pitch:" + self.rover_type + " is not an excavator")
+            rospy.logerr(self.rover_name + ": move_shoulder_pitch:" + self.rover_type + " is not an excavator")
             return
         # checking bounds
         if angle > (3 * math.pi / 8.0):
-            rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to max position")
+            rospy.logerr(self.rover_name + ": move_shoulder_pitch:" + str(angle) + "exceeds allowed limits moving to "
+                                                                                   "max position")
             angle = 3 * math.pi / 8.0  # max
         elif angle < (-3 * math.pi / 8.0):
-            rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to minimum position")
+            rospy.logerr(self.rover_name + ": move_shoulder_pitch:" + str(angle) + "exceeds allowed limits moving to "
+                                                                                   "minimum position")
             angle = -3 * math.pi / 8.0  # min
         self.shoulder_pitch_control.publish(angle)
 
@@ -658,14 +665,16 @@ class Scoot(object):
         @NOTE: Effort Limits are ignored
         """
         if self.rover_type != "excavator":
-            rospy.logerr("move_elbow_pitch:" + self.rover_type + " is not an excavator")
+            rospy.logerr(self.rover_name + ": move_elbow_pitch:" + self.rover_type + " is not an excavator")
             return
         # checking bounds
         if angle > (7 * math.pi / 8.0):  # @NOTE: or its elbow_pitch_joint: 7pi/8 != pi/4 as the wiki says
-            rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to max position")
+            rospy.logerr(self.rover_name + ": move_shoulder_pitch:" + str(angle) + "exceeds allowed limits moving to "
+                                                                                   "max position")
             angle = 7 * math.pi / 8.0  # max
         elif angle < (-math.pi / 4.0):
-            rospy.logerr("move_shoulder_pitch:" + str(angle) + " exceeds allowed limits moving to minimum position")
+            rospy.logerr(self.rover_name + ": move_shoulder_pitch:" + str(angle) + "exceeds allowed limits moving to "
+                                                                                   "minimum position")
             angle = -math.pi / 4.0  # min
         self.elbow_pitch_control.publish(angle)
 
@@ -674,18 +683,20 @@ class Scoot(object):
         # checking bounds
         if self.rover_type == "excavator":
             if angle > (2 * math.pi / 3.0):
-                rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to max position")
+                rospy.logerr(self.rover_name + ": move_bucket:" + str(angle) + "exceeds allowed limits moving to max "
+                                                                               "position")
                 angle = 2 * math.pi / 3.0  # max
             elif angle < (-2 * math.pi / 3.0):
-                rospy.logerr("move_bucket:" + str(angle) + " exceeds allowed limits moving to minimum position")
+                rospy.logerr(self.rover_name + ": move_bucket:" + str(angle) + "exceeds allowed limits moving to "
+                                                                               "minimum position")
                 angle = -2 * math.pi / 3.0  # min
             self.bucket_control.publish(angle)
             return
-        rospy.logerr("move_bucket:" + self.rover_type + " is not an excavator")
+        rospy.logerr(self.rover_name + ": move_bucket:" + self.rover_type + " is not an excavator")
 
     def get_shoulder_yaw_angle(self):
         if self.rover_type != "excavator":
-            rospy.logerr("get_shoulder_yaw_angle:" + self.rover_type + " is not an excavator")
+            rospy.logerr(self.rover_name + ": get_shoulder_yaw_angle:" + self.rover_type + " is not an excavator")
             return
         return self.get_joint_pos("shoulder_yaw_joint")
 
@@ -712,14 +723,14 @@ class Scoot(object):
     # # # HAULER SPECIFIC CODE # # #
     def bin_info(self):
         if self.rover_type != "hauler":
-            rospy.logerr("bin_info:" + self.rover_type + " is not a hauler")
+            rospy.logerr(self.rover_name + ": bin_info:" + self.rover_type + " is not a hauler")
             return
         return self.score.hauler_volatile_score
 
     @Sync(joint_lock)
     def move_bin(self, angle):
         if self.rover_type != "hauler":
-            rospy.logerr("move_bin:" + self.rover_type + " is not a hauler")
+            rospy.logerr(self.rover_name + ": move_bin:" + self.rover_type + " is not a hauler")
             return
         if angle < 0:
             angle = 0
@@ -735,7 +746,7 @@ class Scoot(object):
 
     def get_bin_angle(self):
         if self.rover_type != "hauler":
-            rospy.logerr("get_bin_angle:" + self.rover_type + " is not a hauler")
+            rospy.logerr(self.rover_name + ": get_bin_angle:" + self.rover_type + " is not a hauler")
             return
         return self.get_joint_pos("bin_joint")
 
@@ -760,7 +771,7 @@ class Scoot(object):
         hydrogen_sulfite, sulfur_dioxide, ice
         """
 
-    def get_closest_vol_pose(self):
+    def get_closest_vol_point(self):
         try:
             while rospy.get_param("/volatile_locations_latch", default=False):
                 rospy.sleep(0.2)  # wait for it be be unlatched
@@ -774,15 +785,16 @@ class Scoot(object):
 
         closest_vol_pose = min(volatile_locations,
                                key=lambda k: math.sqrt((k['x'] - rover_pose.x) ** 2 + (k['y'] - rover_pose.y) ** 2))
-        rospy.loginfo("rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
-        rospy.loginfo("get_closest_vol_pose: x:" + str(closest_vol_pose['x']) + ", y:" + str(closest_vol_pose['y']))
-        return closest_vol_pose
+        rospy.loginfo(self.rover_name + ": rover pose:           x:" + str(rover_pose.x) + ", y:" + str(rover_pose.y))
+        rospy.loginfo(self.rover_name + ": get_closest_vol_pose: x:" + str(closest_vol_pose['x']) + ", y:" +
+                      str(closest_vol_pose['y']))
+        return Point(closest_vol_pose['x'], closest_vol_pose['y'], 0)
         # If we wanted to return all the elements we would get the index from min or find the index
         # where the min pose is at
         # (vol_list.poses[index], vol_list.is_shadowed[index], vol_list.starting_mass[index],
         # vol_list.volatile_type[index])
 
-    def remove_closest_vol_pose(self):
+    def remove_closest_vol(self):
         try:
             while rospy.get_param("/volatile_locations_latch", default=False):
                 rospy.sleep(0.2)  # wait for it be be unlatched

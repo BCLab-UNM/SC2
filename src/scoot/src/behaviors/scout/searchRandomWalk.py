@@ -85,7 +85,6 @@ def main(task=None):
     ignoring = Obstacles.CUBESAT | Obstacles.HOME_FIDUCIAL | Obstacles.HOME_LEG | Obstacles.VISION_VOLATILE
 
     random_walk(num_moves=50)
-    scoot.brake()
     rospy.loginfo("I'm probably lost!")  # @ TODO add a reorient state in the task state meh
     sys.exit(1)
 
